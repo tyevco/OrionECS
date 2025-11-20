@@ -186,6 +186,18 @@ export class Engine {
         return this.entityManager.getEntityByName(name);
     }
 
+    getEntityByNumericId(id: number): Entity | undefined {
+        return this.entityManager.getEntityByNumericId(id);
+    }
+
+    findEntity(predicate: (entity: Entity) => boolean): Entity | undefined {
+        return this.entityManager.findEntity(predicate);
+    }
+
+    findEntities(predicate: (entity: Entity) => boolean): Entity[] {
+        return this.entityManager.findEntities(predicate);
+    }
+
     // ========== Component Management ==========
 
     registerComponent<T>(type: ComponentIdentifier<T>): void {

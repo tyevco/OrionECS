@@ -613,6 +613,7 @@ export class EntityManager {
     private activeEntities: Map<symbol, Entity> = new Map();
     private entitiesByTag: Map<string, Set<Entity>> = new Map();
     private entitiesByName: Map<string, Entity> = new Map();
+    private entitiesByNumericId: Map<number, Entity> = new Map();
     private entityPool: Pool<Entity>;
     private entitiesToDelete: Set<Entity> = new Set();
 
@@ -647,6 +648,9 @@ export class EntityManager {
             this.entitiesByName.set(name, entity);
         }
 
+        // Add to numeric ID index
+        this.entitiesByNumericId.set(entity.numericId, entity);
+
         this.updateEntityTags(entity);
         this.eventEmitter.emit('onEntityCreated', entity);
         return entity;
@@ -660,6 +664,9 @@ export class EntityManager {
         if (entity.name) {
             this.entitiesByName.delete(entity.name);
         }
+
+        // Remove from numeric ID index
+        this.entitiesByNumericId.delete(entity.numericId);
 
         // Remove from tag indices
         for (const tag of entity.tags) {
@@ -725,6 +732,29 @@ export class EntityManager {
         return this.entitiesByName.get(name);
     }
 
+    getEntityByNumericId(id: number): Entity | undefined {
+        return this.entitiesByNumericId.get(id);
+    }
+
+    findEntity(predicate: (entity: Entity) => boolean): Entity | undefined {
+        for (const entity of this.activeEntities.values()) {
+            if (predicate(entity)) {
+                return entity;
+            }
+        }
+        return undefined;
+    }
+
+    findEntities(predicate: (entity: Entity) => boolean): Entity[] {
+        const results: Entity[] = [];
+        for (const entity of this.activeEntities.values()) {
+            if (predicate(entity)) {
+                results.push(entity);
+            }
+        }
+        return results;
+    }
+
     private updateEntityTags(entity: Entity): void {
         // Remove entity from all tag indices
         for (const [tag, entities] of this.entitiesByTag) {
@@ -754,6 +784,7 @@ export class EntityManager {
         this.activeEntities.clear();
         this.entitiesByTag.clear();
         this.entitiesByName.clear();
+        this.entitiesByNumericId.clear();
         this.entitiesToDelete.clear();
     }
 }

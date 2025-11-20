@@ -14,6 +14,7 @@ export {
     Entity,
     Query,
     System,
+    SystemGroup,
     Pool,
     ComponentArray,
     MessageBus,

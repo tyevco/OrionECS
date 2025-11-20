@@ -1509,4 +1509,210 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(entity.hasComponent(PlayerTag)).toBe(true);
         });
     });
+
+    describe('System Groups', () => {
+        test('should create system groups', () => {
+            engine.createSystemGroup('Input', { priority: 1000 });
+            engine.createSystemGroup('Logic', { priority: 500 });
+
+            // Groups should be created successfully
+            expect(() => {
+                engine.createSystemGroup('Render', { priority: 100 });
+            }).not.toThrow();
+        });
+
+        test('should not allow duplicate group names', () => {
+            engine.createSystemGroup('TestGroup', { priority: 100 });
+
+            expect(() => {
+                engine.createSystemGroup('TestGroup', { priority: 200 });
+            }).toThrow("System group 'TestGroup' already exists");
+        });
+
+        test('should create systems in groups', () => {
+            engine.createSystemGroup('Input', { priority: 1000 });
+            engine.createSystemGroup('Logic', { priority: 500 });
+
+            let inputRan = false;
+            let logicRan = false;
+
+            engine.createSystem('InputSystem', { all: [] }, {
+                before: () => { inputRan = true; },
+                group: 'Input'
+            });
+
+            engine.createSystem('LogicSystem', { all: [] }, {
+                before: () => { logicRan = true; },
+                group: 'Logic'
+            });
+
+            engine.update(16);
+
+            expect(inputRan).toBe(true);
+            expect(logicRan).toBe(true);
+        });
+
+        test('should execute systems in group priority order', () => {
+            const executionOrder: string[] = [];
+
+            engine.createSystemGroup('Input', { priority: 1000 });
+            engine.createSystemGroup('Logic', { priority: 500 });
+            engine.createSystemGroup('Render', { priority: 100 });
+
+            engine.createSystem('InputSystem', { all: [] }, {
+                before: () => { executionOrder.push('Input'); },
+                group: 'Input'
+            });
+
+            engine.createSystem('LogicSystem', { all: [] }, {
+                before: () => { executionOrder.push('Logic'); },
+                group: 'Logic'
+            });
+
+            engine.createSystem('RenderSystem', { all: [] }, {
+                before: () => { executionOrder.push('Render'); },
+                group: 'Render'
+            });
+
+            engine.update(16);
+
+            // Higher priority groups execute first
+            expect(executionOrder).toEqual(['Input', 'Logic', 'Render']);
+        });
+
+        test('should execute systems within groups by system priority', () => {
+            const executionOrder: string[] = [];
+
+            engine.createSystemGroup('Logic', { priority: 500 });
+
+            engine.createSystem('LowPrioritySystem', { all: [] }, {
+                before: () => { executionOrder.push('Low'); },
+                priority: 10,
+                group: 'Logic'
+            });
+
+            engine.createSystem('HighPrioritySystem', { all: [] }, {
+                before: () => { executionOrder.push('High'); },
+                priority: 100,
+                group: 'Logic'
+            });
+
+            engine.createSystem('MediumPrioritySystem', { all: [] }, {
+                before: () => { executionOrder.push('Medium'); },
+                priority: 50,
+                group: 'Logic'
+            });
+
+            engine.update(16);
+
+            // Within a group, higher priority systems execute first
+            expect(executionOrder).toEqual(['High', 'Medium', 'Low']);
+        });
+
+        test('should disable system groups', () => {
+            engine.createSystemGroup('Input', { priority: 1000 });
+            engine.createSystemGroup('Logic', { priority: 500 });
+
+            let inputRan = false;
+            let logicRan = false;
+
+            engine.createSystem('InputSystem', { all: [] }, {
+                before: () => { inputRan = true; },
+                group: 'Input'
+            });
+
+            engine.createSystem('LogicSystem', { all: [] }, {
+                before: () => { logicRan = true; },
+                group: 'Logic'
+            });
+
+            // Disable Logic group
+            engine.disableSystemGroup('Logic');
+
+            engine.update(16);
+
+            expect(inputRan).toBe(true);
+            expect(logicRan).toBe(false); // Logic group was disabled
+        });
+
+        test('should enable system groups', () => {
+            engine.createSystemGroup('Logic', { priority: 500 });
+
+            let logicRan = false;
+
+            engine.createSystem('LogicSystem', { all: [] }, {
+                before: () => { logicRan = true; },
+                group: 'Logic'
+            });
+
+            // Disable then re-enable
+            engine.disableSystemGroup('Logic');
+            engine.update(16);
+            expect(logicRan).toBe(false);
+
+            logicRan = false;
+            engine.enableSystemGroup('Logic');
+            engine.update(16);
+            expect(logicRan).toBe(true);
+        });
+
+        test('should support systems without groups alongside grouped systems', () => {
+            const executionOrder: string[] = [];
+
+            engine.createSystemGroup('Input', { priority: 1000 });
+
+            engine.createSystem('GroupedSystem', { all: [] }, {
+                before: () => { executionOrder.push('Grouped'); },
+                group: 'Input'
+            });
+
+            engine.createSystem('UngroupedSystem', { all: [] }, {
+                before: () => { executionOrder.push('Ungrouped'); },
+                priority: 500
+            });
+
+            engine.update(16);
+
+            // Both should execute
+            expect(executionOrder).toContain('Grouped');
+            expect(executionOrder).toContain('Ungrouped');
+        });
+
+        test('should throw error when creating system with non-existent group', () => {
+            expect(() => {
+                engine.createSystem('TestSystem', { all: [] }, {
+                    act: () => {},
+                    group: 'NonExistentGroup'
+                });
+            }).toThrow("System group 'NonExistentGroup' not found");
+        });
+
+        test('should throw error when enabling non-existent group', () => {
+            expect(() => {
+                engine.enableSystemGroup('NonExistentGroup');
+            }).toThrow("System group 'NonExistentGroup' not found");
+        });
+
+        test('should throw error when disabling non-existent group', () => {
+            expect(() => {
+                engine.disableSystemGroup('NonExistentGroup');
+            }).toThrow("System group 'NonExistentGroup' not found");
+        });
+
+        test('should work with fixed update systems in groups', () => {
+            const executionOrder: string[] = [];
+
+            engine.createSystemGroup('Physics', { priority: 1000 });
+
+            engine.createSystem('PhysicsSystem', { all: [] }, {
+                before: () => { executionOrder.push('Physics'); },
+                group: 'Physics'
+            }, true); // Fixed update
+
+            engine.update(17); // 17ms > 16.66ms (60 FPS interval)
+
+            // Should execute in fixed update
+            expect(executionOrder).toContain('Physics');
+        });
+    });
 });

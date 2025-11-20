@@ -13,6 +13,7 @@ export interface SystemOptions<C extends any[] = any[]> {
     priority?: number;
     enabled?: boolean;
     tags?: string[];
+    group?: string;
 }
 
 export type SystemType<T extends any[] = any[]> = SystemOptions<T> & Partial<EngineEvents>;

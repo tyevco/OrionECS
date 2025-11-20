@@ -17,7 +17,7 @@ import type {
     PoolStats
 } from "./definitions";
 
-import { Entity, Query, System, ComponentArray, Pool, MessageBus } from "./core";
+import { Entity, Query, System, ComponentArray, Pool, MessageBus, SystemGroup } from "./core";
 
 // Constants
 const MAX_MESSAGE_HISTORY = 1000;
@@ -150,6 +150,7 @@ export class SystemManager {
     private fixedUpdateAccumulator: number = 0;
     private fixedUpdateInterval: number;
     private maxFixedIterations: number;
+    private groups: Map<string, SystemGroup> = new Map();
 
     constructor(
         fixedUpdateFPS: number = 60,
@@ -159,10 +160,28 @@ export class SystemManager {
         this.maxFixedIterations = maxFixedIterations;
     }
 
+    createGroup(name: string, priority: number): SystemGroup {
+        if (this.groups.has(name)) {
+            throw new Error(`System group '${name}' already exists`);
+        }
+        const group = new SystemGroup(name, priority);
+        this.groups.set(name, group);
+        return group;
+    }
+
     createSystem<C extends any[] = any[]>(
         system: System<C>,
         isFixedUpdate: boolean = false
     ): System<C> {
+        // If system has a group, add it to that group
+        if (system.group) {
+            const group = this.groups.get(system.group);
+            if (!group) {
+                throw new Error(`System group '${system.group}' not found. Create it first with createSystemGroup().`);
+            }
+            group.systems.push(system);
+        }
+
         if (isFixedUpdate) {
             this.fixedUpdateSystems.push(system);
             this.fixedSystemsSorted = false;
@@ -186,8 +205,29 @@ export class SystemManager {
 
     executeVariableSystems(): void {
         this.ensureSorted();
+
+        // First, execute systems in groups (sorted by group priority)
+        const sortedGroups = Array.from(this.groups.values())
+            .sort((a, b) => b.priority - a.priority);
+
+        for (const group of sortedGroups) {
+            if (!group.enabled) continue;
+
+            // Execute systems in this group that are variable update systems (sorted by system priority)
+            const groupSystems = group.systems
+                .filter(s => this.systems.includes(s)) // Only variable update systems
+                .sort((a, b) => b.priority - a.priority);
+
+            for (const system of groupSystems) {
+                if (system.enabled) {
+                    system.step();
+                }
+            }
+        }
+
+        // Then, execute systems without a group
         for (const system of this.systems) {
-            if (system.enabled) {
+            if (system.enabled && !system.group) {
                 system.step();
             }
         }
@@ -201,11 +241,33 @@ export class SystemManager {
 
         while (this.fixedUpdateAccumulator >= this.fixedUpdateInterval &&
                iterations < this.maxFixedIterations) {
+
+            // First, execute systems in groups (sorted by group priority)
+            const sortedGroups = Array.from(this.groups.values())
+                .sort((a, b) => b.priority - a.priority);
+
+            for (const group of sortedGroups) {
+                if (!group.enabled) continue;
+
+                // Execute systems in this group that are fixed update systems (sorted by system priority)
+                const groupSystems = group.systems
+                    .filter(s => this.fixedUpdateSystems.includes(s)) // Only fixed update systems
+                    .sort((a, b) => b.priority - a.priority);
+
+                for (const system of groupSystems) {
+                    if (system.enabled) {
+                        system.step();
+                    }
+                }
+            }
+
+            // Then, execute systems without a group
             for (const system of this.fixedUpdateSystems) {
-                if (system.enabled) {
+                if (system.enabled && !system.group) {
                     system.step();
                 }
             }
+
             this.fixedUpdateAccumulator -= this.fixedUpdateInterval;
             iterations++;
         }
@@ -217,6 +279,30 @@ export class SystemManager {
                 console.warn('[ECS] Fixed update spiral of death detected, accumulator reset');
             }
         }
+    }
+
+    enableGroup(name: string): void {
+        const group = this.groups.get(name);
+        if (!group) {
+            throw new Error(`System group '${name}' not found`);
+        }
+        group.enabled = true;
+    }
+
+    disableGroup(name: string): void {
+        const group = this.groups.get(name);
+        if (!group) {
+            throw new Error(`System group '${name}' not found`);
+        }
+        group.enabled = false;
+    }
+
+    getGroup(name: string): SystemGroup | undefined {
+        return this.groups.get(name);
+    }
+
+    getAllGroups(): SystemGroup[] {
+        return Array.from(this.groups.values());
     }
 
     getAllSystems(): System<any>[] {

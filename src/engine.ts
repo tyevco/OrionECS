@@ -279,6 +279,18 @@ export class Engine {
 
     // ========== System Management ==========
 
+    createSystemGroup(name: string, options: { priority: number }): any {
+        return this.systemManager.createGroup(name, options.priority);
+    }
+
+    enableSystemGroup(name: string): void {
+        this.systemManager.enableGroup(name);
+    }
+
+    disableSystemGroup(name: string): void {
+        this.systemManager.disableGroup(name);
+    }
+
     createSystem<C extends any[] = any[]>(
         name: string,
         queryOptions: QueryOptions,

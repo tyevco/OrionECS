@@ -400,6 +400,19 @@ export class Entity implements EntityDef {
 }
 
 /**
+ * SystemGroup for organizing systems into execution phases
+ */
+export class SystemGroup {
+    systems: System<any>[] = [];
+
+    constructor(
+        public name: string,
+        public priority: number,
+        public enabled: boolean = true
+    ) {}
+}
+
+/**
  * System for processing entities with specific components
  */
 export class System<C extends any[] = any[]> {
@@ -408,6 +421,7 @@ export class System<C extends any[] = any[]> {
     private _priority: number = 0;
     private _profile: SystemProfile;
     private _tags: Set<string> = new Set();
+    private _group?: string;
 
     constructor(
         public name: string,
@@ -417,6 +431,7 @@ export class System<C extends any[] = any[]> {
         this.query = query;
         this._priority = options.priority || 0;
         this._enabled = options.enabled !== false;
+        this._group = options.group;
 
         if (options.tags) {
             options.tags.forEach(tag => this._tags.add(tag));
@@ -437,6 +452,7 @@ export class System<C extends any[] = any[]> {
     set priority(value: number) { this._priority = value; }
     get tags(): Set<string> { return new Set(this._tags); }
     get profile(): SystemProfile { return { ...this._profile }; }
+    get group(): string | undefined { return this._group; }
 
     hasTag(tag: string): boolean {
         return this._tags.has(tag);

@@ -1171,4 +1171,154 @@ describe('Engine v2 - Composition Architecture', () => {
             expect((pluginEngine as any).sharedApi.value).toBe(1);
         });
     });
+
+    describe('Component Pooling', () => {
+        class Particle {
+            constructor(public x: number = 0, public y: number = 0, public active: boolean = true) {}
+        }
+
+        test('should register component pool with default options', () => {
+            engine.registerComponent(Particle);
+            engine.registerComponentPool(Particle);
+
+            const stats = engine.getComponentPoolStats(Particle);
+            expect(stats).toBeDefined();
+            expect(stats!.available).toBe(10); // Default initialSize
+            expect(stats!.totalCreated).toBe(10);
+        });
+
+        test('should register component pool with custom options', () => {
+            engine.registerComponent(Particle);
+            engine.registerComponentPool(Particle, {
+                initialSize: 20,
+                maxSize: 500
+            });
+
+            const stats = engine.getComponentPoolStats(Particle);
+            expect(stats).toBeDefined();
+            expect(stats!.available).toBe(20);
+            expect(stats!.totalCreated).toBe(20);
+        });
+
+        test('should acquire components from pool when adding to entity', () => {
+            engine.registerComponent(Particle);
+            engine.registerComponentPool(Particle, { initialSize: 5 });
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Particle, 10, 20);
+
+            const stats = engine.getComponentPoolStats(Particle);
+            expect(stats).toBeDefined();
+            expect(stats!.totalAcquired).toBeGreaterThan(0);
+            expect(entity1.getComponent(Particle).x).toBe(10);
+            expect(entity1.getComponent(Particle).y).toBe(20);
+        });
+
+        test('should release components back to pool when removing from entity', () => {
+            engine.registerComponent(Particle);
+            engine.registerComponentPool(Particle, { initialSize: 5 });
+
+            const entity = engine.createEntity();
+            entity.addComponent(Particle, 5, 5);
+
+            const statsAfterAdd = engine.getComponentPoolStats(Particle);
+            const acquiredAfterAdd = statsAfterAdd!.totalAcquired;
+
+            entity.removeComponent(Particle);
+
+            const statsAfterRemove = engine.getComponentPoolStats(Particle);
+            expect(statsAfterRemove!.totalReleased).toBeGreaterThan(0);
+            expect(statsAfterRemove!.available).toBeGreaterThanOrEqual(1);
+        });
+
+        test('should track pool statistics correctly', () => {
+            engine.registerComponent(Particle);
+            engine.registerComponentPool(Particle, { initialSize: 3, maxSize: 10 });
+
+            // Create and destroy multiple entities
+            for (let i = 0; i < 5; i++) {
+                const entity = engine.createEntity();
+                entity.addComponent(Particle, i, i);
+                entity.removeComponent(Particle);
+            }
+
+            const stats = engine.getComponentPoolStats(Particle);
+            expect(stats).toBeDefined();
+            expect(stats!.totalAcquired).toBeGreaterThanOrEqual(5);
+            expect(stats!.totalReleased).toBeGreaterThanOrEqual(5);
+            expect(stats!.reuseRate).toBeGreaterThan(0);
+        });
+
+        test('should return undefined stats for non-pooled components', () => {
+            engine.registerComponent(Position);
+            const stats = engine.getComponentPoolStats(Position);
+            expect(stats).toBeUndefined();
+        });
+
+        test('should work with multiple entities using pooled components', () => {
+            engine.registerComponent(Particle);
+            engine.registerComponentPool(Particle, { initialSize: 10 });
+
+            const entities: any[] = [];
+            for (let i = 0; i < 5; i++) {
+                const entity = engine.createEntity();
+                entity.addComponent(Particle, i * 10, i * 20);
+                entities.push(entity);
+            }
+
+            // Verify all entities have their components
+            for (let i = 0; i < 5; i++) {
+                expect(entities[i].hasComponent(Particle)).toBe(true);
+                expect(entities[i].getComponent(Particle).x).toBe(i * 10);
+            }
+
+            // Remove components
+            for (const entity of entities) {
+                entity.removeComponent(Particle);
+            }
+
+            const stats = engine.getComponentPoolStats(Particle);
+            expect(stats!.available).toBeGreaterThanOrEqual(5);
+        });
+
+        test('should respect maxSize limit', () => {
+            engine.registerComponent(Particle);
+            engine.registerComponentPool(Particle, { initialSize: 2, maxSize: 5 });
+
+            // Create more entities than maxSize
+            const entities: any[] = [];
+            for (let i = 0; i < 10; i++) {
+                const entity = engine.createEntity();
+                entity.addComponent(Particle, i, i);
+                entities.push(entity);
+            }
+
+            // Remove all components
+            for (const entity of entities) {
+                entity.removeComponent(Particle);
+            }
+
+            const stats = engine.getComponentPoolStats(Particle);
+            expect(stats!.available).toBeLessThanOrEqual(5); // Should not exceed maxSize
+        });
+
+        test('should work alongside non-pooled components', () => {
+            engine.registerComponent(Particle);
+            engine.registerComponent(Position);
+            engine.registerComponentPool(Particle, { initialSize: 5 });
+
+            const entity = engine.createEntity();
+            entity.addComponent(Particle, 1, 2);
+            entity.addComponent(Position, 10, 20);
+
+            expect(entity.hasComponent(Particle)).toBe(true);
+            expect(entity.hasComponent(Position)).toBe(true);
+
+            const particleStats = engine.getComponentPoolStats(Particle);
+            const positionStats = engine.getComponentPoolStats(Position);
+
+            expect(particleStats).toBeDefined();
+            expect(positionStats).toBeUndefined();
+        });
+    });
 });

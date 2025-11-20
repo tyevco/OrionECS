@@ -32,7 +32,9 @@ import type {
     MemoryStats,
     EnginePlugin,
     PluginContext,
-    InstalledPlugin
+    InstalledPlugin,
+    ComponentPoolOptions,
+    PoolStats
 } from './definitions';
 
 /**
@@ -256,6 +258,23 @@ export class Engine {
 
     getComponentByName(name: string): ComponentIdentifier | undefined {
         return this.componentManager.getComponentByName(name);
+    }
+
+    /**
+     * Register a component pool for efficient component reuse
+     */
+    registerComponentPool<T extends object>(type: ComponentIdentifier<T>, options: ComponentPoolOptions = {}): void {
+        this.componentManager.registerComponentPool(type, options);
+        if (this.debugMode) {
+            console.log(`[ECS Debug] Component pool registered for ${type.name}`);
+        }
+    }
+
+    /**
+     * Get pool statistics for a component type
+     */
+    getComponentPoolStats<T extends object>(type: ComponentIdentifier<T>): PoolStats | undefined {
+        return this.componentManager.getComponentPoolStats(type);
     }
 
     // ========== System Management ==========

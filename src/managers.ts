@@ -12,7 +12,9 @@ import type {
     EntityPrefab,
     SerializedWorld,
     SerializedEntity,
-    SystemMessage
+    SystemMessage,
+    ComponentPoolOptions,
+    PoolStats
 } from "./definitions";
 
 import { Entity, Query, System, ComponentArray, Pool, MessageBus } from "./core";
@@ -28,6 +30,7 @@ export class ComponentManager {
     private componentArrays: Map<Function, ComponentArray<any>> = new Map();
     private validators: Map<Function, ComponentValidator> = new Map();
     private registry: Map<string, ComponentIdentifier> = new Map();
+    private componentPools: Map<ComponentIdentifier, Pool<any>> = new Map();
 
     getComponentArray<T>(type: ComponentIdentifier): ComponentArray<T> {
         if (!this.componentArrays.has(type)) {
@@ -58,6 +61,81 @@ export class ComponentManager {
 
     getAllComponentArrays(): Map<Function, ComponentArray<any>> {
         return this.componentArrays;
+    }
+
+    /**
+     * Register a component pool for object reuse
+     */
+    registerComponentPool<T extends object>(type: ComponentIdentifier<T>, options: ComponentPoolOptions = {}): void {
+        const { initialSize = 10, maxSize = 1000 } = options;
+
+        // Create pool with factory and reset function
+        const pool = new Pool<T>(
+            () => new type(),
+            (component: T) => {
+                // Reset component to default state
+                // For simple objects, we can just recreate or reset properties
+                const defaultInstance = new type();
+                Object.assign(component, defaultInstance);
+            },
+            maxSize
+        );
+
+        // Pre-populate pool with initial instances
+        const preallocated: T[] = [];
+        for (let i = 0; i < initialSize; i++) {
+            preallocated.push(pool.acquire());
+        }
+        // Release them back to the pool
+        for (const instance of preallocated) {
+            pool.release(instance);
+        }
+
+        this.componentPools.set(type, pool);
+    }
+
+    /**
+     * Get a component instance from the pool if available, otherwise create new
+     */
+    acquireComponent<T extends object>(type: ComponentIdentifier<T>, ...args: any[]): T {
+        const pool = this.componentPools.get(type);
+        if (pool) {
+            const component = pool.acquire();
+            // Apply constructor arguments if provided
+            if (args.length > 0) {
+                const tempInstance = new type(...args);
+                Object.assign(component, tempInstance);
+            }
+            return component;
+        }
+        // No pool registered, create normally
+        return new type(...args);
+    }
+
+    /**
+     * Release a component back to the pool
+     */
+    releaseComponent<T extends object>(type: ComponentIdentifier<T>, component: T): void {
+        const pool = this.componentPools.get(type);
+        if (pool) {
+            pool.release(component);
+        }
+        // If no pool, component will be garbage collected
+    }
+
+    /**
+     * Get pool statistics for a component type
+     */
+    getComponentPoolStats<T extends object>(type: ComponentIdentifier<T>): PoolStats | undefined {
+        const pool = this.componentPools.get(type);
+        return pool ? pool.stats : undefined;
+    }
+
+    /**
+     * Check if a component type has a pool registered
+     */
+    hasComponentPool<T extends object>(type: ComponentIdentifier<T>): boolean {
+        return this.componentPools.has(type);
     }
 }
 

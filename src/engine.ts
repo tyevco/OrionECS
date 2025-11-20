@@ -117,12 +117,23 @@ class ComponentArray<T> {
     get version(): number { return this._version; }
     get lastChanged(): number { return this._lastChanged; }
     get size(): number { return this.components.length - this.freeIndices.length; }
+
+    /**
+     * Rough heuristic estimate of memory usage in bytes.
+     * Note: JavaScript objects don't have fixed sizes - this is an approximation
+     * based on typical object overhead. Actual memory usage will vary significantly
+     * based on component complexity, V8 optimizations, and runtime conditions.
+     * Use for relative comparisons, not absolute measurements.
+     */
     get memoryEstimate(): number { return this.components.length * ESTIMATED_COMPONENT_SIZE_BYTES; }
 }
 
 // Enhanced Query system with NOT, OR, and tag support
 class Query<C extends any[] = any[]> {
     private matchingEntities: Set<Entity> = new Set();
+    private cachedArray: Entity[] = [];
+    private cacheVersion: number = 0;
+    private currentVersion: number = 0;
 
     constructor(public options: QueryOptions) {}
 
@@ -161,11 +172,18 @@ class Query<C extends any[] = any[]> {
     // Update query with entity (registers or unregisters based on match)
     match(entity: Entity): boolean {
         const matches = this.test(entity);
+        const hadEntity = this.matchingEntities.has(entity);
 
         if (matches) {
-            this.matchingEntities.add(entity);
+            if (!hadEntity) {
+                this.matchingEntities.add(entity);
+                this.currentVersion++; // Invalidate cache
+            }
         } else {
-            this.matchingEntities.delete(entity);
+            if (hadEntity) {
+                this.matchingEntities.delete(entity);
+                this.currentVersion++; // Invalidate cache
+            }
         }
 
         return matches;
@@ -175,8 +193,21 @@ class Query<C extends any[] = any[]> {
         return this.matchingEntities.values();
     }
 
+    /**
+     * Get all matching entities as an array.
+     * Results are cached for performance - the same array is returned
+     * until the query results change.
+     */
     getEntitiesArray(): Entity[] {
-        return Array.from(this.matchingEntities);
+        // Return cached array if still valid
+        if (this.cacheVersion === this.currentVersion) {
+            return this.cachedArray;
+        }
+
+        // Rebuild cache
+        this.cachedArray = Array.from(this.matchingEntities);
+        this.cacheVersion = this.currentVersion;
+        return this.cachedArray;
     }
 
     get size(): number {
@@ -319,6 +350,14 @@ class Entity implements EntityDef {
         return Array.from(this._componentIndices.keys());
     }
 
+    // Type guard for EntityDef -> Entity conversion
+    private static asEntity(entity: EntityDef): Entity {
+        if (entity instanceof Entity) {
+            return entity;
+        }
+        throw new Error('Invalid entity type - expected Entity instance');
+    }
+
     addComponent<T>(type: ComponentIdentifier<T>, ...args: ConstructorParameters<typeof type>): this {
         if (!this._componentIndices.has(type)) {
             const validator = this.engine.getComponentValidator(type);
@@ -376,6 +415,12 @@ class Entity implements EntityDef {
         return this._componentIndices.has(type);
     }
 
+    /**
+     * Get a component from this entity.
+     * @throws {Error} If the component is not found on this entity
+     * @param type The component class to retrieve
+     * @returns The component instance
+     */
     getComponent<T>(type: ComponentIdentifier<T>): T {
         const index = this._componentIndices.get(type);
         if (index === undefined) {
@@ -413,30 +458,31 @@ class Entity implements EntityDef {
 
     setParent(parent: EntityDef | null): this {
         if (this._parent === parent) return this;
-        
+
         if (this._parent) {
-            (this._parent as Entity)._children.delete(this);
+            this._parent._children.delete(this);
         }
-        
-        this._parent = parent as Entity;
-        
+
+        this._parent = parent ? Entity.asEntity(parent) : undefined;
+
         if (this._parent) {
-            (this._parent as Entity)._children.add(this);
+            this._parent._children.add(this);
         }
-        
+
         this._changeVersion++;
         this.engine.triggerEvent('onEntityHierarchyChanged', this);
         return this;
     }
 
     addChild(child: EntityDef): this {
-        (child as Entity).setParent(this);
+        Entity.asEntity(child).setParent(this);
         return this;
     }
 
     removeChild(child: EntityDef): this {
-        if (this._children.has(child as Entity)) {
-            (child as Entity).setParent(null);
+        const childEntity = Entity.asEntity(child);
+        if (this._children.has(childEntity)) {
+            childEntity.setParent(null);
         }
         return this;
     }
@@ -533,11 +579,15 @@ class EntityManager {
         if (entity.parent) {
             entity.parent.removeChild(entity);
         }
-        
-        for (const child of [...entity.children]) {
+
+        // Release all children recursively
+        // Use Array.from to avoid iterator issues during modification
+        const childrenSnapshot = Array.from(entity.children);
+        for (const child of childrenSnapshot) {
+            // Children are always Entity instances in our implementation
             this.releaseEntity(child as Entity);
         }
-        
+
         this.activeEntities.delete(entity.id);
         this.entityPool.release(entity);
         this.engine.triggerEvent('onEntityReleased', entity);
@@ -644,26 +694,27 @@ class System<C extends any[] = any[]> {
 
     step(): void {
         if (!this._enabled) return;
-        
+
         const startTime = performance.now();
-        
+
         if (this.options.before) {
             this.options.before();
         }
-        
-        const entities = Array.from(this.query.getEntities());
-        
+
+        // Use cached array for better performance
+        const entities = this.query.getEntitiesArray();
+
         if (this.options.act) {
             for (const entity of entities) {
                 const componentArgs = this.getComponents(entity);
                 this.options.act(entity, ...componentArgs);
             }
         }
-        
+
         if (this.options.after) {
             this.options.after();
         }
-        
+
         const executionTime = performance.now() - startTime;
         this.updateProfile(executionTime, entities.length);
     }
@@ -756,12 +807,24 @@ export class Engine extends EventEmitter {
         return system;
     }
 
-    // Backwards compatible system creation (for old tests)
+    /**
+     * @deprecated Use createSystem() instead with QueryOptions for more flexibility.
+     * This method is maintained for backwards compatibility but will be removed in a future version.
+     *
+     * Example migration:
+     * ```ts
+     * // Old: createSystemLegacy([Position, Velocity], options)
+     * // New: createSystem('SystemName', { all: [Position, Velocity] }, options)
+     * ```
+     */
     createSystemLegacy<C extends any[] = any[]>(
         components: ComponentIdentifier[],
         options: SystemType<C>,
         isFixedUpdate: boolean = false
     ): System<C> {
+        if (this._debugMode) {
+            console.warn('[ECS Debug] createSystemLegacy is deprecated. Use createSystem() with QueryOptions instead.');
+        }
         return this.createSystem(
             'LegacySystem',
             { all: components },
@@ -821,10 +884,24 @@ export class Engine extends EventEmitter {
         this._prefabs.set(name, prefab);
     }
 
+    /**
+     * Create an entity from a registered prefab.
+     * @param prefabName The name of the prefab to instantiate
+     * @param entityName Optional custom name for the entity
+     * @returns The created entity, or null if the prefab is not found
+     *
+     * Note: This method returns null for missing prefabs (soft failure) to allow
+     * graceful degradation. Use hasComponent/getComponent pattern for required resources.
+     */
     createFromPrefab(prefabName: string, entityName?: string): Entity | null {
         const prefab = this._prefabs.get(prefabName);
-        if (!prefab) return null;
-        
+        if (!prefab) {
+            if (this._debugMode) {
+                console.warn(`[ECS Debug] Prefab '${prefabName}' not found`);
+            }
+            return null;
+        }
+
         const entities = this.createEntities(1, { ...prefab, name: entityName || prefab.name });
         return entities[0];
     }
@@ -938,9 +1015,22 @@ export class Engine extends EventEmitter {
         }
     }
 
+    /**
+     * Restore the engine state from a previously created snapshot.
+     * @param index The snapshot index to restore (-1 for most recent, default)
+     * @returns true if restoration succeeded, false if snapshot not found
+     *
+     * Note: Returns false for missing snapshots (soft failure) rather than throwing,
+     * allowing callers to handle the error gracefully.
+     */
     restoreSnapshot(index: number = -1): boolean {
         const snapshot = index === -1 ? this._snapshots[this._snapshots.length - 1] : this._snapshots[index];
-        if (!snapshot) return false;
+        if (!snapshot) {
+            if (this._debugMode) {
+                console.warn(`[ECS Debug] Snapshot at index ${index} not found`);
+            }
+            return false;
+        }
 
         // Clear all existing entities
         for (const entity of this.getAllEntities()) {
@@ -1049,7 +1139,33 @@ export class PerformanceMonitor {
     }
 }
 
+/**
+ * Common validator utilities for component validation.
+ *
+ * Validator functions return:
+ * - `true` if validation passes
+ * - A string error message if validation fails
+ *
+ * Example usage:
+ * ```ts
+ * engine.registerComponentValidator(Health, {
+ *   validate: (c) => c.current >= 0 ? true : 'Health cannot be negative'
+ * });
+ *
+ * // Or compose multiple validators:
+ * engine.registerComponentValidator(Health, {
+ *   validate: (c) => {
+ *     if (c.current < 0) return 'current must be non-negative';
+ *     if (c.current > c.max) return 'current cannot exceed max';
+ *     return true;
+ *   }
+ * });
+ * ```
+ */
 export const CommonValidators = {
+    /**
+     * Validates that a numeric field is non-negative (>= 0)
+     */
     nonNegative: <T extends { [key: string]: number }>(field: string): ComponentValidator<T> => ({
         validate: (component: T) => {
             const value = component[field];
@@ -1057,6 +1173,9 @@ export const CommonValidators = {
         }
     }),
 
+    /**
+     * Validates that specified fields are not null or undefined
+     */
     required: <T>(fields: (keyof T)[]): ComponentValidator<T> => ({
         validate: (component: T) => {
             for (const field of fields) {
@@ -1068,12 +1187,32 @@ export const CommonValidators = {
         }
     }),
 
+    /**
+     * Validates that a numeric field is within a specified range [min, max]
+     */
     range: <T extends { [key: string]: number }>(field: string, min: number, max: number): ComponentValidator<T> => ({
         validate: (component: T) => {
             const value = component[field];
-            return typeof value === 'number' && value >= min && value <= max ? 
+            return typeof value === 'number' && value >= min && value <= max ?
                 true : `${field} must be between ${min} and ${max}`;
         }
+    }),
+
+    /**
+     * Combines multiple validators - all must pass for validation to succeed
+     */
+    combine: <T>(...validators: ComponentValidator<T>[]): ComponentValidator<T> => ({
+        validate: (component: T) => {
+            for (const validator of validators) {
+                const result = validator.validate(component);
+                if (result !== true) {
+                    return result;
+                }
+            }
+            return true;
+        },
+        dependencies: validators.flatMap(v => v.dependencies || []),
+        conflicts: validators.flatMap(v => v.conflicts || [])
     })
 };
 

@@ -53,11 +53,12 @@ This document summarizes all the enhancements that have been implemented for the
 
 ## 📋 Implementation Files
 
-- **`src/definitions.ts`**: Enhanced type definitions and interfaces
-- **`src/engine.ts`**: Unified comprehensive ECS implementation with all features
-- **`src/enhanced-engine.spec.ts`**: Comprehensive test suite for all advanced features
-- **`CLAUDE.md`**: Updated documentation with usage examples
-- **Single unified engine**: All enhancements integrated into the main Engine class
+- **`src/definitions.ts`**: Type definitions and interfaces
+- **`src/engine.ts`**: Composition-based Engine (v2.0) with focused managers
+- **`src/core.ts`**: Core ECS components (Entity, Query, System, etc.)
+- **`src/managers.ts`**: Focused manager classes for separation of concerns
+- **`src/engine.spec.ts`**: Comprehensive test suite for all features
+- **`CLAUDE.md`**: Documentation with usage examples for Claude Code
 
 ## 🎯 Key Benefits Achieved
 

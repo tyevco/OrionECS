@@ -4,31 +4,48 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-Orion ECS is a comprehensive Entity Component System (ECS) framework written in TypeScript. The framework provides a **single, feature-rich Engine implementation** with advanced capabilities for building complex games and simulations.
+Orion ECS is a comprehensive Entity Component System (ECS) framework written in TypeScript. The framework uses a **composition-based architecture (v2.0)** with focused managers for separation of concerns, providing advanced capabilities for building complex games and simulations.
 
 ### Core Architecture Patterns
 
 - **Entity**: Advanced objects with unique symbol IDs, hierarchical relationships, tags, and serialization
-- **Component**: Data-only structures with validation, dependencies, and pooling support  
+- **Component**: Data-only structures with validation, dependencies, and pooling support
 - **System**: Logic processors with priority, profiling, and advanced query capabilities
-- **Engine**: Central coordinator with performance monitoring, debugging, and state management
+- **Engine**: Central facade that coordinates specialized managers for different responsibilities
 
-### Single Comprehensive Implementation
+### Composition-Based Architecture (v2.0)
 
-The **Engine** class (`src/engine.ts`) provides all advanced ECS features in a single, optimized implementation.
+The implementation uses focused managers for separation of concerns:
+- **EngineBuilder** (`src/engine.ts`): Fluent builder for composing an Engine from managers
+- **Engine** (`src/engine.ts`): Main facade providing a clean API over specialized managers
+- **Core Components** (`src/core.ts`): Entity, Query, System, EventEmitter, PerformanceMonitor, EntityManager
+- **Managers** (`src/managers.ts`): ComponentManager, SystemManager, QueryManager, PrefabManager, SnapshotManager, MessageManager
 
 ## Core Architecture
 
-### Engine Classes (src/engine.ts)
+### Main Files
 
-- `Engine` (line 636): Comprehensive ECS coordinator with all advanced features
-- `Entity` (line 249): Full-featured entities with hierarchy, tags, and serialization
-- `System` (line 544): Advanced systems with profiling, priority, and lifecycle hooks
-- `Query` (line 98): Advanced query system with ALL/ANY/NOT and tag support
-- `ComponentArray` (line 57): Enhanced sparse arrays with change tracking
-- `Pool` (line 22): Advanced object pooling with metrics
-- `MessageBus` (line 154): Inter-system communication system
-- `EventEmitter` (line 204): Enhanced event system with history
+**src/engine.ts** - Engine facade and builder
+- `EngineBuilder`: Fluent API for configuring and building an Engine instance
+- `Engine`: Main class providing a clean API over the manager-based architecture
+
+**src/core.ts** - Core ECS components
+- `Entity`: Full-featured entities with hierarchy, tags, and serialization
+- `System`: Advanced systems with profiling, priority, and lifecycle hooks
+- `Query`: Advanced query system with ALL/ANY/NOT and tag support
+- `ComponentArray`: Enhanced sparse arrays with change tracking
+- `Pool`: Advanced object pooling with metrics
+- `EventEmitter`: Enhanced event system with history
+- `PerformanceMonitor`: Frame time tracking and statistics
+- `EntityManager`: Entity lifecycle and pooling management
+
+**src/managers.ts** - Specialized manager classes
+- `ComponentManager`: Component registration, validation, and storage
+- `SystemManager`: System execution, profiling, and fixed/variable update handling
+- `QueryManager`: Query creation and entity matching
+- `PrefabManager`: Entity template registration and retrieval
+- `SnapshotManager`: World state snapshot creation and restoration
+- `MessageManager`: Inter-system messaging and communication
 
 ### Complete Feature Set
 
@@ -97,14 +114,15 @@ Entity lifecycle is managed through advanced object pooling to minimize garbage 
 ### Testing Details
 - Tests use Jest with ts-jest preset
 - Main engine tests: `src/engine.spec.ts`
-- Enhanced feature tests: `src/enhanced-engine.spec.ts`
 - Benchmarks: `**/*.bench.ts` files in `/benchmarks/` directory
 - Benchmark config uses specialized jest-bench environment for performance testing
 
 ### Implementation Files
-- `src/engine.ts` - Complete ECS implementation with all advanced features
+- `src/engine.ts` - Engine facade and EngineBuilder for composition-based architecture
+- `src/core.ts` - Core ECS components (Entity, Query, System, EventEmitter, etc.)
+- `src/managers.ts` - Focused manager classes for separation of concerns
 - `src/definitions.ts` - TypeScript interfaces and type definitions
-- Single unified implementation with all capabilities
+- `src/index.ts` - Public API exports
 
 ## Code Patterns
 
@@ -234,8 +252,16 @@ const debugInfo = engine.getDebugInfo();
 
 To use Orion ECS in your project:
 1. Install with `npm install orion-ecs`
-2. Import the Engine class: `import { Engine } from 'orion-ecs'`
-3. Create systems using the advanced query syntax
-4. Use component validators for robust development
-5. Leverage advanced features like tags, hierarchies, and prefabs
-6. Enable debug mode during development for enhanced error messages
+2. Import the EngineBuilder class: `import { EngineBuilder } from 'orion-ecs'`
+3. Build your engine with desired configuration:
+   ```typescript
+   const engine = new EngineBuilder()
+     .withDebugMode(true)
+     .withFixedUpdateFPS(60)
+     .withMaxFixedIterations(10)
+     .build();
+   ```
+4. Create systems using the advanced query syntax
+5. Use component validators for robust development
+6. Leverage advanced features like tags, hierarchies, and prefabs
+7. Enable debug mode during development for enhanced error messages

@@ -43,10 +43,13 @@ npm install orion-ecs
 Here's a basic example of how to use Orion ECS:
 
 ```typescript
-import { Engine } from 'orion-ecs';
+import { EngineBuilder } from 'orion-ecs';
 
 // Create a new engine with 60 FPS fixed updates and debug mode
-const game = new Engine(60, true);
+const game = new EngineBuilder()
+  .withFixedUpdateFPS(60)
+  .withDebugMode(true)
+  .build();
 
 // Define components
 class Position {
@@ -96,8 +99,10 @@ const enemyPrefab = {
 game.registerPrefab('Enemy', enemyPrefab);
 const enemy = game.createFromPrefab('Enemy', 'Enemy1');
 
-// Run the engine
-game.run();
+// Start the engine and update loop
+game.start();
+// In your game loop:
+// game.update(deltaTime);
 ```
 
 ## Advanced Usage
@@ -192,15 +197,22 @@ game.restoreSnapshot(0); // Restore specific snapshot
 
 ## API Reference
 
+### EngineBuilder
+
+- `withDebugMode(enabled: boolean)`: Enable or disable debug mode
+- `withFixedUpdateFPS(fps: number)`: Set fixed update FPS (default: 60)
+- `withMaxFixedIterations(iterations: number)`: Set max fixed update iterations per frame (default: 10)
+- `withMaxSnapshots(max: number)`: Set max number of snapshots to keep (default: 10)
+- `build()`: Build and return the configured Engine instance
+
 ### Engine
 
 #### Core Methods
 - `createEntity(name?: string)`: Creates and returns a new named entity
-- `createEntities(count: number, template?: EntityPrefab)`: Creates multiple entities
-- `createSystem(name: string, query: QueryOptions, options: SystemOptions)`: Creates a new system
-- `update(deltaTime: number)`: Updates the engine for one frame
-- `run()`: Starts the engine loop
-- `stop()`: Stops the engine loop
+- `createSystem(name: string, query: QueryOptions, options: SystemOptions, isFixedUpdate?: boolean)`: Creates a new system
+- `start()`: Starts the engine
+- `stop()`: Stops the engine
+- `update(deltaTime?: number)`: Updates the engine for one frame
 
 #### Advanced Methods
 - `registerPrefab(name: string, prefab: EntityPrefab)`: Registers an entity template

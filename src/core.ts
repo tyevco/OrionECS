@@ -353,6 +353,10 @@ export class Entity implements EntityDef {
         this._markedForDelete = true;
     }
 
+    clone(engine: any): Entity {
+        return engine.cloneEntity(this);
+    }
+
     serialize(): SerializedEntity {
         const components: { [componentName: string]: any } = {};
 

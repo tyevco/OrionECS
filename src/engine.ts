@@ -198,6 +198,49 @@ export class Engine {
         return this.entityManager.findEntities(predicate);
     }
 
+    cloneEntity(entity: Entity, overrides?: { name?: string; components?: Record<string, any> }): Entity {
+        // Create new entity with overridden name or default
+        const cloneName = overrides?.name ?? (entity.name ? `${entity.name}_clone` : undefined);
+        const clone = this.createEntity(cloneName);
+
+        // Deep copy all components
+        for (const componentType of entity.getComponentTypes()) {
+            const originalComponent = entity.getComponent(componentType as any);
+
+            // Deep copy the component data using JSON serialization
+            const componentData = JSON.parse(JSON.stringify(originalComponent));
+
+            // Apply component overrides if provided
+            if (overrides?.components && overrides.components[componentType.name]) {
+                Object.assign(componentData, overrides.components[componentType.name]);
+            }
+
+            // Create new component instance with copied data
+            const newComponent = Object.assign(new (componentType as any)(), componentData);
+
+            // Add component to clone using internal API to avoid re-instantiation
+            const componentArray = this.componentManager.getComponentArray(componentType as ComponentIdentifier);
+            const index = componentArray.add(newComponent);
+            (clone as any)._componentIndices.set(componentType, index);
+            (clone as any)._dirty = true;
+            (clone as any)._changeVersion++;
+        }
+
+        // Copy all tags
+        for (const tag of entity.tags) {
+            clone.addTag(tag);
+        }
+
+        // Update queries for the new cloned entity
+        this.queryManager.updateQueries(clone);
+
+        if (this.debugMode) {
+            console.log(`[ECS Debug] Cloned entity ${entity.name || entity.numericId} to ${clone.name || clone.numericId}`);
+        }
+
+        return clone;
+    }
+
     // ========== Component Management ==========
 
     registerComponent<T>(type: ComponentIdentifier<T>): void {

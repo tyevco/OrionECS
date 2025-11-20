@@ -9,6 +9,7 @@ These features are mentioned in documentation but not yet implemented in the cod
 ### 1. Bulk Entity Creation
 **Status:** Not Implemented
 **Priority:** High
+**Implementation:** Can be implemented as a plugin
 **Referenced:** CLAUDE.md:170, benchmarks/benchmark.ts:81
 
 Add `createEntities(count, prefab?)` method to efficiently create multiple entities at once.
@@ -26,6 +27,17 @@ const particles = engine.createEntities(50);
 - Particle systems
 - Procedural generation
 - Bulk scene population
+
+**Plugin Implementation:**
+```typescript
+class BulkOperationsPlugin implements EnginePlugin {
+  install(context: PluginContext) {
+    context.extend('bulk', {
+      createEntities: (count, prefab?) => { /* ... */ }
+    });
+  }
+}
+```
 
 ---
 
@@ -56,6 +68,7 @@ engine.registerComponentPool(Particle, {
 ### 3. Tag Component Helper
 **Status:** Not Implemented
 **Priority:** Low
+**Implementation:** Can be implemented as a plugin
 **Referenced:** CLAUDE.md
 
 Add `createTagComponent()` utility for standardizing tag-only components.
@@ -75,6 +88,17 @@ entity.addComponent(PlayerTag);
 - Consistent pattern for marker components
 - Better TypeScript inference
 
+**Plugin Implementation:**
+```typescript
+class TagComponentPlugin implements EnginePlugin {
+  install(context: PluginContext) {
+    context.extend('tags', {
+      createTagComponent: (name) => { /* ... */ }
+    });
+  }
+}
+```
+
 ---
 
 ## 🚀 Performance & Scalability
@@ -82,6 +106,7 @@ entity.addComponent(PlayerTag);
 ### 4. Spatial Partitioning System
 **Status:** Planned
 **Priority:** High
+**Implementation:** ✨ Best implemented as a plugin
 **Impact:** Performance, Scalability
 
 Implement spatial data structures for efficient proximity queries in large worlds.
@@ -113,6 +138,28 @@ const inArea = spatialSystem.queryRect(x, y, width, height);
 - Rendering culling
 - Network relevance (what to send to clients)
 - Large open worlds with thousands of entities
+
+**Plugin Implementation:**
+```typescript
+class SpatialPartitionPlugin implements EnginePlugin {
+  name = 'SpatialPartitionPlugin';
+
+  install(context: PluginContext) {
+    // Register spatial components
+    context.registerComponent(SpatialCell);
+
+    // Create spatial indexing system
+    context.createSystem('SpatialIndexSystem', { all: [Position] }, { /* ... */ });
+
+    // Extend engine with spatial queries
+    context.extend('spatial', {
+      queryRadius: (pos, radius) => { /* ... */ },
+      queryRect: (x, y, w, h) => { /* ... */ },
+      createPartition: (options) => { /* ... */ }
+    });
+  }
+}
+```
 
 ---
 
@@ -184,6 +231,7 @@ query.forEach((entity, position, velocity) => {
 ### 7. Entity Cloning/Copying
 **Status:** Planned
 **Priority:** High
+**Implementation:** Can be implemented as a plugin
 **Impact:** Developer Experience
 
 Add ability to clone entities with their current runtime state.
@@ -213,6 +261,17 @@ const clone = entity.clone();
 - Creating entity variations
 - Testing and debugging
 - Save/load individual entities
+
+**Plugin Implementation:**
+```typescript
+class EntityCloningPlugin implements EnginePlugin {
+  install(context: PluginContext) {
+    context.extend('cloning', {
+      cloneEntity: (entity, overrides?) => { /* ... */ }
+    });
+  }
+}
+```
 
 ---
 
@@ -253,6 +312,7 @@ const query = engine.query()
 ### 9. Entity Search Methods
 **Status:** Planned
 **Priority:** Medium
+**Implementation:** Can be implemented as a plugin
 **Impact:** Developer Experience
 
 Add convenient methods for finding entities.
@@ -277,6 +337,20 @@ const entity = engine.getEntityByNumericId(42);
 - Common use cases made simple
 - Efficient name-based lookup (Map index)
 - Reduces boilerplate code
+
+**Plugin Implementation:**
+```typescript
+class EntitySearchPlugin implements EnginePlugin {
+  install(context: PluginContext) {
+    const engine = context.getEngine();
+    context.extend('search', {
+      findEntity: (predicate) => { /* ... */ },
+      findEntities: (predicate) => { /* ... */ },
+      getEntityByName: (name) => { /* O(1) lookup with Map */ }
+    });
+  }
+}
+```
 
 ---
 
@@ -440,6 +514,7 @@ autosaveSystem.runEvery(60000); // Every 60 seconds
 ### 14. Transaction/Batch Operations
 **Status:** Planned
 **Priority:** Medium
+**Implementation:** Can be implemented as a plugin
 **Impact:** Performance
 
 Batch multiple entity/component operations and defer query updates.
@@ -470,11 +545,25 @@ engine.commitTransaction();
 - Bulk entity spawning
 - State restoration
 
+**Plugin Implementation:**
+```typescript
+class TransactionPlugin implements EnginePlugin {
+  install(context: PluginContext) {
+    context.extend('transaction', {
+      begin: () => { /* Defer query updates */ },
+      commit: () => { /* Apply all changes at once */ },
+      rollback: () => { /* Discard changes */ }
+    });
+  }
+}
+```
+
 ---
 
 ### 15. Component Change Events
 **Status:** Planned
 **Priority:** Low
+**Implementation:** Can be implemented as a plugin
 **Impact:** Reactive Programming
 
 Emit events when specific component values change.
@@ -510,6 +599,17 @@ engine.messageBus.subscribe('Health:changed', (message) => {
 - Reactive programming patterns
 - Fine-grained change detection
 - Reduced polling in systems
+
+**Plugin Implementation:**
+```typescript
+class ChangeDetectionPlugin implements EnginePlugin {
+  install(context: PluginContext) {
+    // Intercept component add/set operations
+    // Emit change events through message bus
+    context.messageBus.subscribe('componentChanged', (msg) => { /* ... */ });
+  }
+}
+```
 
 ---
 
@@ -606,6 +706,7 @@ const entity = engine.getEntityByName('Player');
 ### 19. Debug Visualization Tools
 **Status:** Planned
 **Priority:** Low
+**Implementation:** ✨ Best implemented as a plugin
 **Impact:** Developer Experience, Debugging
 
 Add tools for visualizing engine state.
@@ -649,11 +750,29 @@ Optimization suggestions: Consider caching
 - Performance optimization
 - Understanding engine state
 
+**Plugin Implementation:**
+```typescript
+class DebugVisualizerPlugin implements EnginePlugin {
+  name = 'DebugVisualizerPlugin';
+
+  install(context: PluginContext) {
+    const engine = context.getEngine();
+    context.extend('debug', {
+      printHierarchy: () => { /* Traverse entity tree */ },
+      printComponentStats: () => { /* Analyze component usage */ },
+      analyzeQuery: (query) => { /* Profile query performance */ },
+      getSystemTimeline: () => { /* Export Chrome DevTools trace */ }
+    });
+  }
+}
+```
+
 ---
 
 ### 20. Replay System
 **Status:** Planned
 **Priority:** Low
+**Implementation:** ✨ Best implemented as a plugin
 **Impact:** Debugging, Testing
 
 Record and replay game sessions deterministically.
@@ -687,6 +806,25 @@ engine.playback(replay);
 - Automated testing
 - Demo recording
 - Time-travel debugging
+
+**Plugin Implementation:**
+```typescript
+class ReplayPlugin implements EnginePlugin {
+  name = 'ReplayPlugin';
+
+  install(context: PluginContext) {
+    // Record inputs/commands via message bus
+    context.messageBus.subscribe('input', (msg) => { /* Record */ });
+
+    context.extend('replay', {
+      startRecording: () => { /* Begin capture */ },
+      stopRecording: () => { /* End capture */ },
+      playback: (data) => { /* Replay inputs */ },
+      serialize: () => { /* Export replay data */ }
+    });
+  }
+}
+```
 
 ---
 
@@ -831,6 +969,7 @@ const fastEnemyVariant = engine.variantOfPrefab('Enemy', {
 ### 24. Network Synchronization Support
 **Status:** Planned
 **Priority:** Low
+**Implementation:** ✨ Best implemented as a plugin
 **Impact:** Multiplayer, Networking
 
 Add built-in support for network synchronization.
@@ -862,11 +1001,36 @@ engine.network.connect('ws://server.com');
 - Efficient bandwidth usage
 - Standard networking patterns
 
+**Plugin Implementation:**
+```typescript
+class NetworkPlugin implements EnginePlugin {
+  name = 'NetworkPlugin';
+
+  install(context: PluginContext) {
+    // Register networked component marker
+    context.registerComponent(NetworkedComponent);
+
+    // Create network sync system
+    context.createSystem('NetworkSyncSystem',
+      { all: [NetworkedComponent] },
+      { act: (e, comp) => { /* Sync logic */ } }
+    );
+
+    context.extend('network', {
+      connect: (url) => { /* WebSocket connection */ },
+      disconnect: () => { /* Close connection */ },
+      send: (data) => { /* Send to server */ }
+    });
+  }
+}
+```
+
 ---
 
 ### 25. Resource Management
 **Status:** Planned
 **Priority:** Medium
+**Implementation:** ✨ Best implemented as a plugin
 **Impact:** Memory Management
 
 Add shared resource management with reference counting.
@@ -901,6 +1065,22 @@ class Sprite {
 - Memory leak prevention
 - Efficient resource loading
 
+**Plugin Implementation:**
+```typescript
+class ResourceManagerPlugin implements EnginePlugin {
+  name = 'ResourceManagerPlugin';
+
+  install(context: PluginContext) {
+    context.extend('resources', {
+      register: (type) => { /* Register resource type */ },
+      get: (type, key) => { /* Get with ref-counting */ },
+      release: (resource) => { /* Decrement ref count */ },
+      getStats: () => { /* Resource usage stats */ }
+    });
+  }
+}
+```
+
 ---
 
 ## 📊 Observability & Profiling
@@ -908,6 +1088,7 @@ class Sprite {
 ### 26. Enhanced Profiling
 **Status:** Planned
 **Priority:** Medium
+**Implementation:** Can be implemented as a plugin
 **Impact:** Performance, Optimization
 
 Add comprehensive profiling and performance analysis.
@@ -940,11 +1121,27 @@ engine.on('budgetExceeded', (system, time) => {
 - Integration with standard tools
 - Proactive performance monitoring
 
+**Plugin Implementation:**
+```typescript
+class ProfilingPlugin implements EnginePlugin {
+  install(context: PluginContext) {
+    context.extend('profiler', {
+      startRecording: () => { /* Capture frame data */ },
+      stopRecording: () => { /* Return profile */ },
+      exportChromeTrace: () => { /* Chrome DevTools format */ },
+      detectMemoryLeaks: () => { /* Analyze leaks */ },
+      setBudget: (system, ms) => { /* Set perf budgets */ }
+    });
+  }
+}
+```
+
 ---
 
 ### 27. Entity Inspector
 **Status:** Planned
 **Priority:** Low
+**Implementation:** ✨ Best implemented as a plugin
 **Impact:** Developer Experience, Debugging
 
 Runtime entity inspection and editing.
@@ -977,11 +1174,29 @@ engine.inspector.enable({
 - Real-time tuning
 - Better understanding of game state
 
+**Plugin Implementation:**
+```typescript
+class EntityInspectorPlugin implements EnginePlugin {
+  name = 'EntityInspectorPlugin';
+
+  install(context: PluginContext) {
+    context.extend('inspector', {
+      enable: (options) => {
+        // Start HTTP/WebSocket server
+        // Serve web UI
+        // Provide real-time engine data
+      }
+    });
+  }
+}
+```
+
 ---
 
 ### 28. Query Performance Metrics
 **Status:** Planned
 **Priority:** Low
+**Implementation:** Can be implemented as a plugin
 **Impact:** Performance, Optimization
 
 Track and analyze query performance.
@@ -1010,6 +1225,20 @@ const suggestions = engine.debug.optimizeQuery(slowQuery);
 - Identify slow queries
 - Performance optimization
 - Guided improvements
+
+**Plugin Implementation:**
+```typescript
+class QueryProfilerPlugin implements EnginePlugin {
+  install(context: PluginContext) {
+    const engine = context.getEngine();
+    context.extend('queryProfiler', {
+      getQueryStats: () => { /* Profile all queries */ },
+      optimizeQuery: (query) => { /* Suggest improvements */ },
+      trackQuery: (query) => { /* Monitor specific query */ }
+    });
+  }
+}
+```
 
 ---
 

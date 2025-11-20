@@ -4,7 +4,7 @@
  */
 
 // Export the new Engine and Builder
-export { Engine, EngineBuilder } from './engine-v2';
+export { Engine, EngineBuilder } from './engine';
 
 // Export core building blocks
 export {

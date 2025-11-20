@@ -320,7 +320,7 @@ export class SystemManager {
         }
     }
 
-    executeVariableSystems(): void {
+    executeVariableSystems(deltaTime: number = 16): void {
         this.ensureSorted();
 
         // First, execute systems in groups (sorted by group priority)
@@ -336,16 +336,14 @@ export class SystemManager {
                 .sort((a, b) => b.priority - a.priority);
 
             for (const system of groupSystems) {
-                if (system.enabled) {
-                    system.step();
-                }
+                system.step(deltaTime);
             }
         }
 
         // Then, execute systems without a group
         for (const system of this.systems) {
-            if (system.enabled && !system.group) {
-                system.step();
+            if (!system.group) {
+                system.step(deltaTime);
             }
         }
     }
@@ -372,16 +370,14 @@ export class SystemManager {
                     .sort((a, b) => b.priority - a.priority);
 
                 for (const system of groupSystems) {
-                    if (system.enabled) {
-                        system.step();
-                    }
+                    system.step(this.fixedUpdateInterval);
                 }
             }
 
             // Then, execute systems without a group
             for (const system of this.fixedUpdateSystems) {
-                if (system.enabled && !system.group) {
-                    system.step();
+                if (!system.group) {
+                    system.step(this.fixedUpdateInterval);
                 }
             }
 

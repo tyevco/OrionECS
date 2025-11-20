@@ -424,6 +424,14 @@ export class System<C extends any[] = any[]> {
     private _group?: string;
     private _runAfter: string[] = [];
     private _runBefore: string[] = [];
+    private enableWhenPredicate?: () => boolean;
+    private disableWhenPredicate?: () => boolean;
+    private runIfPredicate?: () => boolean;
+    private shouldRunOnce: boolean = false;
+    private hasRunOnce: boolean = false;
+    private timeSinceLastRun: number = 0;
+    private runEveryInterval?: number;
+    private hasRunEveryExecuted: boolean = false;
 
     constructor(
         public name: string,
@@ -464,8 +472,81 @@ export class System<C extends any[] = any[]> {
         return this._tags.has(tag);
     }
 
-    step(): void {
-        if (!this._enabled) return;
+    enableWhen(predicate: () => boolean): this {
+        this.enableWhenPredicate = predicate;
+        return this;
+    }
+
+    disableWhen(predicate: () => boolean): this {
+        this.disableWhenPredicate = predicate;
+        return this;
+    }
+
+    runIf(predicate: () => boolean): this {
+        this.runIfPredicate = predicate;
+        return this;
+    }
+
+    runOnce(): this {
+        this.shouldRunOnce = true;
+        return this;
+    }
+
+    runEvery(ms: number): this {
+        this.runEveryInterval = ms;
+        return this;
+    }
+
+    shouldExecute(deltaTime: number): boolean {
+        // Check enableWhen / disableWhen predicates
+        // If both are set, enableWhen must be true AND disableWhen must be false
+        if (this.enableWhenPredicate && this.disableWhenPredicate) {
+            this._enabled = this.enableWhenPredicate() && !this.disableWhenPredicate();
+        } else if (this.enableWhenPredicate) {
+            this._enabled = this.enableWhenPredicate();
+        } else if (this.disableWhenPredicate) {
+            this._enabled = !this.disableWhenPredicate();
+        }
+
+        // If system is disabled, don't run
+        if (!this._enabled) {
+            return false;
+        }
+
+        // Check runIf predicate
+        if (this.runIfPredicate && !this.runIfPredicate()) {
+            return false;
+        }
+
+        // Check runOnce
+        if (this.shouldRunOnce && this.hasRunOnce) {
+            return false;
+        }
+
+        // Check runEvery - allow first run, then check interval
+        if (this.runEveryInterval !== undefined) {
+            // First run is always allowed
+            if (!this.hasRunEveryExecuted) {
+                return true;
+            }
+            // Accumulate time FIRST
+            this.timeSinceLastRun += deltaTime;
+            // Then check if enough time has passed
+            if (this.timeSinceLastRun >= this.runEveryInterval) {
+                // Time to run - will be reset in step()
+                return true;
+            }
+            return false;
+        }
+
+        return true;
+    }
+
+    step(deltaTime: number = 16): void {
+        // Check if system should execute
+        if (!this.shouldExecute(deltaTime)) {
+            return;
+        }
 
         const startTime = performance.now();
 
@@ -488,6 +569,17 @@ export class System<C extends any[] = any[]> {
 
         const executionTime = performance.now() - startTime;
         this.updateProfile(executionTime, entities.length);
+
+        // Mark as run for runOnce
+        if (this.shouldRunOnce) {
+            this.hasRunOnce = true;
+        }
+
+        // Reset time for runEvery
+        if (this.runEveryInterval !== undefined) {
+            this.timeSinceLastRun = 0;
+            this.hasRunEveryExecuted = true;
+        }
     }
 
     private getComponents(entity: Entity): C {

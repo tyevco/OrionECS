@@ -519,7 +519,7 @@ export class Engine {
         this.systemManager.executeFixedSystems(dt, this.debugMode);
 
         // Execute variable update systems
-        this.systemManager.executeVariableSystems();
+        this.systemManager.executeVariableSystems(dt);
 
         // Update queries for all dirty entities
         for (const entity of this.entityManager.getAllEntities()) {

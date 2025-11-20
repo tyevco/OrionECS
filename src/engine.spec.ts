@@ -140,6 +140,99 @@ describe('Engine v2 - Composition Architecture', () => {
         });
     });
 
+    describe('Entity Search Methods', () => {
+        test('should find first entity matching predicate', () => {
+            const enemy = engine.createEntity('Enemy');
+            enemy.addTag('hostile');
+            const friendly = engine.createEntity('Friendly');
+            friendly.addTag('ally');
+
+            const found = engine.findEntity(e => e.hasTag('hostile'));
+            expect(found).toBe(enemy);
+        });
+
+        test('should return undefined when no entity matches predicate', () => {
+            engine.createEntity('Entity1');
+            engine.createEntity('Entity2');
+
+            const found = engine.findEntity(e => e.hasTag('non-existent'));
+            expect(found).toBeUndefined();
+        });
+
+        test('should find all entities matching predicate', () => {
+            const entities = [
+                engine.createEntity('E1'),
+                engine.createEntity('E2'),
+                engine.createEntity('E3'),
+                engine.createEntity('E4'),
+                engine.createEntity('E5')
+            ];
+
+            entities.forEach(e => e.addTag('test'));
+            entities[2].addTag('special');
+            entities[4].addTag('special');
+
+            const found = engine.findEntities(e => e.hasTag('special'));
+            expect(found.length).toBe(2);
+            expect(found).toContain(entities[2]);
+            expect(found).toContain(entities[4]);
+        });
+
+        test('should return empty array when no entities match predicate', () => {
+            engine.createEntity('Entity1');
+            engine.createEntity('Entity2');
+
+            const found = engine.findEntities(e => e.hasTag('non-existent'));
+            expect(found).toEqual([]);
+        });
+
+        test('should get entity by numeric ID', () => {
+            const entity = engine.createEntity('Test');
+            const numericId = entity.numericId;
+
+            const found = engine.getEntityByNumericId(numericId);
+            expect(found).toBe(entity);
+        });
+
+        test('should return undefined for non-existent numeric ID', () => {
+            expect(engine.getEntityByNumericId(999999)).toBeUndefined();
+        });
+
+        test('should remove numeric ID from index after deletion', () => {
+            const entity = engine.createEntity('Test');
+            const numericId = entity.numericId;
+
+            entity.queueFree();
+            engine.update(16);
+
+            expect(engine.getEntityByNumericId(numericId)).toBeUndefined();
+        });
+
+        test('should support complex predicate searches', () => {
+            const player = engine.createEntity('Player');
+            player.addComponent(Health, 50, 100);
+            player.addTag('player');
+
+            const enemy1 = engine.createEntity('Enemy1');
+            enemy1.addComponent(Health, 30, 100);
+            enemy1.addTag('enemy');
+
+            const enemy2 = engine.createEntity('Enemy2');
+            enemy2.addComponent(Health, 80, 100);
+            enemy2.addTag('enemy');
+
+            // Find enemies with low health
+            const lowHealthEnemies = engine.findEntities(e =>
+                e.hasTag('enemy') &&
+                e.hasComponent(Health) &&
+                e.getComponent(Health).current < 50
+            );
+
+            expect(lowHealthEnemies.length).toBe(1);
+            expect(lowHealthEnemies[0]).toBe(enemy1);
+        });
+    });
+
     describe('Component Management', () => {
         test('should add and get components', () => {
             const entity = engine.createEntity();

@@ -2189,4 +2189,153 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(order).toEqual(['First', 'First', 'Second']);
         });
     });
+
+    describe('Query Result Iterators (ROADMAP #6)', () => {
+        test('should support iterator protocol with for...of', () => {
+            engine.registerComponent(Position);
+            engine.registerComponent(Velocity);
+
+            const query = engine.createQuery({ all: [Position] });
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Position, 10, 20);
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(Position, 30, 40);
+
+            const entity3 = engine.createEntity();
+            entity3.addComponent(Velocity, 1, 1); // No Position - should not match
+
+            let count = 0;
+            const foundEntities: any[] = [];
+
+            for (const entity of query) {
+                expect(entity.hasComponent(Position)).toBe(true);
+                foundEntities.push(entity);
+                count++;
+            }
+
+            expect(count).toBe(2);
+            expect(foundEntities).toContain(entity1);
+            expect(foundEntities).toContain(entity2);
+            expect(foundEntities).not.toContain(entity3);
+        });
+
+        test('should support forEach with component access', () => {
+            engine.registerComponent(Position);
+            engine.registerComponent(Velocity);
+
+            const query = engine.createQuery({ all: [Position, Velocity] });
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Position, 10, 20);
+            entity1.addComponent(Velocity, 1, 2);
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(Position, 30, 40);
+            entity2.addComponent(Velocity, 3, 4);
+
+            let callCount = 0;
+            const positions: any[] = [];
+            const velocities: any[] = [];
+
+            query.forEach((entity, position, velocity) => {
+                expect(entity).toBeDefined();
+                expect(position).toBeInstanceOf(Position);
+                expect(velocity).toBeInstanceOf(Velocity);
+
+                positions.push({ x: position.x, y: position.y });
+                velocities.push({ x: velocity.x, y: velocity.y });
+
+                callCount++;
+            });
+
+            expect(callCount).toBe(2);
+            expect(positions).toContainEqual({ x: 10, y: 20 });
+            expect(positions).toContainEqual({ x: 30, y: 40 });
+            expect(velocities).toContainEqual({ x: 1, y: 2 });
+            expect(velocities).toContainEqual({ x: 3, y: 4 });
+        });
+
+        test('forEach should work with empty query results', () => {
+            engine.registerComponent(Position);
+
+            const query = engine.createQuery({ all: [Position] });
+
+            let callCount = 0;
+            query.forEach((entity, position) => {
+                callCount++;
+            });
+
+            expect(callCount).toBe(0);
+        });
+
+        test('forEach should provide components in query order', () => {
+            engine.registerComponent(Position);
+            engine.registerComponent(Velocity);
+            engine.registerComponent(Health);
+
+            const query = engine.createQuery({ all: [Position, Velocity, Health] });
+
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 5, 10);
+            entity.addComponent(Velocity, 2, 3);
+            entity.addComponent(Health, 50, 100);
+
+            query.forEach((e, comp1, comp2, comp3) => {
+                expect(comp1).toBeInstanceOf(Position);
+                expect(comp2).toBeInstanceOf(Velocity);
+                expect(comp3).toBeInstanceOf(Health);
+
+                expect((comp1 as Position).x).toBe(5);
+                expect((comp2 as Velocity).x).toBe(2);
+                expect((comp3 as Health).current).toBe(50);
+            });
+        });
+
+        test('iterator should be reusable', () => {
+            engine.registerComponent(Position);
+
+            const query = engine.createQuery({ all: [Position] });
+
+            engine.createEntity().addComponent(Position, 1, 1);
+            engine.createEntity().addComponent(Position, 2, 2);
+
+            // First iteration
+            let count1 = 0;
+            for (const entity of query) {
+                count1++;
+            }
+
+            // Second iteration
+            let count2 = 0;
+            for (const entity of query) {
+                count2++;
+            }
+
+            expect(count1).toBe(2);
+            expect(count2).toBe(2);
+        });
+
+        test('should maintain backward compatibility with getEntitiesArray', () => {
+            engine.registerComponent(Position);
+
+            const query = engine.createQuery({ all: [Position] });
+
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 10, 20);
+
+            // Old approach should still work
+            const entitiesArray = query.getEntitiesArray();
+            expect(entitiesArray).toHaveLength(1);
+            expect(entitiesArray[0]).toBe(entity);
+
+            // New iterator approach
+            let count = 0;
+            for (const e of query) {
+                count++;
+            }
+            expect(count).toBe(1);
+        });
+    });
 });

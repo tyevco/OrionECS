@@ -1,4 +1,5 @@
 import { EngineBuilder, Engine } from './engine';
+import { createTagComponent } from './utils';
 import type { EntityPrefab, SystemMessage, EntityDef } from './definitions';
 
 // Test components
@@ -1319,6 +1320,193 @@ describe('Engine v2 - Composition Architecture', () => {
 
             expect(particleStats).toBeDefined();
             expect(positionStats).toBeUndefined();
+        });
+    });
+
+    describe('Tag Component Helper', () => {
+        test('should create tag component with specified name', () => {
+            const PlayerTag = createTagComponent('Player');
+
+            expect(PlayerTag).toBeDefined();
+            expect(PlayerTag.name).toBe('Player');
+            expect((PlayerTag as any).__tagName).toBe('Player');
+        });
+
+        test('should create unique tag components for different names', () => {
+            const PlayerTag = createTagComponent('Player');
+            const EnemyTag = createTagComponent('Enemy');
+
+            expect(PlayerTag).not.toBe(EnemyTag);
+            expect(PlayerTag.name).toBe('Player');
+            expect(EnemyTag.name).toBe('Enemy');
+        });
+
+        test('should work with entity.addComponent()', () => {
+            const PlayerTag = createTagComponent('Player');
+
+            const entity = engine.createEntity();
+            entity.addComponent(PlayerTag);
+
+            expect(entity.hasComponent(PlayerTag)).toBe(true);
+        });
+
+        test('should work with entity.removeComponent()', () => {
+            const PlayerTag = createTagComponent('Player');
+
+            const entity = engine.createEntity();
+            entity.addComponent(PlayerTag);
+            expect(entity.hasComponent(PlayerTag)).toBe(true);
+
+            entity.removeComponent(PlayerTag);
+            expect(entity.hasComponent(PlayerTag)).toBe(false);
+        });
+
+        test('should work with queries (all)', () => {
+            const PlayerTag = createTagComponent('Player');
+            const EnemyTag = createTagComponent('Enemy');
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(PlayerTag);
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(EnemyTag);
+
+            let playerCount = 0;
+            engine.createSystem('PlayerSystem',
+                { all: [PlayerTag] },
+                { act: (entity) => { playerCount++; } }
+            );
+
+            engine.update();
+
+            expect(playerCount).toBe(1);
+        });
+
+        test('should work with queries (any)', () => {
+            const PlayerTag = createTagComponent('Player');
+            const EnemyTag = createTagComponent('Enemy');
+            const AllyTag = createTagComponent('Ally');
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(PlayerTag);
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(EnemyTag);
+
+            const entity3 = engine.createEntity();
+            entity3.addComponent(AllyTag);
+
+            let friendlyCount = 0;
+            engine.createSystem('FriendlySystem',
+                { any: [PlayerTag, AllyTag] },
+                { act: (entity) => { friendlyCount++; } }
+            );
+
+            engine.update();
+
+            expect(friendlyCount).toBe(2); // entity1 and entity3
+        });
+
+        test('should work with queries (none)', () => {
+            const PlayerTag = createTagComponent('Player');
+            const EnemyTag = createTagComponent('Enemy');
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(PlayerTag);
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(EnemyTag);
+
+            const entity3 = engine.createEntity();
+            // No tags
+
+            let nonPlayerCount = 0;
+            engine.createSystem('NonPlayerSystem',
+                { none: [PlayerTag] },
+                { act: (entity) => { nonPlayerCount++; } }
+            );
+
+            engine.update();
+
+            expect(nonPlayerCount).toBe(2); // entity2 and entity3
+        });
+
+        test('should work with multiple tag components on same entity', () => {
+            const PlayerTag = createTagComponent('Player');
+            const ActiveTag = createTagComponent('Active');
+            const ControllableTag = createTagComponent('Controllable');
+
+            const entity = engine.createEntity();
+            entity.addComponent(PlayerTag);
+            entity.addComponent(ActiveTag);
+            entity.addComponent(ControllableTag);
+
+            expect(entity.hasComponent(PlayerTag)).toBe(true);
+            expect(entity.hasComponent(ActiveTag)).toBe(true);
+            expect(entity.hasComponent(ControllableTag)).toBe(true);
+        });
+
+        test('should work alongside data components', () => {
+            const PlayerTag = createTagComponent('Player');
+
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 10, 20);
+            entity.addComponent(PlayerTag);
+
+            expect(entity.hasComponent(Position)).toBe(true);
+            expect(entity.hasComponent(PlayerTag)).toBe(true);
+            expect(entity.getComponent(Position).x).toBe(10);
+        });
+
+        test('should work in complex queries with data components', () => {
+            const PlayerTag = createTagComponent('Player');
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Position, 10, 20);
+            entity1.addComponent(PlayerTag);
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(Position, 30, 40);
+            // No PlayerTag
+
+            let playerWithPosCount = 0;
+            engine.createSystem('PlayerMovementSystem',
+                { all: [Position, PlayerTag] },
+                { act: (entity, pos) => {
+                    playerWithPosCount++;
+                    expect(pos.x).toBe(10);
+                } }
+            );
+
+            engine.update();
+
+            expect(playerWithPosCount).toBe(1);
+        });
+
+        test('should be registerable with engine', () => {
+            const PlayerTag = createTagComponent('Player');
+
+            // Register the tag component
+            engine.registerComponent(PlayerTag);
+
+            const entity = engine.createEntity();
+            entity.addComponent(PlayerTag);
+
+            expect(entity.hasComponent(PlayerTag)).toBe(true);
+        });
+
+        test('should support component validation', () => {
+            const PlayerTag = createTagComponent('Player');
+
+            engine.registerComponent(PlayerTag);
+            engine.registerComponentValidator(PlayerTag, {
+                validate: () => true
+            });
+
+            const entity = engine.createEntity();
+            entity.addComponent(PlayerTag);
+
+            expect(entity.hasComponent(PlayerTag)).toBe(true);
         });
     });
 });

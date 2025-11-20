@@ -1925,4 +1925,232 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(order).toEqual(['First', 'Second']);
         });
     });
+
+    describe('Conditional System Execution', () => {
+        test('should support runIf conditional execution', () => {
+            const gameState = { isPlaying: false };
+            let systemRan = false;
+
+            const system = engine.createSystem('TestSystem', { all: [] }, {
+                before: () => { systemRan = true; }
+            });
+            system.runIf(() => gameState.isPlaying);
+
+            engine.update(16);
+            expect(systemRan).toBe(false); // Not playing
+
+            systemRan = false;
+            gameState.isPlaying = true;
+            engine.update(16);
+            expect(systemRan).toBe(true); // Now playing
+        });
+
+        test('should support runOnce execution', () => {
+            let runCount = 0;
+
+            const system = engine.createSystem('OnceSystem', { all: [] }, {
+                before: () => { runCount++; }
+            });
+            system.runOnce();
+
+            engine.update(16);
+            engine.update(16);
+            engine.update(16);
+
+            expect(runCount).toBe(1); // Only ran once
+        });
+
+        test('should support runEvery execution', () => {
+            let runCount = 0;
+
+            const system = engine.createSystem('PeriodicSystem', { all: [] }, {
+                before: () => { runCount++; }
+            });
+            system.runEvery(100); // Every 100ms
+
+            engine.update(16); // 16ms
+            expect(runCount).toBe(1); // First run
+
+            engine.update(16); // 32ms total
+            expect(runCount).toBe(1); // Not yet (< 100ms)
+
+            engine.update(84); // 116ms total
+            expect(runCount).toBe(2); // Second run (>= 100ms)
+
+            engine.update(16); // 132ms total
+            expect(runCount).toBe(2); // Not yet
+
+            engine.update(100); // 232ms total
+            expect(runCount).toBe(3); // Third run
+        });
+
+        test('should support enableWhen predicate', () => {
+            let isMinimized = true;
+            let systemRan = false;
+
+            const system = engine.createSystem('RenderSystem', { all: [] }, {
+                before: () => { systemRan = true; }
+            });
+            system.disableWhen(() => isMinimized);
+
+            engine.update(16);
+            expect(systemRan).toBe(false); // Minimized, so disabled
+
+            systemRan = false;
+            isMinimized = false;
+            engine.update(16);
+            expect(systemRan).toBe(true); // Not minimized anymore
+        });
+
+        test('should support disableWhen predicate', () => {
+            let isLowPower = false;
+            let systemRan = false;
+
+            const system = engine.createSystem('IntenseSystem', { all: [] }, {
+                before: () => { systemRan = true; }
+            });
+            system.disableWhen(() => isLowPower);
+
+            engine.update(16);
+            expect(systemRan).toBe(true); // Normal power
+
+            systemRan = false;
+            isLowPower = true;
+            engine.update(16);
+            expect(systemRan).toBe(false); // Low power, disabled
+        });
+
+        test('should combine enableWhen and disableWhen', () => {
+            let isConnected = false;
+            let isPaused = false;
+            let systemRan = false;
+
+            const system = engine.createSystem('NetworkSystem', { all: [] }, {
+                before: () => { systemRan = true; },
+                enabled: false // Start disabled
+            });
+            system.enableWhen(() => isConnected);
+            system.disableWhen(() => isPaused);
+
+            engine.update(16);
+            expect(systemRan).toBe(false); // Not connected
+
+            systemRan = false;
+            isConnected = true;
+            engine.update(16);
+            expect(systemRan).toBe(true); // Connected, not paused
+
+            systemRan = false;
+            isPaused = true;
+            engine.update(16);
+            expect(systemRan).toBe(false); // Connected but paused
+
+            systemRan = false;
+            isPaused = false;
+            engine.update(16);
+            expect(systemRan).toBe(true); // Connected, not paused
+        });
+
+        test('should combine runIf with runOnce', () => {
+            let condition = false;
+            let runCount = 0;
+
+            const system = engine.createSystem('ConditionalOnce', { all: [] }, {
+                before: () => { runCount++; }
+            });
+            system.runIf(() => condition);
+            system.runOnce();
+
+            // Condition false, shouldn't run
+            engine.update(16);
+            expect(runCount).toBe(0);
+
+            // Condition true, should run once
+            condition = true;
+            engine.update(16);
+            expect(runCount).toBe(1);
+
+            // Should not run again even though condition is true
+            engine.update(16);
+            expect(runCount).toBe(1);
+        });
+
+        test('should combine runIf with runEvery', () => {
+            let condition = false;
+            let runCount = 0;
+
+            const system = engine.createSystem('ConditionalPeriodic', { all: [] }, {
+                before: () => { runCount++; }
+            });
+            system.runIf(() => condition);
+            system.runEvery(50); // Every 50ms
+
+            // First run, condition false
+            engine.update(16);
+            expect(runCount).toBe(0);
+
+            // Condition true, should run
+            condition = true;
+            engine.update(16);
+            expect(runCount).toBe(1);
+
+            // Too soon, shouldn't run
+            engine.update(16);
+            expect(runCount).toBe(1);
+
+            // Enough time, condition true, should run
+            engine.update(50);
+            expect(runCount).toBe(2);
+
+            // Enough time, but condition false
+            condition = false;
+            engine.update(50);
+            expect(runCount).toBe(2);
+        });
+
+        test('should work with conditional execution in groups', () => {
+            let runCount = 0;
+
+            engine.createSystemGroup('Logic', { priority: 500 });
+
+            const system = engine.createSystem('PeriodicGroupSystem', { all: [] }, {
+                before: () => { runCount++; },
+                group: 'Logic'
+            });
+            system.runEvery(50);
+
+            engine.update(16);
+            expect(runCount).toBe(1);
+
+            engine.update(16);
+            expect(runCount).toBe(1); // Not yet
+
+            engine.update(50);
+            expect(runCount).toBe(2);
+        });
+
+        test('should work with conditional execution and dependencies', () => {
+            const order: string[] = [];
+            let runSecond = false;
+
+            engine.createSystem('First', { all: [] }, {
+                before: () => { order.push('First'); }
+            });
+
+            const secondSystem = engine.createSystem('Second', { all: [] }, {
+                before: () => { order.push('Second'); },
+                runAfter: ['First']
+            });
+            secondSystem.runIf(() => runSecond);
+
+            // Second won't run
+            engine.update(16);
+            expect(order).toEqual(['First']);
+
+            // Second will run
+            runSecond = true;
+            engine.update(16);
+            expect(order).toEqual(['First', 'First', 'Second']);
+        });
+    });
 });

@@ -243,6 +243,37 @@ export class Engine {
         return clone;
     }
 
+    /**
+     * Create multiple entities at once
+     * @param count - Number of entities to create
+     * @param prefabName - Optional prefab name to create entities from
+     * @returns Array of created entities
+     */
+    createEntities(count: number, prefabName?: string): Entity[] {
+        const entities: Entity[] = [];
+
+        // Create entities from prefab or empty
+        for (let i = 0; i < count; i++) {
+            let entity: Entity | null;
+
+            if (prefabName) {
+                entity = this.createFromPrefab(prefabName);
+            } else {
+                entity = this.createEntity();
+            }
+
+            if (entity) {
+                entities.push(entity);
+            }
+        }
+
+        if (this.debugMode) {
+            console.log(`[ECS Debug] Created ${entities.length} entities${prefabName ? ` from prefab '${prefabName}'` : ''}`);
+        }
+
+        return entities;
+    }
+
     // ========== Component Management ==========
 
     registerComponent<T>(type: ComponentIdentifier<T>): void {

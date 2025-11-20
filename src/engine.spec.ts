@@ -105,6 +105,42 @@ describe('Engine v2 - Composition Architecture', () => {
             engine.update(16);
             expect(engine.getAllEntities()).toHaveLength(0);
         });
+
+        test('should create multiple empty entities', () => {
+            const entities = engine.createEntities(10);
+            expect(entities.length).toBe(10);
+            entities.forEach(e => {
+                expect(e).toBeDefined();
+                expect(engine.getEntity(e.id)).toBe(e);
+            });
+        });
+
+        test('should create multiple entities from prefab', () => {
+            // Register prefab
+            const prefab: EntityPrefab = {
+                name: 'TestPrefab',
+                components: [
+                    { type: Position, args: [0, 0] }
+                ],
+                tags: ['test']
+            };
+            engine.registerPrefab('TestPrefab', prefab);
+
+            // Create bulk entities from prefab
+            const entities = engine.createEntities(5, 'TestPrefab');
+            expect(entities.length).toBe(5);
+            entities.forEach(e => {
+                expect(e.hasComponent(Position)).toBe(true);
+                expect(e.hasTag('test')).toBe(true);
+            });
+        });
+
+        test('should perform bulk creation reasonably fast', () => {
+            const start = performance.now();
+            engine.createEntities(1000);
+            const duration = performance.now() - start;
+            expect(duration).toBeLessThan(1000); // Should complete in < 1 second
+        });
     });
 
     describe('Entity Name Indexing', () => {

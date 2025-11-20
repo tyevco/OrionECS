@@ -214,6 +214,109 @@ const memoryStats = engine.getMemoryStats();
 const debugInfo = engine.getDebugInfo();
 ```
 
+### Plugin System
+
+Orion ECS features a powerful plugin architecture that allows contributors to add new features without modifying the core project. Plugins can register components, create systems, add custom APIs, and more.
+
+**Creating a Plugin:**
+```typescript
+import type { EnginePlugin, PluginContext } from 'orion-ecs';
+
+class MyPlugin implements EnginePlugin {
+  name = 'MyPlugin';
+  version = '1.0.0';
+
+  install(context: PluginContext): void {
+    // Register components
+    context.registerComponent(MyComponent);
+
+    // Create systems
+    context.createSystem('MySystem',
+      { all: [MyComponent] },
+      { act: (entity, component) => { /* ... */ } }
+    );
+
+    // Extend engine with custom API
+    context.extend('myApi', new MyAPI());
+
+    // Subscribe to events
+    context.on('onEntityCreated', (entity) => {
+      console.log('Entity created:', entity);
+    });
+
+    // Use message bus
+    context.messageBus.subscribe('custom-event', (msg) => {
+      console.log('Received:', msg.data);
+    });
+  }
+
+  uninstall(): void {
+    // Optional cleanup
+    console.log('Plugin uninstalled');
+  }
+}
+```
+
+**Using Plugins:**
+```typescript
+import { EngineBuilder } from 'orion-ecs';
+import { PhysicsPlugin } from './plugins/PhysicsPlugin';
+import { NetworkingPlugin } from './plugins/NetworkingPlugin';
+
+const engine = new EngineBuilder()
+  .use(new PhysicsPlugin())
+  .use(new NetworkingPlugin())
+  .withDebugMode(true)
+  .build();
+
+// Access plugin-provided APIs
+engine.physics.setGravity(0, 9.8);
+engine.networking.connect('ws://server.com');
+```
+
+**Plugin Context API:**
+The `PluginContext` provides plugins with safe access to:
+- `registerComponent(type)` - Register component classes
+- `registerComponentValidator(type, validator)` - Add component validation
+- `createSystem(name, query, options, isFixed?)` - Create new systems
+- `createQuery(options)` - Create entity queries
+- `registerPrefab(name, prefab)` - Register entity templates
+- `on(event, callback)` - Subscribe to engine events
+- `emit(event, ...args)` - Emit custom events
+- `messageBus` - Inter-system messaging
+- `extend(name, api)` - Add custom APIs to engine instance
+- `getEngine()` - Access full engine for advanced use cases
+
+**Plugin Management:**
+```typescript
+// Check if plugin is installed
+if (engine.hasPlugin('PhysicsPlugin')) {
+  console.log('Physics plugin is active');
+}
+
+// Get plugin information
+const pluginInfo = engine.getPlugin('PhysicsPlugin');
+console.log(`Installed at: ${new Date(pluginInfo.installedAt)}`);
+
+// List all plugins
+const plugins = engine.getInstalledPlugins();
+plugins.forEach(p => {
+  console.log(`${p.plugin.name} v${p.plugin.version || 'unknown'}`);
+});
+
+// Uninstall a plugin
+await engine.uninstallPlugin('PhysicsPlugin');
+```
+
+**Example Plugins:**
+- **Physics** - Box2D/Matter.js integration with RigidBody, Collider components
+- **Networking** - Multiplayer synchronization and client prediction
+- **Audio** - Spatial audio with AudioSource components
+- **AI** - Behavior trees and pathfinding systems
+- **Rendering** - Pixi.js, Three.js, or custom renderer integration
+
+See `examples/PhysicsPlugin.ts` for a complete working example.
+
 ## When to Use Orion ECS
 
 ### Ideal For:

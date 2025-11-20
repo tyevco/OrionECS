@@ -29,7 +29,10 @@ import type {
     SystemProfile,
     EntityPrefab,
     SerializedWorld,
-    MemoryStats
+    MemoryStats,
+    EnginePlugin,
+    PluginContext,
+    InstalledPlugin
 } from './definitions';
 
 /**
@@ -50,6 +53,7 @@ export class EngineBuilder {
     private maxFixedIterations: number = 10;
     private debugMode: boolean = false;
     private maxSnapshots: number = 10;
+    private plugins: EnginePlugin[] = [];
 
     /**
      * Enable or disable debug mode
@@ -84,6 +88,14 @@ export class EngineBuilder {
     }
 
     /**
+     * Register a plugin to be installed when the engine is built
+     */
+    use(plugin: EnginePlugin): this {
+        this.plugins.push(plugin);
+        return this;
+    }
+
+    /**
      * Build the Engine with all configured managers
      */
     build(): Engine {
@@ -96,7 +108,7 @@ export class EngineBuilder {
         // Create entity manager with dependencies
         this.entityManager = new EntityManager(this.componentManager, this.eventEmitter);
 
-        return new Engine(
+        const engine = new Engine(
             this.entityManager,
             this.componentManager,
             this.systemManager,
@@ -108,6 +120,13 @@ export class EngineBuilder {
             this.performanceMonitor,
             this.debugMode
         );
+
+        // Install all registered plugins
+        for (const plugin of this.plugins) {
+            engine.installPlugin(plugin);
+        }
+
+        return engine;
     }
 }
 
@@ -117,6 +136,8 @@ export class EngineBuilder {
 export class Engine {
     private running: boolean = false;
     private lastUpdateTime: number = 0;
+    private installedPlugins: Map<string, InstalledPlugin> = new Map();
+    private extensions: Map<string, any> = new Map();
 
     constructor(
         private entityManager: EntityManager,
@@ -482,5 +503,165 @@ export class Engine {
             minFrameTime: this.performanceMonitor.getMin(),
             maxFrameTime: this.performanceMonitor.getMax()
         };
+    }
+
+    // ========== Plugin System ==========
+
+    /**
+     * Create a plugin context for a plugin to use during installation
+     */
+    private createPluginContext(): PluginContext {
+        const self = this;
+        return {
+            registerComponent<T>(type: ComponentIdentifier<T>): void {
+                self.registerComponent(type);
+            },
+            registerComponentValidator<T>(type: ComponentIdentifier<T>, validator: ComponentValidator<T>): void {
+                self.registerComponentValidator(type, validator);
+            },
+            createSystem<C extends any[] = any[]>(
+                name: string,
+                queryOptions: QueryOptions,
+                options: SystemType<C>,
+                isFixedUpdate: boolean = false
+            ): any {
+                return self.createSystem(name, queryOptions, options, isFixedUpdate);
+            },
+            createQuery<C extends any[] = any[]>(options: QueryOptions): any {
+                return self.createQuery(options);
+            },
+            registerPrefab(name: string, prefab: EntityPrefab): void {
+                self.registerPrefab(name, prefab);
+            },
+            on(event: string, callback: Function): () => void {
+                return self.on(event, callback);
+            },
+            emit(event: string, ...args: any[]): void {
+                self.emit(event, ...args);
+            },
+            messageBus: {
+                subscribe(messageType: string, callback: (message: any) => void): () => void {
+                    return self.messageBus.subscribe(messageType, callback);
+                },
+                publish(messageType: string, data: any, sender?: string): void {
+                    self.messageBus.publish(messageType, data, sender);
+                }
+            },
+            extend<T extends object>(extensionName: string, api: T): void {
+                if (self.extensions.has(extensionName)) {
+                    throw new Error(`Extension '${extensionName}' already exists`);
+                }
+                self.extensions.set(extensionName, api);
+                // Dynamically add extension to engine instance
+                (self as any)[extensionName] = api;
+            },
+            getEngine(): any {
+                return self;
+            }
+        };
+    }
+
+    /**
+     * Install a plugin into the engine
+     */
+    installPlugin(plugin: EnginePlugin): void {
+        if (this.installedPlugins.has(plugin.name)) {
+            if (this.debugMode) {
+                console.warn(`[ECS Debug] Plugin '${plugin.name}' is already installed`);
+            }
+            return;
+        }
+
+        const context = this.createPluginContext();
+        const result = plugin.install(context);
+
+        // Handle async installation
+        if (result instanceof Promise) {
+            result.then(() => {
+                this.installedPlugins.set(plugin.name, {
+                    plugin,
+                    installedAt: Date.now()
+                });
+                this.eventEmitter.emit('onPluginInstalled', plugin);
+                if (this.debugMode) {
+                    console.log(`[ECS Debug] Plugin '${plugin.name}' installed successfully`);
+                }
+            }).catch(error => {
+                console.error(`[ECS] Failed to install plugin '${plugin.name}':`, error);
+            });
+        } else {
+            this.installedPlugins.set(plugin.name, {
+                plugin,
+                installedAt: Date.now()
+            });
+            this.eventEmitter.emit('onPluginInstalled', plugin);
+            if (this.debugMode) {
+                console.log(`[ECS Debug] Plugin '${plugin.name}' installed successfully`);
+            }
+        }
+    }
+
+    /**
+     * Uninstall a plugin from the engine
+     */
+    async uninstallPlugin(pluginName: string): Promise<boolean> {
+        const installedPlugin = this.installedPlugins.get(pluginName);
+        if (!installedPlugin) {
+            if (this.debugMode) {
+                console.warn(`[ECS Debug] Plugin '${pluginName}' is not installed`);
+            }
+            return false;
+        }
+
+        const { plugin } = installedPlugin;
+
+        // Call uninstall hook if it exists
+        if (plugin.uninstall) {
+            try {
+                const result = plugin.uninstall();
+                if (result instanceof Promise) {
+                    await result;
+                }
+            } catch (error) {
+                console.error(`[ECS] Error uninstalling plugin '${pluginName}':`, error);
+                return false;
+            }
+        }
+
+        this.installedPlugins.delete(pluginName);
+        this.eventEmitter.emit('onPluginUninstalled', plugin);
+        if (this.debugMode) {
+            console.log(`[ECS Debug] Plugin '${pluginName}' uninstalled successfully`);
+        }
+
+        return true;
+    }
+
+    /**
+     * Get information about an installed plugin
+     */
+    getPlugin(pluginName: string): InstalledPlugin | undefined {
+        return this.installedPlugins.get(pluginName);
+    }
+
+    /**
+     * Get all installed plugins
+     */
+    getInstalledPlugins(): InstalledPlugin[] {
+        return Array.from(this.installedPlugins.values());
+    }
+
+    /**
+     * Check if a plugin is installed
+     */
+    hasPlugin(pluginName: string): boolean {
+        return this.installedPlugins.has(pluginName);
+    }
+
+    /**
+     * Get a custom extension added by a plugin
+     */
+    getExtension<T = any>(extensionName: string): T | undefined {
+        return this.extensions.get(extensionName);
     }
 }

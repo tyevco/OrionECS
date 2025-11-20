@@ -119,3 +119,57 @@ export interface SystemMessage {
     sender?: string;
     timestamp: number;
 }
+
+// Plugin system
+export interface PluginContext {
+    // Component registration
+    registerComponent<T>(type: ComponentIdentifier<T>): void;
+    registerComponentValidator<T>(type: ComponentIdentifier<T>, validator: ComponentValidator<T>): void;
+
+    // System creation
+    createSystem<C extends any[] = any[]>(
+        name: string,
+        queryOptions: QueryOptions,
+        options: SystemType<C>,
+        isFixedUpdate?: boolean
+    ): any; // System<C>
+
+    // Query creation
+    createQuery<C extends any[] = any[]>(options: QueryOptions): any; // Query<C>
+
+    // Prefab registration
+    registerPrefab(name: string, prefab: EntityPrefab): void;
+
+    // Event system
+    on(event: string, callback: Function): () => void;
+    emit(event: string, ...args: any[]): void;
+
+    // Message bus
+    messageBus: {
+        subscribe(messageType: string, callback: (message: SystemMessage) => void): () => void;
+        publish(messageType: string, data: any, sender?: string): void;
+    };
+
+    // Allow plugins to extend the engine with custom APIs
+    extend<T extends object>(extensionName: string, api: T): void;
+
+    // Get engine instance for advanced use cases
+    getEngine(): any; // Engine
+}
+
+export interface EnginePlugin {
+    // Plugin metadata
+    name: string;
+    version?: string;
+
+    // Installation lifecycle
+    install(context: PluginContext): void | Promise<void>;
+
+    // Optional cleanup on uninstall
+    uninstall?(): void | Promise<void>;
+}
+
+export interface InstalledPlugin {
+    plugin: EnginePlugin;
+    installedAt: number;
+}

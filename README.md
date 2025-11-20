@@ -24,6 +24,7 @@ Orion ECS is a comprehensive and high-performance Entity Component System (ECS) 
 - **Performance Monitoring** - System execution profiling and timing
 
 ### Advanced Features
+- **Plugin System** - Extensible architecture for adding features without modifying core
 - **Prefab System** - Template-based entity creation
 - **Bulk Operations** - Efficient batch entity management
 - **Serialization** - Save/restore world state with snapshots
@@ -195,6 +196,67 @@ game.restoreSnapshot(); // Restore latest
 game.restoreSnapshot(0); // Restore specific snapshot
 ```
 
+### Plugin System
+
+Orion ECS features a powerful plugin architecture that allows you to extend the engine with custom functionality without modifying the core code.
+
+```typescript
+import { EngineBuilder, EnginePlugin, PluginContext } from 'orion-ecs';
+
+// Create a plugin
+class PhysicsPlugin implements EnginePlugin {
+  name = 'PhysicsPlugin';
+  version = '1.0.0';
+
+  install(context: PluginContext): void {
+    // Register components
+    context.registerComponent(RigidBody);
+    context.registerComponent(Collider);
+
+    // Create systems
+    context.createSystem('PhysicsSystem',
+      { all: [Position, RigidBody] },
+      {
+        act: (entity, position, rigidBody) => {
+          // Physics logic here
+          position.x += rigidBody.velocity.x;
+          position.y += rigidBody.velocity.y;
+        }
+      },
+      true // Fixed update
+    );
+
+    // Extend engine with custom API
+    const physicsAPI = {
+      setGravity: (x: number, y: number) => {
+        // Custom physics API
+      }
+    };
+    context.extend('physics', physicsAPI);
+  }
+
+  uninstall(): void {
+    console.log('Physics plugin uninstalled');
+  }
+}
+
+// Use plugins with EngineBuilder
+const game = new EngineBuilder()
+  .use(new PhysicsPlugin())
+  .withDebugMode(true)
+  .build();
+
+// Access plugin-provided API
+game.physics.setGravity(0, 9.8);
+
+// Plugin management
+console.log(game.hasPlugin('PhysicsPlugin')); // true
+const plugins = game.getInstalledPlugins();
+await game.uninstallPlugin('PhysicsPlugin');
+```
+
+See `examples/PhysicsPlugin.ts` for a complete working example.
+
 ## API Reference
 
 ### EngineBuilder
@@ -203,6 +265,7 @@ game.restoreSnapshot(0); // Restore specific snapshot
 - `withFixedUpdateFPS(fps: number)`: Set fixed update FPS (default: 60)
 - `withMaxFixedIterations(iterations: number)`: Set max fixed update iterations per frame (default: 10)
 - `withMaxSnapshots(max: number)`: Set max number of snapshots to keep (default: 10)
+- `use(plugin: EnginePlugin)`: Register a plugin to be installed when the engine is built
 - `build()`: Build and return the configured Engine instance
 
 ### Engine
@@ -220,6 +283,14 @@ game.restoreSnapshot(0); // Restore specific snapshot
 - `registerComponentValidator(type: ComponentClass, validator: ComponentValidator)`: Adds validation
 - `createSnapshot()`: Creates a world state snapshot
 - `serialize()`: Serializes the entire world state
+
+#### Plugin Management
+- `installPlugin(plugin: EnginePlugin)`: Installs a plugin into the engine
+- `uninstallPlugin(pluginName: string)`: Uninstalls a plugin (async)
+- `hasPlugin(pluginName: string)`: Checks if a plugin is installed
+- `getPlugin(pluginName: string)`: Gets information about an installed plugin
+- `getInstalledPlugins()`: Gets all installed plugins
+- `getExtension<T>(extensionName: string)`: Gets a custom extension added by a plugin
 
 #### Query and Profiling
 - `getAllEntities()`: Gets all active entities

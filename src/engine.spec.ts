@@ -566,4 +566,344 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(player!.getComponent(Position).y).toBe(3);
         });
     });
+
+    describe('Plugin System', () => {
+        test('should install plugin via EngineBuilder.use()', () => {
+            let installCalled = false;
+            const testPlugin = {
+                name: 'TestPlugin',
+                version: '1.0.0',
+                install: () => {
+                    installCalled = true;
+                }
+            };
+
+            const pluginEngine = new EngineBuilder()
+                .use(testPlugin)
+                .build();
+
+            expect(installCalled).toBe(true);
+            expect(pluginEngine.hasPlugin('TestPlugin')).toBe(true);
+        });
+
+        test('should pass PluginContext to plugin.install()', () => {
+            let receivedContext: any = null;
+            const testPlugin = {
+                name: 'TestPlugin',
+                install: (context: any) => {
+                    receivedContext = context;
+                }
+            };
+
+            new EngineBuilder()
+                .use(testPlugin)
+                .build();
+
+            expect(receivedContext).toBeDefined();
+            expect(receivedContext.registerComponent).toBeDefined();
+            expect(receivedContext.createSystem).toBeDefined();
+            expect(receivedContext.extend).toBeDefined();
+        });
+
+        test('should allow plugins to register components', () => {
+            class PluginComponent {
+                constructor(public value: number = 0) {}
+            }
+
+            const testPlugin = {
+                name: 'ComponentPlugin',
+                install: (context: any) => {
+                    context.registerComponent(PluginComponent);
+                }
+            };
+
+            const pluginEngine = new EngineBuilder()
+                .use(testPlugin)
+                .build();
+
+            const entity = pluginEngine.createEntity('Test');
+            entity.addComponent(PluginComponent, 42);
+
+            expect(entity.hasComponent(PluginComponent)).toBe(true);
+            expect(entity.getComponent(PluginComponent).value).toBe(42);
+        });
+
+        test('should allow plugins to create systems', () => {
+            class TestComponent {
+                constructor(public value: number = 0) {}
+            }
+
+            let systemCalled = false;
+            const testPlugin = {
+                name: 'SystemPlugin',
+                install: (context: any) => {
+                    context.registerComponent(TestComponent);
+                    context.createSystem(
+                        'PluginSystem',
+                        { all: [TestComponent] },
+                        {
+                            act: () => {
+                                systemCalled = true;
+                            }
+                        }
+                    );
+                }
+            };
+
+            const pluginEngine = new EngineBuilder()
+                .use(testPlugin)
+                .build();
+
+            const entity = pluginEngine.createEntity('Test');
+            entity.addComponent(TestComponent, 10);
+
+            pluginEngine.update(16);
+
+            expect(systemCalled).toBe(true);
+        });
+
+        test('should allow plugins to extend engine with custom APIs', () => {
+            class CustomAPI {
+                getValue(): number {
+                    return 42;
+                }
+            }
+
+            const testPlugin = {
+                name: 'ExtensionPlugin',
+                install: (context: any) => {
+                    const api = new CustomAPI();
+                    context.extend('customApi', api);
+                }
+            };
+
+            const pluginEngine = new EngineBuilder()
+                .use(testPlugin)
+                .build();
+
+            expect((pluginEngine as any).customApi).toBeDefined();
+            expect((pluginEngine as any).customApi.getValue()).toBe(42);
+            expect(pluginEngine.getExtension('customApi')).toBeDefined();
+        });
+
+        test('should prevent duplicate plugin installations', () => {
+            const testPlugin = {
+                name: 'DuplicatePlugin',
+                install: () => {}
+            };
+
+            const pluginEngine = new EngineBuilder()
+                .withDebugMode(true)
+                .build();
+
+            pluginEngine.installPlugin(testPlugin);
+            expect(pluginEngine.hasPlugin('DuplicatePlugin')).toBe(true);
+
+            // Try to install again - should be ignored
+            pluginEngine.installPlugin(testPlugin);
+            const installedPlugins = pluginEngine.getInstalledPlugins();
+            const duplicates = installedPlugins.filter(p => p.plugin.name === 'DuplicatePlugin');
+            expect(duplicates).toHaveLength(1);
+        });
+
+        test('should track installed plugins', () => {
+            const plugin1 = { name: 'Plugin1', install: () => {} };
+            const plugin2 = { name: 'Plugin2', install: () => {} };
+
+            const pluginEngine = new EngineBuilder()
+                .use(plugin1)
+                .use(plugin2)
+                .build();
+
+            expect(pluginEngine.hasPlugin('Plugin1')).toBe(true);
+            expect(pluginEngine.hasPlugin('Plugin2')).toBe(true);
+
+            const installed = pluginEngine.getInstalledPlugins();
+            expect(installed).toHaveLength(2);
+        });
+
+        test('should allow uninstalling plugins', async () => {
+            let uninstallCalled = false;
+            const testPlugin = {
+                name: 'UninstallablePlugin',
+                install: () => {},
+                uninstall: () => {
+                    uninstallCalled = true;
+                }
+            };
+
+            const pluginEngine = new EngineBuilder()
+                .use(testPlugin)
+                .build();
+
+            expect(pluginEngine.hasPlugin('UninstallablePlugin')).toBe(true);
+
+            const result = await pluginEngine.uninstallPlugin('UninstallablePlugin');
+
+            expect(result).toBe(true);
+            expect(uninstallCalled).toBe(true);
+            expect(pluginEngine.hasPlugin('UninstallablePlugin')).toBe(false);
+        });
+
+        test('should support async plugin installation', (done) => {
+            let asyncCompleted = false;
+            const asyncPlugin = {
+                name: 'AsyncPlugin',
+                install: async () => {
+                    await new Promise(resolve => setTimeout(resolve, 10));
+                    asyncCompleted = true;
+                }
+            };
+
+            const pluginEngine = new EngineBuilder()
+                .use(asyncPlugin)
+                .build();
+
+            // Give async operation time to complete
+            setTimeout(() => {
+                expect(asyncCompleted).toBe(true);
+                expect(pluginEngine.hasPlugin('AsyncPlugin')).toBe(true);
+                done();
+            }, 50);
+        });
+
+        test('should allow plugins to register prefabs', () => {
+            class PluginPosition {
+                constructor(public x: number = 0, public y: number = 0) {}
+            }
+
+            const testPlugin = {
+                name: 'PrefabPlugin',
+                install: (context: any) => {
+                    context.registerComponent(PluginPosition);
+                    context.registerPrefab('PluginEntity', {
+                        name: 'PluginEntity',
+                        components: [
+                            { type: PluginPosition, args: [10, 20] }
+                        ],
+                        tags: ['plugin-created']
+                    });
+                }
+            };
+
+            const pluginEngine = new EngineBuilder()
+                .use(testPlugin)
+                .build();
+
+            const entity = pluginEngine.createFromPrefab('PluginEntity', 'Test');
+
+            expect(entity).toBeDefined();
+            expect(entity!.hasComponent(PluginPosition)).toBe(true);
+            expect(entity!.getComponent(PluginPosition).x).toBe(10);
+            expect(entity!.hasTag('plugin-created')).toBe(true);
+        });
+
+        test('should allow plugins to use message bus', () => {
+            let messageReceived = false;
+            let receivedData: any = null;
+
+            const testPlugin = {
+                name: 'MessagePlugin',
+                install: (context: any) => {
+                    context.messageBus.subscribe('test-message', (message: any) => {
+                        messageReceived = true;
+                        receivedData = message.data;
+                    });
+                }
+            };
+
+            const pluginEngine = new EngineBuilder()
+                .use(testPlugin)
+                .build();
+
+            pluginEngine.messageBus.publish('test-message', { value: 123 });
+
+            expect(messageReceived).toBe(true);
+            expect(receivedData).toEqual({ value: 123 });
+        });
+
+        test('should allow plugins to subscribe to events', () => {
+            let eventReceived = false;
+
+            const testPlugin = {
+                name: 'EventPlugin',
+                install: (context: any) => {
+                    context.on('custom-event', () => {
+                        eventReceived = true;
+                    });
+                }
+            };
+
+            const pluginEngine = new EngineBuilder()
+                .use(testPlugin)
+                .build();
+
+            pluginEngine.emit('custom-event');
+
+            expect(eventReceived).toBe(true);
+        });
+
+        test('should allow chaining multiple plugins', () => {
+            const plugin1 = { name: 'Plugin1', install: () => {} };
+            const plugin2 = { name: 'Plugin2', install: () => {} };
+            const plugin3 = { name: 'Plugin3', install: () => {} };
+
+            const builder = new EngineBuilder()
+                .use(plugin1)
+                .use(plugin2)
+                .use(plugin3);
+
+            expect(builder).toBeDefined();
+
+            const pluginEngine = builder.build();
+
+            expect(pluginEngine.hasPlugin('Plugin1')).toBe(true);
+            expect(pluginEngine.hasPlugin('Plugin2')).toBe(true);
+            expect(pluginEngine.hasPlugin('Plugin3')).toBe(true);
+        });
+
+        test('should get plugin information', () => {
+            const testPlugin = {
+                name: 'InfoPlugin',
+                version: '2.0.0',
+                install: () => {}
+            };
+
+            const pluginEngine = new EngineBuilder()
+                .use(testPlugin)
+                .build();
+
+            const pluginInfo = pluginEngine.getPlugin('InfoPlugin');
+
+            expect(pluginInfo).toBeDefined();
+            expect(pluginInfo!.plugin.name).toBe('InfoPlugin');
+            expect(pluginInfo!.plugin.version).toBe('2.0.0');
+            expect(pluginInfo!.installedAt).toBeGreaterThan(0);
+        });
+
+        test('should prevent duplicate extension names', () => {
+            const plugin1 = {
+                name: 'Plugin1',
+                install: (context: any) => {
+                    context.extend('sharedApi', { value: 1 });
+                }
+            };
+
+            const plugin2 = {
+                name: 'Plugin2',
+                install: (context: any) => {
+                    expect(() => {
+                        context.extend('sharedApi', { value: 2 });
+                    }).toThrow("Extension 'sharedApi' already exists");
+                }
+            };
+
+            const pluginEngine = new EngineBuilder()
+                .use(plugin1)
+                .use(plugin2)
+                .build();
+
+            expect((pluginEngine as any).sharedApi.value).toBe(1);
+        });
+    });
 });

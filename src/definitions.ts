@@ -14,6 +14,8 @@ export interface SystemOptions<C extends any[] = any[]> {
     enabled?: boolean;
     tags?: string[];
     group?: string;
+    runAfter?: string[];
+    runBefore?: string[];
 }
 
 export type SystemType<T extends any[] = any[]> = SystemOptions<T> & Partial<EngineEvents>;

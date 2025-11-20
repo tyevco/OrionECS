@@ -192,13 +192,130 @@ export class SystemManager {
         return system;
     }
 
+    private topologicalSort(systems: System<any>[]): System<any>[] {
+        // Build system name to system map
+        const systemMap = new Map<string, System<any>>();
+        for (const system of systems) {
+            systemMap.set(system.name, system);
+        }
+
+        // Build adjacency list and in-degree map
+        const adjList = new Map<string, Set<string>>();
+        const inDegree = new Map<string, number>();
+
+        for (const system of systems) {
+            if (!adjList.has(system.name)) {
+                adjList.set(system.name, new Set());
+            }
+            if (!inDegree.has(system.name)) {
+                inDegree.set(system.name, 0);
+            }
+        }
+
+        // Build dependencies
+        for (const system of systems) {
+            // runAfter: this system should run AFTER these systems
+            // So these systems should come before this system in the graph
+            for (const dep of system.runAfter) {
+                if (systemMap.has(dep)) {
+                    adjList.get(dep)!.add(system.name);
+                    inDegree.set(system.name, (inDegree.get(system.name) || 0) + 1);
+                }
+            }
+
+            // runBefore: this system should run BEFORE these systems
+            // So this system should come before these systems in the graph
+            for (const dep of system.runBefore) {
+                if (systemMap.has(dep)) {
+                    adjList.get(system.name)!.add(dep);
+                    inDegree.set(dep, (inDegree.get(dep) || 0) + 1);
+                }
+            }
+        }
+
+        // Kahn's algorithm for topological sort
+        const queue: string[] = [];
+        const result: System<any>[] = [];
+
+        // Find all nodes with in-degree 0
+        for (const [name, degree] of inDegree) {
+            if (degree === 0) {
+                queue.push(name);
+            }
+        }
+
+        while (queue.length > 0) {
+            const current = queue.shift()!;
+            const system = systemMap.get(current)!;
+            result.push(system);
+
+            // Reduce in-degree for neighbors
+            for (const neighbor of adjList.get(current)!) {
+                const newDegree = (inDegree.get(neighbor) || 0) - 1;
+                inDegree.set(neighbor, newDegree);
+                if (newDegree === 0) {
+                    queue.push(neighbor);
+                }
+            }
+        }
+
+        // Check for circular dependencies
+        if (result.length !== systems.length) {
+            // Find systems involved in the cycle
+            const remaining = systems.filter(s => !result.includes(s));
+            const cycleNames = remaining.map(s => s.name).join(', ');
+            throw new Error(`Circular dependency detected in systems: ${cycleNames}`);
+        }
+
+        // If no dependencies, sort by priority
+        const noDepsLength = result.length;
+        if (noDepsLength > 1) {
+            // Sort systems with no dependencies by priority
+            const withDeps: System<any>[] = [];
+            const noDeps: System<any>[] = [];
+
+            for (const system of result) {
+                if (system.runAfter.length === 0 && system.runBefore.length === 0) {
+                    noDeps.push(system);
+                } else {
+                    withDeps.push(system);
+                }
+            }
+
+            // Sort no-dependency systems by priority
+            noDeps.sort((a, b) => b.priority - a.priority);
+
+            // Rebuild result maintaining topological order for systems with deps
+            // and priority order for systems without deps
+            return result.map(s => {
+                if (s.runAfter.length === 0 && s.runBefore.length === 0) {
+                    return noDeps.shift()!;
+                }
+                return s;
+            });
+        }
+
+        return result;
+    }
+
     private ensureSorted(): void {
         if (!this.systemsSorted) {
-            this.systems.sort((a, b) => b.priority - a.priority);
+            // First check if any systems have dependencies
+            const hasDependencies = this.systems.some(s => s.runAfter.length > 0 || s.runBefore.length > 0);
+            if (hasDependencies) {
+                this.systems = this.topologicalSort(this.systems);
+            } else {
+                this.systems.sort((a, b) => b.priority - a.priority);
+            }
             this.systemsSorted = true;
         }
         if (!this.fixedSystemsSorted) {
-            this.fixedUpdateSystems.sort((a, b) => b.priority - a.priority);
+            const hasDependencies = this.fixedUpdateSystems.some(s => s.runAfter.length > 0 || s.runBefore.length > 0);
+            if (hasDependencies) {
+                this.fixedUpdateSystems = this.topologicalSort(this.fixedUpdateSystems);
+            } else {
+                this.fixedUpdateSystems.sort((a, b) => b.priority - a.priority);
+            }
             this.fixedSystemsSorted = true;
         }
     }

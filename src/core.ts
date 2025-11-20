@@ -422,6 +422,8 @@ export class System<C extends any[] = any[]> {
     private _profile: SystemProfile;
     private _tags: Set<string> = new Set();
     private _group?: string;
+    private _runAfter: string[] = [];
+    private _runBefore: string[] = [];
 
     constructor(
         public name: string,
@@ -432,6 +434,8 @@ export class System<C extends any[] = any[]> {
         this._priority = options.priority || 0;
         this._enabled = options.enabled !== false;
         this._group = options.group;
+        this._runAfter = options.runAfter || [];
+        this._runBefore = options.runBefore || [];
 
         if (options.tags) {
             options.tags.forEach(tag => this._tags.add(tag));
@@ -453,6 +457,8 @@ export class System<C extends any[] = any[]> {
     get tags(): Set<string> { return new Set(this._tags); }
     get profile(): SystemProfile { return { ...this._profile }; }
     get group(): string | undefined { return this._group; }
+    get runAfter(): string[] { return [...this._runAfter]; }
+    get runBefore(): string[] { return [...this._runBefore]; }
 
     hasTag(tag: string): boolean {
         return this._tags.has(tag);

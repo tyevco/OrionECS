@@ -1715,4 +1715,214 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(executionOrder).toContain('Physics');
         });
     });
+
+    describe('System Dependencies', () => {
+        test('should execute systems with runAfter dependencies in correct order', () => {
+            const order: string[] = [];
+
+            engine.createSystem('First', { all: [] }, {
+                before: () => { order.push('First'); }
+            });
+
+            engine.createSystem('Second', { all: [] }, {
+                before: () => { order.push('Second'); },
+                runAfter: ['First']
+            });
+
+            engine.createSystem('Third', { all: [] }, {
+                before: () => { order.push('Third'); },
+                runAfter: ['Second']
+            });
+
+            engine.update(16);
+
+            expect(order).toEqual(['First', 'Second', 'Third']);
+        });
+
+        test('should execute systems with runBefore dependencies in correct order', () => {
+            const order: string[] = [];
+
+            engine.createSystem('Last', { all: [] }, {
+                before: () => { order.push('Last'); }
+            });
+
+            engine.createSystem('Middle', { all: [] }, {
+                before: () => { order.push('Middle'); },
+                runBefore: ['Last']
+            });
+
+            engine.createSystem('First', { all: [] }, {
+                before: () => { order.push('First'); },
+                runBefore: ['Middle']
+            });
+
+            engine.update(16);
+
+            expect(order).toEqual(['First', 'Middle', 'Last']);
+        });
+
+        test('should handle complex dependency graph', () => {
+            const order: string[] = [];
+
+            engine.createSystem('A', { all: [] }, {
+                before: () => { order.push('A'); }
+            });
+
+            engine.createSystem('B', { all: [] }, {
+                before: () => { order.push('B'); },
+                runAfter: ['A']
+            });
+
+            engine.createSystem('C', { all: [] }, {
+                before: () => { order.push('C'); },
+                runAfter: ['A']
+            });
+
+            engine.createSystem('D', { all: [] }, {
+                before: () => { order.push('D'); },
+                runAfter: ['B', 'C']
+            });
+
+            engine.update(16);
+
+            // A must come first, D must come last, B and C can be in any order
+            expect(order[0]).toBe('A');
+            expect(order[3]).toBe('D');
+            expect(order).toContain('B');
+            expect(order).toContain('C');
+        });
+
+        test('should combine runAfter and runBefore', () => {
+            const order: string[] = [];
+
+            engine.createSystem('First', { all: [] }, {
+                before: () => { order.push('First'); }
+            });
+
+            engine.createSystem('Middle', { all: [] }, {
+                before: () => { order.push('Middle'); },
+                runAfter: ['First'],
+                runBefore: ['Last']
+            });
+
+            engine.createSystem('Last', { all: [] }, {
+                before: () => { order.push('Last'); }
+            });
+
+            engine.update(16);
+
+            expect(order).toEqual(['First', 'Middle', 'Last']);
+        });
+
+        test('should detect circular dependencies', () => {
+            engine.createSystem('A', { all: [] }, {
+                before: () => {},
+                runAfter: ['B']
+            });
+
+            engine.createSystem('B', { all: [] }, {
+                before: () => {},
+                runAfter: ['A']
+            });
+
+            expect(() => {
+                engine.update(16);
+            }).toThrow(/circular dependency/i);
+        });
+
+        test('should detect complex circular dependencies', () => {
+            engine.createSystem('A', { all: [] }, {
+                before: () => {},
+                runAfter: ['C']
+            });
+
+            engine.createSystem('B', { all: [] }, {
+                before: () => {},
+                runAfter: ['A']
+            });
+
+            engine.createSystem('C', { all: [] }, {
+                before: () => {},
+                runAfter: ['B']
+            });
+
+            expect(() => {
+                engine.update(16);
+            }).toThrow(/circular dependency/i);
+        });
+
+        test('should override priority with dependencies', () => {
+            const order: string[] = [];
+
+            // Even though High has higher priority, dependencies should override
+            engine.createSystem('Low', { all: [] }, {
+                before: () => { order.push('Low'); },
+                priority: 1
+            });
+
+            engine.createSystem('High', { all: [] }, {
+                before: () => { order.push('High'); },
+                priority: 100,
+                runAfter: ['Low'] // Depends on Low despite higher priority
+            });
+
+            engine.update(16);
+
+            expect(order).toEqual(['Low', 'High']);
+        });
+
+        test('should ignore dependencies on non-existent systems', () => {
+            const order: string[] = [];
+
+            engine.createSystem('ExistingSystem', { all: [] }, {
+                before: () => { order.push('Existing'); },
+                runAfter: ['NonExistentSystem'] // This system doesn't exist
+            });
+
+            // Should not throw, just ignore the non-existent dependency
+            expect(() => {
+                engine.update(16);
+            }).not.toThrow();
+
+            expect(order).toContain('Existing');
+        });
+
+        test('should work with dependencies in system groups', () => {
+            const order: string[] = [];
+
+            engine.createSystemGroup('Logic', { priority: 500 });
+
+            engine.createSystem('First', { all: [] }, {
+                before: () => { order.push('First'); },
+                group: 'Logic'
+            });
+
+            engine.createSystem('Second', { all: [] }, {
+                before: () => { order.push('Second'); },
+                group: 'Logic',
+                runAfter: ['First']
+            });
+
+            engine.update(16);
+
+            expect(order).toEqual(['First', 'Second']);
+        });
+
+        test('should apply dependencies to fixed update systems', () => {
+            const order: string[] = [];
+
+            engine.createSystem('FixedFirst', { all: [] }, {
+                before: () => { order.push('First'); }
+            }, true);
+
+            engine.createSystem('FixedSecond', { all: [] }, {
+                before: () => { order.push('Second'); },
+                runAfter: ['FixedFirst']
+            }, true);
+
+            engine.update(17); // Enough to trigger fixed update
+
+            expect(order).toEqual(['First', 'Second']);
+        });
+    });
 });

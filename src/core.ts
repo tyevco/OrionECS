@@ -175,6 +175,28 @@ export class Query<C extends any[] = any[]> {
     get size(): number {
         return this.matchingEntities.size;
     }
+
+    /**
+     * Make Query iterable - allows for...of loops
+     */
+    [Symbol.iterator](): IterableIterator<Entity> {
+        return this.getEntities();
+    }
+
+    /**
+     * Iterate over entities with direct component access
+     * Reduces memory allocations by avoiding array creation
+     */
+    forEach(callback: (entity: Entity, ...components: C) => void): void {
+        const { all = [] } = this.options;
+
+        for (const entity of this.matchingEntities) {
+            const componentArgs = all.map((componentType: ComponentIdentifier) =>
+                entity.getComponent(componentType)
+            ) as C;
+            callback(entity, ...componentArgs);
+        }
+    }
 }
 
 /**

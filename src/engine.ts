@@ -1,9 +1,9 @@
-import type { 
-    ComponentIdentifier, 
-    EngineEventNames, 
-    EngineEvents, 
-    EntityDef, 
-    EventCallback, 
+import type {
+    ComponentIdentifier,
+    EngineEventNames,
+    EngineEvents,
+    EntityDef,
+    EventCallback,
     SystemType,
     QueryOptions,
     SerializedEntity,
@@ -12,20 +12,34 @@ import type {
     SystemProfile,
     MemoryStats,
     ComponentValidator,
-    Archetype,
     TagComponent,
-    Scene,
     SystemMessage
 } from "./definitions";
 
-// Enhanced Pool with metrics
+// Constants for configuration
+const MAX_MESSAGE_HISTORY = 1000;
+const MAX_EVENT_HISTORY = 500;
+const MAX_SNAPSHOTS = 10;
+const ESTIMATED_COMPONENT_SIZE_BYTES = 32; // Rough heuristic
+const MAX_PERFORMANCE_SAMPLES = 60;
+const MAX_FIXED_UPDATE_ITERATIONS = 10; // Prevent spiral of death
+const DEFAULT_POOL_MAX_SIZE = 1000;
+
+// Enhanced Pool with metrics and max size
 class Pool<T> {
     private available: T[] = [];
     private _totalCreated: number = 0;
     private _totalAcquired: number = 0;
     private _totalReleased: number = 0;
+    private _maxSize: number;
 
-    constructor(private createFunc: () => T, private resetFunc: (item: T) => void) { }
+    constructor(
+        private createFunc: () => T,
+        private resetFunc: (item: T) => void,
+        maxSize: number = DEFAULT_POOL_MAX_SIZE
+    ) {
+        this._maxSize = maxSize;
+    }
 
     public acquire(): T {
         this._totalAcquired++;
@@ -39,7 +53,10 @@ class Pool<T> {
     public release(item: T): void {
         this._totalReleased++;
         this.resetFunc(item);
-        this.available.push(item);
+        // Only pool if under max size limit
+        if (this.available.length < this._maxSize) {
+            this.available.push(item);
+        }
     }
 
     get stats() {
@@ -62,7 +79,7 @@ class ComponentArray<T> {
 
     add(component: T): number {
         this._version++;
-        this._lastChanged = Date.now();
+        this._lastChanged = performance.now();
         if (this.freeIndices.length > 0) {
             const index = this.freeIndices.pop()!;
             this.components[index] = component;
@@ -73,25 +90,34 @@ class ComponentArray<T> {
 
     remove(index: number): void {
         this._version++;
-        this._lastChanged = Date.now();
-        this.components[index] = null;
-        this.freeIndices.push(index);
+        this._lastChanged = performance.now();
+        if (index >= 0 && index < this.components.length) {
+            this.components[index] = null;
+            this.freeIndices.push(index);
+        }
     }
 
     get(index: number): T | null {
-        return this.components[index];
+        // Add bounds checking
+        if (index < 0 || index >= this.components.length) {
+            return null;
+        }
+        const component = this.components[index];
+        return component !== undefined ? component : null;
     }
 
     set(index: number, component: T): void {
         this._version++;
-        this._lastChanged = Date.now();
-        this.components[index] = component;
+        this._lastChanged = performance.now();
+        if (index >= 0 && index < this.components.length) {
+            this.components[index] = component;
+        }
     }
 
     get version(): number { return this._version; }
     get lastChanged(): number { return this._lastChanged; }
     get size(): number { return this.components.length - this.freeIndices.length; }
-    get memoryEstimate(): number { return this.components.length * 32; }
+    get memoryEstimate(): number { return this.components.length * ESTIMATED_COMPONENT_SIZE_BYTES; }
 }
 
 // Enhanced Query system with NOT, OR, and tag support
@@ -100,41 +126,49 @@ class Query<C extends any[] = any[]> {
 
     constructor(public options: QueryOptions) {}
 
-    match(entity: Entity): boolean {
+    // Test if entity matches query without side effects
+    private test(entity: Entity): boolean {
         const { all = [], any = [], none = [], tags = [], withoutTags = [] } = this.options;
-        
+
         // Check ALL components
         if (all.length > 0 && !all.every(type => entity.hasComponent(type))) {
-            this.matchingEntities.delete(entity);
             return false;
         }
-        
+
         // Check ANY components
         if (any.length > 0 && !any.some(type => entity.hasComponent(type))) {
-            this.matchingEntities.delete(entity);
             return false;
         }
-        
+
         // Check NONE components
         if (none.length > 0 && none.some(type => entity.hasComponent(type))) {
-            this.matchingEntities.delete(entity);
             return false;
         }
-        
+
         // Check tags
         if (tags.length > 0 && !tags.every(tag => entity.hasTag(tag))) {
-            this.matchingEntities.delete(entity);
             return false;
         }
-        
+
         // Check withoutTags
         if (withoutTags.length > 0 && withoutTags.some(tag => entity.hasTag(tag))) {
-            this.matchingEntities.delete(entity);
             return false;
         }
-        
-        this.matchingEntities.add(entity);
+
         return true;
+    }
+
+    // Update query with entity (registers or unregisters based on match)
+    match(entity: Entity): boolean {
+        const matches = this.test(entity);
+
+        if (matches) {
+            this.matchingEntities.add(entity);
+        } else {
+            this.matchingEntities.delete(entity);
+        }
+
+        return matches;
     }
 
     getEntities(): IterableIterator<Entity> {
@@ -154,14 +188,14 @@ class Query<C extends any[] = any[]> {
 class MessageBus {
     private subscribers: Map<string, Set<(message: SystemMessage) => void>> = new Map();
     private messageHistory: SystemMessage[] = [];
-    private maxHistorySize: number = 1000;
+    private maxHistorySize: number = MAX_MESSAGE_HISTORY;
 
     subscribe(messageType: string, callback: (message: SystemMessage) => void): () => void {
         if (!this.subscribers.has(messageType)) {
             this.subscribers.set(messageType, new Set());
         }
         this.subscribers.get(messageType)!.add(callback);
-        
+
         return () => {
             this.subscribers.get(messageType)?.delete(callback);
         };
@@ -174,12 +208,13 @@ class MessageBus {
             sender,
             timestamp: Date.now()
         };
-        
+
         this.messageHistory.push(message);
-        if (this.messageHistory.length > this.maxHistorySize) {
+        // Fix: Remove all excess items, not just one
+        while (this.messageHistory.length > this.maxHistorySize) {
             this.messageHistory.shift();
         }
-        
+
         const subscribers = this.subscribers.get(messageType);
         if (subscribers) {
             for (const callback of subscribers) {
@@ -204,14 +239,14 @@ class MessageBus {
 class EventEmitter {
     private listeners: Map<string, Set<Function>> = new Map();
     private eventHistory: Array<{ event: string; args: any[]; timestamp: number }> = [];
-    private maxHistorySize: number = 500;
+    private maxHistorySize: number = MAX_EVENT_HISTORY;
 
     on(event: string, callback: Function): () => void {
         if (!this.listeners.has(event)) {
             this.listeners.set(event, new Set());
         }
         this.listeners.get(event)!.add(callback);
-        
+
         return () => this.off(event, callback);
     }
 
@@ -224,10 +259,11 @@ class EventEmitter {
 
     emit(event: string, ...args: any[]): void {
         this.eventHistory.push({ event, args, timestamp: Date.now() });
-        if (this.eventHistory.length > this.maxHistorySize) {
+        // Fix: Remove all excess items, not just one
+        while (this.eventHistory.length > this.maxHistorySize) {
             this.eventHistory.shift();
         }
-        
+
         const callbacks = this.listeners.get(event);
         if (callbacks) {
             for (const callback of callbacks) {
@@ -248,6 +284,7 @@ class EventEmitter {
 // Enhanced Entity with hierarchy, tags, and serialization
 class Entity implements EntityDef {
     private readonly _id: symbol;
+    private readonly _numericId: number;
     private _name?: string;
     private _dirty: boolean = false;
     private _componentIndices: Map<Function, number> = new Map();
@@ -256,15 +293,18 @@ class Entity implements EntityDef {
     private _children: Set<Entity> = new Set();
     private _tags: Set<string> = new Set();
     private _changeVersion: number = 0;
+    private static _nextId: number = 1;
 
     private constructor(
         private entityManager: EntityManager,
         private engine: Engine
     ) {
         this._id = Symbol();
+        this._numericId = Entity._nextId++;
     }
 
     get id(): symbol { return this._id; }
+    get numericId(): number { return this._numericId; }
     get name(): string | undefined { return this._name; }
     set name(value: string | undefined) { this._name = value; }
     get parent(): EntityDef | undefined { return this._parent; }
@@ -274,34 +314,42 @@ class Entity implements EntityDef {
     get isMarkedForDeletion(): boolean { return this._markedForDelete; }
     get changeVersion(): number { return this._changeVersion; }
 
+    // Public method to get component types (fixes encapsulation issue)
+    getComponentTypes(): Function[] {
+        return Array.from(this._componentIndices.keys());
+    }
+
     addComponent<T>(type: ComponentIdentifier<T>, ...args: ConstructorParameters<typeof type>): this {
         if (!this._componentIndices.has(type)) {
             const validator = this.engine.getComponentValidator(type);
             if (validator?.dependencies) {
                 for (const dep of validator.dependencies) {
                     if (!this.hasComponent(dep)) {
-                        throw new Error(`Component ${type.name} requires ${dep.name} but it's not present on entity ${this._name || this._id.toString()}`);
+                        throw new Error(`Component ${type.name} requires ${dep.name} but it's not present on entity ${this._name || this._numericId}`);
                     }
                 }
             }
-            
+
             if (validator?.conflicts) {
                 for (const conflict of validator.conflicts) {
                     if (this.hasComponent(conflict)) {
-                        throw new Error(`Component ${type.name} conflicts with ${conflict.name} on entity ${this._name || this._id.toString()}`);
+                        throw new Error(`Component ${type.name} conflicts with ${conflict.name} on entity ${this._name || this._numericId}`);
                     }
                 }
             }
-            
+
             const componentArray = this.engine.getComponentArray(type);
             const component = new type(...args);
-            
-            if (validator && !validator.validate(component)) {
+
+            // CRITICAL FIX: Proper validation logic
+            if (validator) {
                 const validationResult = validator.validate(component);
-                const errorMessage = typeof validationResult === 'string' ? validationResult : 'Component validation failed';
-                throw new Error(`${errorMessage} for ${type.name} on entity ${this._name || this._id.toString()}`);
+                if (validationResult !== true) {
+                    const errorMessage = typeof validationResult === 'string' ? validationResult : 'Component validation failed';
+                    throw new Error(`${errorMessage} for ${type.name} on entity ${this._name || this._numericId}`);
+                }
             }
-            
+
             const index = componentArray.add(component);
             this._componentIndices.set(type, index);
             this._dirty = true;
@@ -331,12 +379,12 @@ class Entity implements EntityDef {
     getComponent<T>(type: ComponentIdentifier<T>): T {
         const index = this._componentIndices.get(type);
         if (index === undefined) {
-            throw new Error(`Component ${type.name} not found on entity ${this._name || this._id.toString()}`);
+            throw new Error(`Component ${type.name} not found on entity ${this._name || this._numericId}`);
         }
         const componentArray = this.engine.getComponentArray(type);
         const component = componentArray.get(index);
         if (component === null) {
-            throw new Error(`Component ${type.name} is null on entity ${this._name || this._id.toString()}`);
+            throw new Error(`Component ${type.name} is null on entity ${this._name || this._numericId}`);
         }
         return component as T;
     }
@@ -399,7 +447,7 @@ class Entity implements EntityDef {
 
     serialize(): SerializedEntity {
         const components: { [componentName: string]: any } = {};
-        
+
         for (const [componentType, index] of this._componentIndices) {
             const componentArray = this.engine.getComponentArray(componentType as ComponentIdentifier);
             const component = componentArray.get(index);
@@ -407,9 +455,9 @@ class Entity implements EntityDef {
                 components[componentType.name] = { ...component };
             }
         }
-        
+
         return {
-            id: this._id.toString(),
+            id: this._numericId.toString(), // Use numeric ID for unique serialization
             name: this._name,
             tags: Array.from(this._tags),
             components,
@@ -523,19 +571,20 @@ class EntityManager {
     get stats(): MemoryStats {
         const componentArrays: { [componentName: string]: number } = {};
         const entities = Array.from(this.activeEntities.values());
-        
+
         for (const entity of entities) {
-            for (const [componentType] of (entity as any)._componentIndices) {
+            // Use public method instead of accessing private members
+            for (const componentType of entity.getComponentTypes()) {
                 const name = componentType.name;
                 componentArrays[name] = (componentArrays[name] || 0) + 1;
             }
         }
-        
+
         return {
             totalEntities: this.entityPool.stats.totalCreated,
             activeEntities: this.activeEntities.size,
             componentArrays,
-            totalMemoryEstimate: this.activeEntities.size * 100 + Object.values(componentArrays).reduce((a, b) => a + b, 0) * 32
+            totalMemoryEstimate: this.activeEntities.size * 100 + Object.values(componentArrays).reduce((a, b) => a + b, 0) * ESTIMATED_COMPONENT_SIZE_BYTES
         };
     }
 }
@@ -637,6 +686,8 @@ export class Engine extends EventEmitter {
     private _queries: Query<any>[] = [];
     private _systems: System<any>[] = [];
     private _fixedUpdateSystems: System<any>[] = [];
+    private _systemsSorted: boolean = true;
+    private _fixedSystemsSorted: boolean = true;
     private _steps: number = 0;
     private _active: boolean = false;
     private _entityManager: EntityManager = new EntityManager(this);
@@ -647,9 +698,10 @@ export class Engine extends EventEmitter {
     private _messageBus: MessageBus = new MessageBus();
     private _prefabs: Map<string, EntityPrefab> = new Map();
     private _snapshots: SerializedWorld[] = [];
-    private _maxSnapshots: number = 10;
+    private _maxSnapshots: number = MAX_SNAPSHOTS;
     private _debugMode: boolean = false;
     private _startTime: number = 0;
+    private _componentRegistry: Map<string, ComponentIdentifier> = new Map();
 
     constructor(fixedUpdateFPS: number = 60, debugMode: boolean = false) {
         super();
@@ -692,14 +744,15 @@ export class Engine extends EventEmitter {
         isFixedUpdate: boolean = false
     ): System<C> {
         const system = new System<C>(this, name, options, queryOptions);
-        
+
         if (isFixedUpdate) {
             this._fixedUpdateSystems.push(system as System<any>);
+            this._fixedSystemsSorted = false;
         } else {
             this._systems.push(system as System<any>);
+            this._systemsSorted = false;
         }
 
-        this.sortSystems();
         return system;
     }
 
@@ -717,9 +770,15 @@ export class Engine extends EventEmitter {
         );
     }
 
-    private sortSystems(): void {
-        this._systems.sort((a, b) => b.priority - a.priority);
-        this._fixedUpdateSystems.sort((a, b) => b.priority - a.priority);
+    private ensureSystemsSorted(): void {
+        if (!this._systemsSorted) {
+            this._systems.sort((a, b) => b.priority - a.priority);
+            this._systemsSorted = true;
+        }
+        if (!this._fixedSystemsSorted) {
+            this._fixedUpdateSystems.sort((a, b) => b.priority - a.priority);
+            this._fixedSystemsSorted = true;
+        }
     }
 
     createQuery<C extends any[] = any[]>(options: QueryOptions): Query<C> {
@@ -738,6 +797,10 @@ export class Engine extends EventEmitter {
         if (!this._componentArrays.has(type)) {
             this._componentArrays.set(type, new ComponentArray<T>());
         }
+        // Register component type by name for deserialization
+        if (!this._componentRegistry.has(type.name)) {
+            this._componentRegistry.set(type.name, type);
+        }
         return this._componentArrays.get(type) as ComponentArray<T>;
     }
 
@@ -747,6 +810,11 @@ export class Engine extends EventEmitter {
 
     getComponentValidator<T>(type: ComponentIdentifier<T>): ComponentValidator<T> | undefined {
         return this._componentValidators.get(type) as ComponentValidator<T>;
+    }
+
+    // Register component types for deserialization
+    registerComponent<T>(type: ComponentIdentifier<T>): void {
+        this._componentRegistry.set(type.name, type);
     }
 
     registerPrefab(name: string, prefab: EntityPrefab): void {
@@ -764,16 +832,31 @@ export class Engine extends EventEmitter {
     update(deltaTime: number): void {
         this.beforeStep();
 
+        // Ensure systems are sorted by priority before execution
+        this.ensureSystemsSorted();
+
+        // Fixed update with spiral of death protection
         this._fixedUpdateAccumulator += deltaTime;
-        while (this._fixedUpdateAccumulator >= this._fixedUpdateInterval) {
+        let iterations = 0;
+        while (this._fixedUpdateAccumulator >= this._fixedUpdateInterval && iterations < MAX_FIXED_UPDATE_ITERATIONS) {
             for (const system of this._fixedUpdateSystems) {
                 if (system.enabled) {
                     system.step();
                 }
             }
             this._fixedUpdateAccumulator -= this._fixedUpdateInterval;
+            iterations++;
         }
 
+        // Reset accumulator if we hit max iterations (spiral of death)
+        if (iterations >= MAX_FIXED_UPDATE_ITERATIONS) {
+            this._fixedUpdateAccumulator = 0;
+            if (this._debugMode) {
+                console.warn('[ECS Debug] Fixed update spiral of death detected, accumulator reset');
+            }
+        }
+
+        // Variable update systems
         for (const system of this._systems) {
             if (system.enabled) {
                 system.step();
@@ -858,12 +941,56 @@ export class Engine extends EventEmitter {
     restoreSnapshot(index: number = -1): boolean {
         const snapshot = index === -1 ? this._snapshots[this._snapshots.length - 1] : this._snapshots[index];
         if (!snapshot) return false;
-        
+
+        // Clear all existing entities
         for (const entity of this.getAllEntities()) {
             entity.queueFree();
         }
         this._entityManager.cleanup();
-        
+
+        // Recreate entities from snapshot
+        const entityMap = new Map<string, Entity>();
+
+        // First pass: create entities without hierarchy
+        for (const serializedEntity of snapshot.entities) {
+            const entity = this.createEntity(serializedEntity.name);
+            entityMap.set(serializedEntity.id, entity);
+
+            // Add tags
+            for (const tag of serializedEntity.tags) {
+                entity.addTag(tag);
+            }
+
+            // Add components
+            for (const [componentName, componentData] of Object.entries(serializedEntity.components)) {
+                const ComponentClass = this._componentRegistry.get(componentName);
+                if (ComponentClass) {
+                    // Create component with default constructor
+                    entity.addComponent(ComponentClass);
+                    // Copy properties from serialized data
+                    const component = entity.getComponent(ComponentClass);
+                    Object.assign(component, componentData);
+                } else if (this._debugMode) {
+                    console.warn(`[ECS Debug] Component type ${componentName} not registered, skipping`);
+                }
+            }
+        }
+
+        // Second pass: restore hierarchy
+        for (let i = 0; i < snapshot.entities.length; i++) {
+            const serializedEntity = snapshot.entities[i];
+            const entity = entityMap.get(serializedEntity.id);
+
+            if (entity && serializedEntity.children) {
+                for (const childSerialized of serializedEntity.children) {
+                    const childEntity = entityMap.get(childSerialized.id);
+                    if (childEntity) {
+                        entity.addChild(childEntity);
+                    }
+                }
+            }
+        }
+
         return true;
     }
 
@@ -895,11 +1022,11 @@ export function createTagComponent(name: string): ComponentIdentifier<TagCompone
 
 export class PerformanceMonitor {
     private samples: number[] = [];
-    private maxSamples: number = 60;
+    private maxSamples: number = MAX_PERFORMANCE_SAMPLES;
 
     addSample(value: number): void {
         this.samples.push(value);
-        if (this.samples.length > this.maxSamples) {
+        while (this.samples.length > this.maxSamples) {
             this.samples.shift();
         }
     }

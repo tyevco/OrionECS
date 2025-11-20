@@ -107,25 +107,9 @@ export interface ComponentValidator<T = any> {
     conflicts?: ComponentIdentifier[];
 }
 
-// Archetype system
-export interface Archetype {
-    id: string;
-    signature: Set<ComponentIdentifier>;
-    entities: Set<symbol>;
-    componentArrays: Map<ComponentIdentifier, any[]>;
-}
-
 // Tag component marker
 export interface TagComponent {
     __isTag: true;
-}
-
-// Scene management
-export interface Scene {
-    name: string;
-    entities: Set<symbol>;
-    systems: Set<string>;
-    active: boolean;
 }
 
 // Inter-system messaging

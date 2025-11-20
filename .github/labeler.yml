@@ -1,0 +1,39 @@
+# Automatically label PRs based on file changes
+
+documentation:
+  - '**/*.md'
+  - 'docs/**/*'
+
+dependencies:
+  - 'package.json'
+  - 'package-lock.json'
+  - 'npm-shrinkwrap.json'
+
+tests:
+  - 'src/**/*.spec.ts'
+  - 'src/**/*.test.ts'
+  - '**/*.spec.ts'
+  - '**/*.test.ts'
+
+benchmarks:
+  - 'benchmarks/**/*'
+  - '**/*.bench.ts'
+
+typescript:
+  - '**/*.ts'
+  - 'tsconfig.json'
+  - 'tsup.config.ts'
+
+build:
+  - 'tsup.config.ts'
+  - '.github/workflows/**/*'
+
+core:
+  - 'src/core.ts'
+  - 'src/engine.ts'
+
+managers:
+  - 'src/managers.ts'
+
+definitions:
+  - 'src/definitions.ts'

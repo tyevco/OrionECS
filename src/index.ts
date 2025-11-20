@@ -6,6 +6,9 @@
 // Export the new Engine and Builder
 export { Engine, EngineBuilder } from './engine';
 
+// Export utility functions
+export { createTagComponent } from './utils';
+
 // Export core building blocks
 export {
     Entity,

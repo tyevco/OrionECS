@@ -33,7 +33,7 @@
     "@babel/preset-typescript": "^7.24.7",
     "@types/benchmark": "^2.1.5",
     "@types/jest": "^29.5.13",
-    "babel-jest": "^29.7.0",
+    "babel-jest": "^30.2.0",
     "benchmark": "^2.1.4",
     "jest": "29.7.0",
     "jest-bench": "^29.7.1",

@@ -48,5 +48,8 @@ export type {
     MemoryStats,
     ComponentValidator,
     TagComponent,
-    SystemMessage
+    SystemMessage,
+    EnginePlugin,
+    PluginContext,
+    InstalledPlugin
 } from './definitions';

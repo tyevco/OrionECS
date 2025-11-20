@@ -182,6 +182,10 @@ export class Engine {
         return this.entityManager.getEntitiesByTag(tag);
     }
 
+    getEntityByName(name: string): Entity | undefined {
+        return this.entityManager.getEntityByName(name);
+    }
+
     // ========== Component Management ==========
 
     registerComponent<T>(type: ComponentIdentifier<T>): void {

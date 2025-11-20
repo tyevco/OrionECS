@@ -106,6 +106,40 @@ describe('Engine v2 - Composition Architecture', () => {
         });
     });
 
+    describe('Entity Name Indexing', () => {
+        test('should lookup entity by name (O(1))', () => {
+            const player = engine.createEntity('Player');
+            const found = engine.getEntityByName('Player');
+            expect(found).toBe(player);
+        });
+
+        test('should return undefined for non-existent name', () => {
+            expect(engine.getEntityByName('DoesNotExist')).toBeUndefined();
+        });
+
+        test('should remove name from index after entity deletion', () => {
+            const player = engine.createEntity('Player');
+            player.queueFree();
+            engine.update(16);
+            expect(engine.getEntityByName('Player')).toBeUndefined();
+        });
+
+        test('should handle entities without names', () => {
+            const unnamed = engine.createEntity();
+            expect(unnamed.name).toBeUndefined();
+            // Should not crash when looking up undefined
+            expect(engine.getEntityByName('')).toBeUndefined();
+        });
+
+        test('should overwrite previous entity with same name', () => {
+            const entity1 = engine.createEntity('Duplicate');
+            const entity2 = engine.createEntity('Duplicate');
+            const found = engine.getEntityByName('Duplicate');
+            // Last one with this name wins
+            expect(found).toBe(entity2);
+        });
+    });
+
     describe('Component Management', () => {
         test('should add and get components', () => {
             const entity = engine.createEntity();

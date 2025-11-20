@@ -245,7 +245,8 @@ export class Entity implements EntityDef {
             }
 
             const componentArray = this.componentManager.getComponentArray(type);
-            const component = new type(...args);
+            // Use pool if available, otherwise create normally
+            const component = this.componentManager.acquireComponent(type, ...args);
 
             if (validator) {
                 const validationResult = validator.validate(component);
@@ -268,6 +269,11 @@ export class Entity implements EntityDef {
         const index = this._componentIndices.get(type);
         if (index !== undefined) {
             const componentArray = this.componentManager.getComponentArray(type);
+            // Get component before removing to release it to pool
+            const component = componentArray.get(index);
+            if (component !== null) {
+                this.componentManager.releaseComponent(type, component);
+            }
             componentArray.remove(index);
             this._componentIndices.delete(type);
             this._dirty = true;

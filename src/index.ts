@@ -51,5 +51,7 @@ export type {
     SystemMessage,
     EnginePlugin,
     PluginContext,
-    InstalledPlugin
+    InstalledPlugin,
+    PoolStats,
+    ComponentPoolOptions
 } from './definitions';

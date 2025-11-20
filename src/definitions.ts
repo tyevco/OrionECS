@@ -173,3 +173,17 @@ export interface InstalledPlugin {
     plugin: EnginePlugin;
     installedAt: number;
 }
+
+// Component pooling
+export interface PoolStats {
+    available: number;
+    totalCreated: number;
+    totalAcquired: number;
+    totalReleased: number;
+    reuseRate: number;
+}
+
+export interface ComponentPoolOptions {
+    initialSize?: number;
+    maxSize?: number;
+}

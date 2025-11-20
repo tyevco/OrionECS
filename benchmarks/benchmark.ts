@@ -1,5 +1,5 @@
 import { benchmarkSuite } from "jest-bench";
-import { Engine } from '../src/engine';
+import { EngineBuilder } from '../src/engine';
 
 // Test components for benchmarks
 class Position {
@@ -58,7 +58,7 @@ benchmarkSuite("Enhanced ECS Performance Benchmarks", {
     
     // Entity Creation and Component Management
     "Entity Creation (1000 entities)": () => {
-        const engine = new Engine();
+        const engine = new EngineBuilder().withDebugMode(false).build();
         
         for (let i = 0; i < 1000; i++) {
             const entity = engine.createEntity(`Entity_${i}`);
@@ -68,7 +68,7 @@ benchmarkSuite("Enhanced ECS Performance Benchmarks", {
     },
 
     "Bulk Entity Creation (1000 entities)": () => {
-        const engine = new Engine();
+        const engine = new EngineBuilder().withDebugMode(false).build();
         const prefab = {
             name: 'TestEntity',
             components: [
@@ -77,12 +77,16 @@ benchmarkSuite("Enhanced ECS Performance Benchmarks", {
             ],
             tags: ['test']
         };
-        
-        engine.createEntities(1000, prefab);
+
+        // Register prefab first
+        engine.registerPrefab('TestEntity', prefab);
+
+        // Create bulk entities from prefab
+        engine.createEntities(1000, 'TestEntity');
     },
 
     "Component Addition (10000 operations)": () => {
-        const engine = new Engine();
+        const engine = new EngineBuilder().withDebugMode(false).build();
         const entities = [];
         
         // Create entities first
@@ -101,7 +105,7 @@ benchmarkSuite("Enhanced ECS Performance Benchmarks", {
 
     // Query System Performance
     "Simple Query Performance (1000 entities)": () => {
-        const engine = new Engine();
+        const engine = new EngineBuilder().withDebugMode(false).build();
         
         // Create diverse entity population
         for (let i = 0; i < 1000; i++) {
@@ -130,7 +134,7 @@ benchmarkSuite("Enhanced ECS Performance Benchmarks", {
     },
 
     "Complex Query Performance (ALL/ANY/NOT)": () => {
-        const engine = new Engine();
+        const engine = new EngineBuilder().withDebugMode(false).build();
         
         // Create diverse entity population
         for (let i = 0; i < 1000; i++) {
@@ -165,7 +169,7 @@ benchmarkSuite("Enhanced ECS Performance Benchmarks", {
     },
 
     "Tag Query Performance": () => {
-        const engine = new Engine();
+        const engine = new EngineBuilder().withDebugMode(false).build();
         
         // Create entities with various tag combinations
         for (let i = 0; i < 1000; i++) {
@@ -202,7 +206,7 @@ benchmarkSuite("Enhanced ECS Performance Benchmarks", {
 
     // System Execution Performance
     "Multi-System Execution (5 systems, 1000 entities)": () => {
-        const engine = new Engine();
+        const engine = new EngineBuilder().withDebugMode(false).build();
         
         // Create game-like entity population
         for (let i = 0; i < 1000; i++) {
@@ -300,7 +304,7 @@ benchmarkSuite("Enhanced ECS Performance Benchmarks", {
 
     // Entity Hierarchy Performance
     "Entity Hierarchy Operations": () => {
-        const engine = new Engine();
+        const engine = new EngineBuilder().withDebugMode(false).build();
         
         // Create hierarchical structure: 100 parents, each with 10 children
         const parents = [];
@@ -348,7 +352,7 @@ benchmarkSuite("Enhanced ECS Performance Benchmarks", {
 
     // Component Validation Performance
     "Component Validation Overhead": () => {
-        const engine = new Engine();
+        const engine = new EngineBuilder().withDebugMode(false).build();
         
         // Register validators
         engine.registerComponentValidator(Health, {
@@ -377,7 +381,7 @@ benchmarkSuite("Enhanced ECS Performance Benchmarks", {
 
     // Memory and Pooling Performance
     "Entity Lifecycle (Create/Destroy)": () => {
-        const engine = new Engine();
+        const engine = new EngineBuilder().withDebugMode(false).build();
         
         // Simulate game loop with entity creation/destruction
         for (let cycle = 0; cycle < 100; cycle++) {
@@ -416,7 +420,7 @@ benchmarkSuite("Enhanced ECS Performance Benchmarks", {
 
     // Serialization Performance
     "World Serialization": () => {
-        const engine = new Engine();
+        const engine = new EngineBuilder().withDebugMode(false).build();
         
         // Create complex world state
         for (let i = 0; i < 500; i++) {
@@ -441,7 +445,7 @@ benchmarkSuite("Enhanced ECS Performance Benchmarks", {
 
     // Message Bus Performance
     "Inter-System Messaging": () => {
-        const engine = new Engine();
+        const engine = new EngineBuilder().withDebugMode(false).build();
         let messageCount = 0;
         
         // Set up message subscribers

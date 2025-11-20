@@ -233,6 +233,144 @@ describe('Engine v2 - Composition Architecture', () => {
         });
     });
 
+    describe('Entity Cloning', () => {
+        test('should clone entity with all components', () => {
+            const original = engine.createEntity('Original');
+            original.addComponent(Position, 10, 20);
+            original.addComponent(Velocity, 5, 3);
+
+            const clone = engine.cloneEntity(original);
+
+            expect(clone).not.toBe(original);
+            expect(clone.hasComponent(Position)).toBe(true);
+            expect(clone.hasComponent(Velocity)).toBe(true);
+            expect(clone.getComponent(Position).x).toBe(10);
+            expect(clone.getComponent(Position).y).toBe(20);
+            expect(clone.getComponent(Velocity).x).toBe(5);
+            expect(clone.getComponent(Velocity).y).toBe(3);
+        });
+
+        test('should clone entity with all tags', () => {
+            const original = engine.createEntity('Original');
+            original.addTag('player');
+            original.addTag('active');
+            original.addTag('controllable');
+
+            const clone = engine.cloneEntity(original);
+
+            expect(clone.hasTag('player')).toBe(true);
+            expect(clone.hasTag('active')).toBe(true);
+            expect(clone.hasTag('controllable')).toBe(true);
+        });
+
+        test('should create independent copy (deep clone)', () => {
+            const original = engine.createEntity('Original');
+            original.addComponent(Position, 10, 20);
+
+            const clone = engine.cloneEntity(original);
+
+            // Modify original
+            original.getComponent(Position).x = 999;
+
+            // Clone should not be affected
+            expect(clone.getComponent(Position).x).toBe(10);
+        });
+
+        test('should override entity name', () => {
+            const original = engine.createEntity('Original');
+            original.addComponent(Position, 10, 20);
+
+            const clone = engine.cloneEntity(original, { name: 'CustomClone' });
+
+            expect(clone.name).toBe('CustomClone');
+            expect(original.name).toBe('Original');
+        });
+
+        test('should override component values', () => {
+            const original = engine.createEntity('Original');
+            original.addComponent(Position, 10, 20);
+            original.addComponent(Health, 50, 100);
+
+            const clone = engine.cloneEntity(original, {
+                components: {
+                    Position: { x: 100 }
+                }
+            });
+
+            expect(clone.getComponent(Position).x).toBe(100);
+            expect(clone.getComponent(Position).y).toBe(20); // y not overridden
+            expect(clone.getComponent(Health).current).toBe(50); // Other components unchanged
+        });
+
+        test('should override multiple component values', () => {
+            const original = engine.createEntity('Original');
+            original.addComponent(Position, 10, 20);
+            original.addComponent(Health, 50, 100);
+
+            const clone = engine.cloneEntity(original, {
+                name: 'Clone',
+                components: {
+                    Position: { x: 50, y: 60 },
+                    Health: { current: 100 }
+                }
+            });
+
+            expect(clone.name).toBe('Clone');
+            expect(clone.getComponent(Position).x).toBe(50);
+            expect(clone.getComponent(Position).y).toBe(60);
+            expect(clone.getComponent(Health).current).toBe(100);
+            expect(clone.getComponent(Health).max).toBe(100); // Not overridden
+        });
+
+        test('should not clone children (single entity clone)', () => {
+            const parent = engine.createEntity('Parent');
+            const child = engine.createEntity('Child');
+            parent.addChild(child);
+
+            const clone = engine.cloneEntity(parent);
+
+            expect(clone.children.length).toBe(0);
+            expect(parent.children.length).toBe(1);
+        });
+
+        test('should use instance method clone()', () => {
+            const original = engine.createEntity('Original');
+            original.addComponent(Position, 15, 25);
+            original.addTag('test');
+
+            const clone = original.clone(engine);
+
+            expect(clone).not.toBe(original);
+            expect(clone.getComponent(Position).x).toBe(15);
+            expect(clone.hasTag('test')).toBe(true);
+        });
+
+        test('should generate default clone name when original has name', () => {
+            const original = engine.createEntity('Hero');
+            const clone = engine.cloneEntity(original);
+
+            expect(clone.name).toBe('Hero_clone');
+        });
+
+        test('should handle entity without name', () => {
+            const original = engine.createEntity();
+            original.addComponent(Position, 1, 2);
+
+            const clone = engine.cloneEntity(original);
+
+            expect(clone.name).toBeUndefined();
+            expect(clone.getComponent(Position).x).toBe(1);
+        });
+
+        test('should handle entity with no components', () => {
+            const original = engine.createEntity('Empty');
+            const clone = engine.cloneEntity(original);
+
+            expect(clone).not.toBe(original);
+            expect(clone.getComponentTypes().length).toBe(0);
+        });
+    });
+
     describe('Component Management', () => {
         test('should add and get components', () => {
             const entity = engine.createEntity();

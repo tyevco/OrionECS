@@ -1,39 +1,57 @@
 # Automatically label PRs based on file changes
 
 documentation:
-  - '**/*.md'
-  - 'docs/**/*'
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.md'
+      - 'docs/**/*'
 
 dependencies:
-  - 'package.json'
-  - 'package-lock.json'
-  - 'npm-shrinkwrap.json'
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'package.json'
+      - 'package-lock.json'
+      - 'npm-shrinkwrap.json'
 
 tests:
-  - 'src/**/*.spec.ts'
-  - 'src/**/*.test.ts'
-  - '**/*.spec.ts'
-  - '**/*.test.ts'
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/**/*.spec.ts'
+      - 'src/**/*.test.ts'
+      - '**/*.spec.ts'
+      - '**/*.test.ts'
 
 benchmarks:
-  - 'benchmarks/**/*'
-  - '**/*.bench.ts'
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'benchmarks/**/*'
+      - '**/*.bench.ts'
 
 typescript:
-  - '**/*.ts'
-  - 'tsconfig.json'
-  - 'tsup.config.ts'
+  - changed-files:
+    - any-glob-to-any-file:
+      - '**/*.ts'
+      - 'tsconfig.json'
+      - 'tsup.config.ts'
 
 build:
-  - 'tsup.config.ts'
-  - '.github/workflows/**/*'
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'tsup.config.ts'
+      - '.github/workflows/**/*'
 
 core:
-  - 'src/core.ts'
-  - 'src/engine.ts'
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/core.ts'
+      - 'src/engine.ts'
 
 managers:
-  - 'src/managers.ts'
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/managers.ts'
 
 definitions:
-  - 'src/definitions.ts'
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'src/definitions.ts'

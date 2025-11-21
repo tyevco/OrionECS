@@ -198,3 +198,7 @@ FakesAssemblies/
 /.ntvs_analysis.dat
 /coverage.html
 **/dist
+
+# Turborepo
+.turbo
+**/.turbo

@@ -1,0 +1,39 @@
+{
+  "name": "@orion-ecs/utils",
+  "version": "1.0.0",
+  "description": "Shared utilities for OrionECS plugins (Vector2, Bounds, Color, Mesh, Vertex)",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "ecs",
+    "orion-ecs",
+    "utilities",
+    "vector2",
+    "bounds",
+    "color",
+    "mesh",
+    "2d"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  }
+}

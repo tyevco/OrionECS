@@ -17,7 +17,16 @@
     "clean": "turbo run clean && rm -rf node_modules/.cache"
   },
   "workspaces": [
-    "core"
+    "core",
+    "utils",
+    "plugins/canvas2d-renderer",
+    "plugins/input-manager",
+    "plugins/interaction-system",
+    "plugins/physics",
+    "plugins/spatial-partition",
+    "plugins/debug-visualizer",
+    "plugins/profiling",
+    "plugins/resource-manager"
   ],
   "devDependencies": {
     "@babel/core": "^7.25.2",

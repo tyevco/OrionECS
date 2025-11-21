@@ -1,0 +1,44 @@
+{
+  "name": "@orion-ecs/interaction-system",
+  "version": "1.0.0",
+  "description": "Interaction system plugin for OrionECS with click, drag, and selection support",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "require": "./dist/index.js",
+      "import": "./dist/index.mjs",
+      "types": "./dist/index.d.ts"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "ecs",
+    "orion-ecs",
+    "plugin",
+    "interaction",
+    "click",
+    "drag",
+    "selection"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "orion-ecs": "*",
+    "@orion-ecs/utils": "*",
+    "@orion-ecs/input-manager": "*",
+    "@orion-ecs/canvas2d-renderer": "*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  }
+}

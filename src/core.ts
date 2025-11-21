@@ -428,6 +428,12 @@ export class Entity implements EntityDef {
             this._componentIndices.set(type, index);
             this._dirty = true;
             this._changeVersion++;
+
+            // Call onCreate lifecycle hook if it exists
+            if (component && typeof (component as any).onCreate === 'function') {
+                (component as any).onCreate(this);
+            }
+
             this.eventEmitter.emit('onComponentAdded', this, type);
         }
         return this;
@@ -440,6 +446,11 @@ export class Entity implements EntityDef {
             // Get component before removing to release it to pool
             const component = componentArray.get(index);
             if (component !== null) {
+                // Call onDestroy lifecycle hook if it exists
+                if (typeof (component as any).onDestroy === 'function') {
+                    (component as any).onDestroy(this);
+                }
+
                 this.componentManager.releaseComponent(type, component);
             }
             componentArray.remove(index);

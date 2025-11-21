@@ -659,22 +659,19 @@ describe('Engine v2 - Composition Architecture', () => {
         });
 
         test('should support parameterized prefabs', () => {
-            // Register a parameterized prefab (function)
-            engine.registerPrefab('Enemy', (params: { type: string; level: number }) => ({
-                name: `${params.type}Enemy`,
+            // Define a parameterized prefab using definePrefab
+            engine.definePrefab('Enemy', (type: string, level: number) => ({
+                name: `${type}Enemy`,
                 components: [
                     { type: Position, args: [0, 0] },
-                    { type: Health, args: [50 * params.level, 50 * params.level] },
-                    { type: Damage, args: [10 * params.level] },
+                    { type: Health, args: [50 * level, 50 * level] },
+                    { type: Damage, args: [10 * level] },
                 ],
-                tags: ['enemy', params.type],
+                tags: ['enemy', type],
             }));
 
             // Create entity with parameters
-            const goblin = engine.createFromPrefab('Enemy', 'Goblin1', {
-                type: 'Goblin',
-                level: 5,
-            });
+            const goblin = engine.createFromPrefab('Enemy', 'Goblin1', 'Goblin', 5);
             expect(goblin).toBeDefined();
             expect(goblin?.name).toBe('Goblin1');
             expect(goblin?.hasComponent(Health)).toBe(true);
@@ -685,7 +682,7 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(goblin?.hasTag('Goblin')).toBe(true);
 
             // Create another entity with different parameters
-            const boss = engine.createFromPrefab('Enemy', 'Boss1', { type: 'Boss', level: 10 });
+            const boss = engine.createFromPrefab('Enemy', 'Boss1', 'Boss', 10);
             expect(boss).toBeDefined();
             expect(boss?.getComponent(Health).current).toBe(500);
             expect(boss?.getComponent(Damage).value).toBe(100);
@@ -737,14 +734,17 @@ describe('Engine v2 - Composition Architecture', () => {
             });
 
             // Create variant with overridden component values
-            const fastEnemyPrefab = engine.variantOfPrefab('BasicEnemy', {
-                Position: { x: 100, y: 100 },
-                Health: { current: 50, max: 50 },
-                Velocity: { x: 3, y: 3 },
-            });
-
-            // Register variant prefab
-            engine.registerPrefab('FastEnemy', fastEnemyPrefab);
+            engine.variantOfPrefab(
+                'BasicEnemy',
+                {
+                    components: {
+                        Position: [100, 100],
+                        Health: [50, 50],
+                        Velocity: [3, 3],
+                    },
+                },
+                'FastEnemy'
+            );
 
             // Create entity from variant prefab
             const fastEnemy = engine.createFromPrefab('FastEnemy', 'FastEnemy1');
@@ -769,18 +769,18 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should throw error when creating variant of non-existent prefab', () => {
             expect(() => {
                 engine.variantOfPrefab('DoesNotExist', {
-                    Position: { x: 10, y: 10 },
+                    components: { Position: [10, 10] },
                 });
             }).toThrow(/not found/i);
         });
 
-        test('should handle parameterized prefabs without parameters', () => {
-            // Register parameterized prefab with default values
-            engine.registerPrefab('DefaultEnemy', (params: { level: number } = { level: 1 }) => ({
+        test('should handle parameterized prefabs with default parameters', () => {
+            // Define parameterized prefab with default values
+            engine.definePrefab('DefaultEnemy', (level: number = 1) => ({
                 name: 'DefaultEnemy',
                 components: [
                     { type: Position, args: [0, 0] },
-                    { type: Health, args: [100 * params.level, 100 * params.level] },
+                    { type: Health, args: [100 * level, 100 * level] },
                 ],
                 tags: ['enemy'],
             }));
@@ -815,7 +815,7 @@ describe('Engine v2 - Composition Architecture', () => {
             });
 
             const variant = engine.variantOfPrefab('Base', {
-                Position: { x: 10, y: 10 },
+                components: { Position: [10, 10] },
             });
 
             expect(variant.parent).toBe('Base');

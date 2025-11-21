@@ -2303,13 +2303,13 @@ describe('Engine v2 - Composition Architecture', () => {
 
             // First iteration
             let count1 = 0;
-            for (const entity of query) {
+            for (const _ of query) {
                 count1++;
             }
 
             // Second iteration
             let count2 = 0;
-            for (const entity of query) {
+            for (const _ of query) {
                 count2++;
             }
 

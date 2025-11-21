@@ -1,0 +1,31 @@
+{
+  "$schema": "https://raw.githubusercontent.com/oxc-project/oxc/main/crates/oxc_linter/src/schemas/oxlint.schema.json",
+  "rules": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "categories": {
+    "correctness": "error",
+    "suspicious": "warn",
+    "perf": "warn"
+  },
+  "plugins": ["typescript", "unicorn"],
+  "env": {
+    "browser": false,
+    "node": true,
+    "es2021": true
+  },
+  "globals": {
+    "NodeJS": "readonly"
+  },
+  "overrides": [
+    {
+      "files": ["*.spec.ts", "*.test.ts", "*.bench.ts", "benchmarks/**/*.ts"],
+      "rules": {
+        "typescript/no-explicit-any": "off",
+        "no-console": "off"
+      }
+    }
+  ]
+}

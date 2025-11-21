@@ -1,4 +1,5 @@
 # Automatically label PRs based on file changes
+# Configuration for actions/labeler@v6
 
 documentation:
   - changed-files:

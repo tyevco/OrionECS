@@ -62,7 +62,7 @@ jobs:
         continue-on-error: true
 
   lint:
-    name: Lint
+    name: Lint & Format
     runs-on: ubuntu-latest
 
     steps:
@@ -80,6 +80,15 @@ jobs:
 
       - name: Check TypeScript
         run: npx tsc --noEmit
+
+      - name: Run oxlint
+        run: npm run lint:oxlint
+
+      - name: Run Biome lint
+        run: npm run lint:biome
+
+      - name: Check formatting
+        run: npm run format:check
 
   security:
     name: Security Audit

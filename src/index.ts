@@ -13,6 +13,7 @@ export { createTagComponent } from './utils';
 export {
     Entity,
     Query,
+    QueryBuilder,
     System,
     SystemGroup,
     Pool,
@@ -49,6 +50,7 @@ export type {
     SerializedWorld,
     EntityPrefab,
     SystemProfile,
+    QueryStats,
     MemoryStats,
     ComponentValidator,
     TagComponent,

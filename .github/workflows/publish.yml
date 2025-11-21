@@ -34,6 +34,14 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Setup Turborepo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-publish-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-publish-
+
       - name: Run tests
         run: npm test
 
@@ -42,11 +50,11 @@ jobs:
 
       - name: Verify build artifacts
         run: |
-          test -f dist/index.js || exit 1
-          test -f dist/index.d.ts || exit 1
+          test -f core/dist/index.js || exit 1
+          test -f core/dist/index.d.ts || exit 1
 
       - name: Publish to npm
-        run: npm publish --provenance --access public
+        run: npm publish --provenance --access public --workspace=core
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
@@ -55,6 +63,6 @@ jobs:
           echo "### Published to npm 🚀" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "Package: \`orion-ecs\`" >> $GITHUB_STEP_SUMMARY
-          echo "Version: \`$(node -p "require('./package.json').version")\`" >> $GITHUB_STEP_SUMMARY
+          echo "Version: \`$(node -p "require('./core/package.json').version")\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
           echo "[View on npm](https://www.npmjs.com/package/orion-ecs)" >> $GITHUB_STEP_SUMMARY

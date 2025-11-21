@@ -24,7 +24,14 @@
       "files": ["*.spec.ts", "*.test.ts", "*.bench.ts", "benchmarks/**/*.ts"],
       "rules": {
         "typescript/no-explicit-any": "off",
+        "typescript/no-extraneous-class": "off",
         "no-console": "off"
+      }
+    },
+    {
+      "files": ["utils.ts"],
+      "rules": {
+        "typescript/no-extraneous-class": "off"
       }
     }
   ]

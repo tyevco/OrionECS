@@ -3733,7 +3733,7 @@ describe('Engine v2 - Composition Architecture', () => {
                 'TypedSystem',
                 { all: [Position, Velocity] as const },
                 {
-                    act: (entity, position, velocity) => {
+                    act: (_entity, position, velocity) => {
                         // These should have proper types inferred
                         // TypeScript should provide autocomplete here
                         typedPositionX = position.x;
@@ -3772,7 +3772,7 @@ describe('Engine v2 - Composition Architecture', () => {
 
             const results: Array<{ x: number; hp: number }> = [];
 
-            query.forEach((entity, position, health) => {
+            query.forEach((_entity, position, health) => {
                 // position and health should be properly typed
                 results.push({
                     x: position.x,
@@ -3796,7 +3796,7 @@ describe('Engine v2 - Composition Architecture', () => {
                 'MultiComponentSystem',
                 { all: [Position, Velocity, Health] as const },
                 {
-                    act: (entity, position, velocity, health) => {
+                    act: (_entity, position, velocity, health) => {
                         // All three components should be properly typed
                         capturedTypes = {
                             posX: position.x,
@@ -3826,7 +3826,7 @@ describe('Engine v2 - Composition Architecture', () => {
                 'SingleComponentSystem',
                 { all: [Health] as const },
                 {
-                    act: (entity, health) => {
+                    act: (_entity, health) => {
                         // health should be properly typed
                         healthValue = health.current;
                         health.current = Math.min(health.current + 10, health.max);
@@ -3851,7 +3851,7 @@ describe('Engine v2 - Composition Architecture', () => {
                 'FixedUpdateSystem',
                 { all: [Position, Velocity] as const },
                 {
-                    act: (entity, position, velocity) => {
+                    act: (_entity, position, velocity) => {
                         // Should have proper types even in fixed update
                         position.x += velocity.dx;
                         position.y += velocity.dy;
@@ -3878,7 +3878,7 @@ describe('Engine v2 - Composition Architecture', () => {
             entity.addComponent(Velocity, 2, 3);
 
             let found = false;
-            query.forEach((e, pos, vel) => {
+            query.forEach((_e, pos, vel) => {
                 // Types should be inferred here too
                 expect(pos.x).toBe(15);
                 expect(vel.dx).toBe(2);
@@ -3932,7 +3932,7 @@ describe('Engine v2 - Composition Architecture', () => {
                 'RenderSystem',
                 { all: [Transform, Sprite] as const },
                 {
-                    act: (entity, transform, sprite) => {
+                    act: (_entity, transform, sprite) => {
                         // Both should be properly typed
                         transformData = {
                             x: transform.x,

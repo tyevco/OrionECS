@@ -22,7 +22,6 @@ import type {
     MemoryStats,
     PluginContext,
     PoolStats,
-    PrefabDefinition,
     QueryOptions,
     SerializedWorld,
     SystemProfile,
@@ -484,21 +483,82 @@ export class Engine {
 
     // ========== Prefab Management ==========
 
-    /**
-     * Register a prefab (can be static or parameterized)
-     */
-    registerPrefab(name: string, prefab: PrefabDefinition): void {
+    registerPrefab(name: string, prefab: EntityPrefab): void {
         this.prefabManager.register(name, prefab);
     }
 
     /**
-     * Create an entity from a prefab
-     * @param prefabName - Name of the prefab to instantiate
-     * @param entityName - Optional name for the entity
-     * @param params - Optional parameters for function-based prefabs
+     * Define a parameterized prefab using a factory function
+     * @param name - Prefab name
+     * @param factory - Factory function that returns prefab definition
+     * @returns The registered prefab
      */
-    createFromPrefab(prefabName: string, entityName?: string, params?: any): Entity | null {
-        const prefab = this.prefabManager.get(prefabName, params);
+    definePrefab(
+        name: string,
+        factory: (...args: any[]) => Omit<EntityPrefab, 'factory' | 'parent'>
+    ): EntityPrefab {
+        const prefab: EntityPrefab = {
+            name,
+            components: [],
+            tags: [],
+            factory,
+        };
+        this.prefabManager.register(name, prefab);
+        return prefab;
+    }
+
+    /**
+     * Extend a base prefab with additional components and tags
+     * @param baseName - Name of the base prefab to extend
+     * @param overrides - Additional components, tags, or children to add
+     * @param newName - Optional name for the extended prefab (defaults to baseName_extended)
+     * @returns The extended prefab
+     */
+    extendPrefab(
+        baseName: string,
+        overrides: Partial<EntityPrefab>,
+        newName?: string
+    ): EntityPrefab {
+        const extended = this.prefabManager.extend(baseName, { ...overrides, name: newName });
+        if (newName) {
+            this.prefabManager.register(newName, extended);
+        }
+        return extended;
+    }
+
+    /**
+     * Create a variant of a prefab with component value overrides
+     * @param baseName - Name of the base prefab
+     * @param overrides - Component values to override, tags to add, or children
+     * @param newName - Optional name for the variant (defaults to baseName_variant)
+     * @returns The variant prefab
+     */
+    variantOfPrefab(
+        baseName: string,
+        overrides: {
+            components?: { [componentName: string]: any };
+            tags?: string[];
+            children?: EntityPrefab[];
+        },
+        newName?: string
+    ): EntityPrefab {
+        const variant = this.prefabManager.createVariant(baseName, overrides);
+        if (newName) {
+            variant.name = newName;
+        }
+        if (newName) {
+            this.prefabManager.register(newName, variant);
+        }
+        return variant;
+    }
+
+    createFromPrefab(
+        prefabName: string,
+        entityName?: string,
+        ...factoryArgs: any[]
+    ): Entity | null {
+        // Resolve prefab (applies factory if present)
+        const prefab = this.prefabManager.resolve(prefabName, ...factoryArgs);
         if (!prefab) {
             if (this.debugMode) {
                 console.warn(`[ECS Debug] Prefab ${prefabName} not found`);
@@ -532,20 +592,6 @@ export class Engine {
         }
 
         return entity;
-    }
-
-    /**
-     * Create a new prefab that extends a base prefab
-     */
-    extendPrefab(baseName: string, extensions: Partial<EntityPrefab>): EntityPrefab {
-        return this.prefabManager.extendPrefab(baseName, extensions);
-    }
-
-    /**
-     * Create a variant of a prefab with overridden component values
-     */
-    variantOfPrefab(baseName: string, overrides: Record<string, any>): EntityPrefab {
-        return this.prefabManager.variantOfPrefab(baseName, overrides);
     }
 
     // ========== Snapshot Management ==========
@@ -803,8 +849,32 @@ export class Engine {
             createQuery: <_C extends any[] = any[]>(options: QueryOptions): any => {
                 return this.createQuery(options);
             },
-            registerPrefab: (name: string, prefab: PrefabDefinition): void => {
+            registerPrefab: (name: string, prefab: EntityPrefab): void => {
                 this.registerPrefab(name, prefab);
+            },
+            definePrefab: (
+                name: string,
+                factory: (...args: any[]) => Omit<EntityPrefab, 'factory' | 'parent'>
+            ): EntityPrefab => {
+                return this.definePrefab(name, factory);
+            },
+            extendPrefab: (
+                baseName: string,
+                overrides: Partial<EntityPrefab>,
+                newName?: string
+            ): EntityPrefab => {
+                return this.extendPrefab(baseName, overrides, newName);
+            },
+            variantOfPrefab: (
+                baseName: string,
+                overrides: {
+                    components?: { [componentName: string]: any };
+                    tags?: string[];
+                    children?: EntityPrefab[];
+                },
+                newName?: string
+            ): EntityPrefab => {
+                return this.variantOfPrefab(baseName, overrides, newName);
             },
             on: (event: string, callback: (...args: any[]) => void): (() => void) => {
                 return this.on(event, callback);

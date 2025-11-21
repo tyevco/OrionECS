@@ -95,16 +95,22 @@ export interface SerializedWorld {
 }
 
 // Prefab system
+export type EntityPrefabFactory = (...args: any[]) => Omit<EntityPrefab, 'factory' | 'parent'>;
+
 export interface EntityPrefab {
     name: string;
     components: { type: ComponentIdentifier; args: any[] }[];
     tags: string[];
     children?: EntityPrefab[];
-    parent?: string; // Reference to parent prefab for inheritance
+    factory?: EntityPrefabFactory; // Optional factory for parameterized prefabs
+    parent?: string; // Optional parent prefab name for inheritance
 }
 
-// Prefab definition - can be a static prefab or a function that generates a prefab
-export type PrefabDefinition = EntityPrefab | ((params?: any) => EntityPrefab);
+export interface EntityPrefabOverride {
+    components?: { [componentName: string]: any };
+    tags?: string[];
+    children?: EntityPrefab[];
+}
 
 // Performance monitoring
 export interface SystemProfile {
@@ -171,8 +177,23 @@ export interface PluginContext {
     // Query creation
     createQuery<_C extends any[] = any[]>(options: QueryOptions): any; // Query<C>
 
-    // Prefab registration
-    registerPrefab(name: string, prefab: PrefabDefinition): void;
+    // Prefab registration and management
+    registerPrefab(name: string, prefab: EntityPrefab): void;
+    definePrefab(name: string, factory: EntityPrefabFactory): EntityPrefab;
+    extendPrefab(
+        baseName: string,
+        overrides: Partial<EntityPrefab>,
+        newName?: string
+    ): EntityPrefab;
+    variantOfPrefab(
+        baseName: string,
+        overrides: {
+            components?: { [componentName: string]: any };
+            tags?: string[];
+            children?: EntityPrefab[];
+        },
+        newName?: string
+    ): EntityPrefab;
 
     // Event system
     on(event: string, callback: (...args: any[]) => void): () => void;

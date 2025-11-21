@@ -18,7 +18,6 @@ import type {
     ComponentValidator,
     EntityPrefab,
     PoolStats,
-    PrefabDefinition,
     QueryOptions,
     SerializedWorld,
     SystemMessage,
@@ -488,125 +487,140 @@ export class QueryManager {
 }
 
 /**
+/**
  * Manages prefab registration and instantiation
  */
 export class PrefabManager {
-    private prefabs: Map<string, PrefabDefinition> = new Map();
+    private prefabs: Map<string, EntityPrefab> = new Map();
 
-    /**
-     * Register a prefab (static or parameterized)
-     */
-    register(name: string, prefab: PrefabDefinition): void {
+    register(name: string, prefab: EntityPrefab): void {
         this.prefabs.set(name, prefab);
     }
 
-    /**
-     * Get a prefab by name, optionally passing parameters for function-based prefabs
-     */
-    get(name: string, params?: any): EntityPrefab | undefined {
-        const prefabDef = this.prefabs.get(name);
-        if (!prefabDef) return undefined;
-
-        // If it's a function, call it with params
-        if (typeof prefabDef === 'function') {
-            return prefabDef(params);
-        }
-
-        return prefabDef;
+    get(name: string): EntityPrefab | undefined {
+        return this.prefabs.get(name);
     }
 
     has(name: string): boolean {
         return this.prefabs.has(name);
     }
 
-    getAllPrefabs(): Map<string, PrefabDefinition> {
+    getAllPrefabs(): Map<string, EntityPrefab> {
         return new Map(this.prefabs);
     }
 
     /**
-     * Create a new prefab that extends a base prefab
+     * Extend a base prefab with additional components and tags
+     * @param baseName - Name of the base prefab to extend
+     * @param overrides - Additional components, tags, or children to add
+     * @returns Extended prefab definition
      */
-    extendPrefab(baseName: string, extensions: Partial<EntityPrefab>): EntityPrefab {
-        const base = this.get(baseName);
+    extend(baseName: string, overrides: Partial<EntityPrefab>): EntityPrefab {
+        const base = this.prefabs.get(baseName);
         if (!base) {
             throw new Error(`Base prefab '${baseName}' not found`);
         }
 
-        return {
-            name: extensions.name || base.name,
-            components: [...base.components, ...(extensions.components || [])],
-            tags: [...(base.tags || []), ...(extensions.tags || [])],
-            children: extensions.children || base.children,
+        // Merge base and overrides
+        const extended: EntityPrefab = {
+            name: overrides.name || `${baseName}_extended`,
+            components: [...base.components, ...(overrides.components || [])],
+            tags: [...base.tags, ...(overrides.tags || [])],
+            children: [...(base.children || []), ...(overrides.children || [])],
             parent: baseName,
         };
+
+        // If base has a factory, create a new factory that extends it
+        if (base.factory) {
+            const originalFactory = base.factory;
+            const additionalComponents = overrides.components || [];
+            const additionalTags = overrides.tags || [];
+            const additionalChildren = overrides.children || [];
+
+            extended.factory = (...args: any[]) => {
+                const baseResult = originalFactory(...args);
+                return {
+                    name: baseResult.name,
+                    components: [...baseResult.components, ...additionalComponents],
+                    tags: [...baseResult.tags, ...additionalTags],
+                    children: [...(baseResult.children || []), ...additionalChildren],
+                };
+            };
+        }
+
+        return extended;
     }
 
     /**
-     * Create a variant of a prefab with overridden component values
+     * Create a variant of a prefab with component value overrides
+     * @param baseName - Name of the base prefab
+     * @param overrides - Component values to override, tags to add, or children
+     * @returns Variant prefab definition
      */
-    variantOfPrefab(baseName: string, overrides: Record<string, any>): EntityPrefab {
-        const base = this.get(baseName);
+    createVariant(
+        baseName: string,
+        overrides: {
+            components?: { [componentName: string]: any };
+            tags?: string[];
+            children?: EntityPrefab[];
+        }
+    ): EntityPrefab {
+        const base = this.prefabs.get(baseName);
         if (!base) {
             throw new Error(`Base prefab '${baseName}' not found`);
         }
 
-        // Clone base prefab and apply component overrides
         const variant: EntityPrefab = {
-            name: base.name,
+            name: `${baseName}_variant`,
             components: base.components.map((comp) => {
-                const override = overrides[comp.type.name];
-                if (override) {
-                    // If override is an array, use it directly as args
-                    if (Array.isArray(override)) {
-                        return {
-                            type: comp.type,
-                            args: override,
-                        };
-                    }
-
-                    // If override is an object, create instance and apply overrides
-                    if (typeof override === 'object') {
-                        // Create temporary instance with original args
-                        const tempInstance = new comp.type(...comp.args);
-
-                        // Apply overrides to the instance
-                        Object.assign(tempInstance, override);
-
-                        // Extract values as args array
-                        // Reconstruct args from the modified instance
-                        const newArgs = comp.args.map((arg, idx) => {
-                            // Try to get the property value from the instance
-                            const keys = Object.keys(tempInstance);
-                            if (keys[idx] !== undefined) {
-                                return (tempInstance as any)[keys[idx]];
-                            }
-                            return arg;
-                        });
-
-                        return {
-                            type: comp.type,
-                            args: newArgs,
-                        };
-                    }
-
-                    // For primitive overrides, replace first arg
+                const componentName = comp.type.name;
+                if (overrides.components && componentName in overrides.components) {
+                    // Override component args with new values
+                    const override = overrides.components[componentName];
                     return {
                         type: comp.type,
-                        args: [override, ...comp.args.slice(1)],
+                        args: Array.isArray(override) ? override : [override],
                     };
                 }
-                // No override, return copy of original
-                return {
-                    type: comp.type,
-                    args: [...comp.args],
-                };
+                return comp;
             }),
-            tags: [...(base.tags || [])],
-            children: base.children,
+            tags: [...base.tags, ...(overrides.tags || [])],
+            children: [...(base.children || []), ...(overrides.children || [])],
             parent: baseName,
         };
 
+        // Preserve factory if present
+        if (base.factory) {
+            variant.factory = base.factory;
+        }
+
         return variant;
+    }
+
+    /**
+     * Resolve a prefab, applying factory function if present
+     * @param name - Prefab name
+     * @param args - Arguments to pass to factory function (if applicable)
+     * @returns Resolved prefab instance
+     */
+    resolve(name: string, ...args: any[]): EntityPrefab | undefined {
+        const prefab = this.prefabs.get(name);
+        if (!prefab) {
+            return undefined;
+        }
+
+        // If prefab has a factory, call it with the provided arguments
+        if (prefab.factory) {
+            const factoryResult = prefab.factory(...args);
+            return {
+                ...factoryResult,
+                name: factoryResult.name,
+                factory: prefab.factory, // Preserve factory for future use
+                parent: prefab.parent,
+            };
+        }
+
+        return prefab;
     }
 }
 

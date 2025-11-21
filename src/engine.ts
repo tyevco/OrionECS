@@ -22,6 +22,7 @@ import type {
     MemoryStats,
     PluginContext,
     PoolStats,
+    PrefabDefinition,
     QueryOptions,
     SerializedWorld,
     SystemProfile,
@@ -483,12 +484,21 @@ export class Engine {
 
     // ========== Prefab Management ==========
 
-    registerPrefab(name: string, prefab: EntityPrefab): void {
+    /**
+     * Register a prefab (can be static or parameterized)
+     */
+    registerPrefab(name: string, prefab: PrefabDefinition): void {
         this.prefabManager.register(name, prefab);
     }
 
-    createFromPrefab(prefabName: string, entityName?: string): Entity | null {
-        const prefab = this.prefabManager.get(prefabName);
+    /**
+     * Create an entity from a prefab
+     * @param prefabName - Name of the prefab to instantiate
+     * @param entityName - Optional name for the entity
+     * @param params - Optional parameters for function-based prefabs
+     */
+    createFromPrefab(prefabName: string, entityName?: string, params?: any): Entity | null {
+        const prefab = this.prefabManager.get(prefabName, params);
         if (!prefab) {
             if (this.debugMode) {
                 console.warn(`[ECS Debug] Prefab ${prefabName} not found`);
@@ -522,6 +532,20 @@ export class Engine {
         }
 
         return entity;
+    }
+
+    /**
+     * Create a new prefab that extends a base prefab
+     */
+    extendPrefab(baseName: string, extensions: Partial<EntityPrefab>): EntityPrefab {
+        return this.prefabManager.extendPrefab(baseName, extensions);
+    }
+
+    /**
+     * Create a variant of a prefab with overridden component values
+     */
+    variantOfPrefab(baseName: string, overrides: Record<string, any>): EntityPrefab {
+        return this.prefabManager.variantOfPrefab(baseName, overrides);
     }
 
     // ========== Snapshot Management ==========
@@ -779,7 +803,7 @@ export class Engine {
             createQuery: <_C extends any[] = any[]>(options: QueryOptions): any => {
                 return this.createQuery(options);
             },
-            registerPrefab: (name: string, prefab: EntityPrefab): void => {
+            registerPrefab: (name: string, prefab: PrefabDefinition): void => {
                 this.registerPrefab(name, prefab);
             },
             on: (event: string, callback: (...args: any[]) => void): (() => void) => {

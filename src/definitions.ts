@@ -100,7 +100,11 @@ export interface EntityPrefab {
     components: { type: ComponentIdentifier; args: any[] }[];
     tags: string[];
     children?: EntityPrefab[];
+    parent?: string; // Reference to parent prefab for inheritance
 }
+
+// Prefab definition - can be a static prefab or a function that generates a prefab
+export type PrefabDefinition = EntityPrefab | ((params?: any) => EntityPrefab);
 
 // Performance monitoring
 export interface SystemProfile {
@@ -168,7 +172,7 @@ export interface PluginContext {
     createQuery<_C extends any[] = any[]>(options: QueryOptions): any; // Query<C>
 
     // Prefab registration
-    registerPrefab(name: string, prefab: EntityPrefab): void;
+    registerPrefab(name: string, prefab: PrefabDefinition): void;
 
     // Event system
     on(event: string, callback: (...args: any[]) => void): () => void;

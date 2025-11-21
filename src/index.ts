@@ -3,61 +3,58 @@
  * Main entry point
  */
 
-// Export the new Engine and Builder
-export { Engine, EngineBuilder } from './engine';
-
-// Export utility functions
-export { createTagComponent } from './utils';
-
 // Export core building blocks
 export {
+    ComponentArray,
     Entity,
+    EntityManager,
+    EventEmitter,
+    MessageBus,
+    PerformanceMonitor,
+    Pool,
     Query,
     QueryBuilder,
     System,
     SystemGroup,
-    Pool,
-    ComponentArray,
-    MessageBus,
-    EventEmitter,
-    PerformanceMonitor,
-    EntityManager
 } from './core';
+// Export all type definitions
+export type {
+    ComponentArgs,
+    ComponentIdentifier,
+    ComponentPoolOptions,
+    ComponentValidator,
+    EngineEventNames,
+    EngineEvents,
+    EnginePlugin,
+    EntityDef,
+    EntityPrefab,
+    EventCallback,
+    EventTypes,
+    InstalledPlugin,
+    MemoryStats,
+    PluginContext,
+    PoolStats,
+    QueryOptions,
+    QueryStats,
+    SerializedEntity,
+    SerializedWorld,
+    SystemMessage,
+    SystemOptions,
+    SystemProfile,
+    SystemType,
+    TagComponent,
+} from './definitions';
+// Export the new Engine and Builder
+export { Engine, EngineBuilder } from './engine';
 
 // Export managers
 export {
     ComponentManager,
-    SystemManager,
-    QueryManager,
+    MessageManager,
     PrefabManager,
+    QueryManager,
     SnapshotManager,
-    MessageManager
+    SystemManager,
 } from './managers';
-
-// Export all type definitions
-export type {
-    ComponentIdentifier,
-    ComponentArgs,
-    EventTypes,
-    EventCallback,
-    SystemOptions,
-    SystemType,
-    EngineEvents,
-    EngineEventNames,
-    EntityDef,
-    QueryOptions,
-    SerializedEntity,
-    SerializedWorld,
-    EntityPrefab,
-    SystemProfile,
-    QueryStats,
-    MemoryStats,
-    ComponentValidator,
-    TagComponent,
-    SystemMessage,
-    EnginePlugin,
-    PluginContext,
-    InstalledPlugin,
-    PoolStats,
-    ComponentPoolOptions
-} from './definitions';
+// Export utility functions
+export { createTagComponent } from './utils';

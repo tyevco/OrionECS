@@ -1,18 +1,27 @@
-import { EngineBuilder, Engine } from './engine';
+import type { EntityDef, EntityPrefab, SystemMessage } from './definitions';
+import { Engine, EngineBuilder } from './engine';
 import { createTagComponent } from './utils';
-import type { EntityPrefab, SystemMessage, EntityDef } from './definitions';
 
 // Test components
 class Position {
-    constructor(public x: number = 0, public y: number = 0) {}
+    constructor(
+        public x: number = 0,
+        public y: number = 0
+    ) {}
 }
 
 class Velocity {
-    constructor(public x: number = 0, public y: number = 0) {}
+    constructor(
+        public x: number = 0,
+        public y: number = 0
+    ) {}
 }
 
 class Health {
-    constructor(public current: number = 100, public max: number = 100) {}
+    constructor(
+        public current: number = 100,
+        public max: number = 100
+    ) {}
 }
 
 class Damage {
@@ -23,10 +32,7 @@ describe('Engine v2 - Composition Architecture', () => {
     let engine: Engine;
 
     beforeEach(() => {
-        engine = new EngineBuilder()
-            .withDebugMode(true)
-            .withFixedUpdateFPS(60)
-            .build();
+        engine = new EngineBuilder().withDebugMode(true).withFixedUpdateFPS(60).build();
 
         // Register components
         engine.registerComponent(Position);
@@ -109,7 +115,7 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should create multiple empty entities', () => {
             const entities = engine.createEntities(10);
             expect(entities.length).toBe(10);
-            entities.forEach(e => {
+            entities.forEach((e) => {
                 expect(e).toBeDefined();
                 expect(engine.getEntity(e.id)).toBe(e);
             });
@@ -119,17 +125,15 @@ describe('Engine v2 - Composition Architecture', () => {
             // Register prefab
             const prefab: EntityPrefab = {
                 name: 'TestPrefab',
-                components: [
-                    { type: Position, args: [0, 0] }
-                ],
-                tags: ['test']
+                components: [{ type: Position, args: [0, 0] }],
+                tags: ['test'],
             };
             engine.registerPrefab('TestPrefab', prefab);
 
             // Create bulk entities from prefab
             const entities = engine.createEntities(5, 'TestPrefab');
             expect(entities.length).toBe(5);
-            entities.forEach(e => {
+            entities.forEach((e) => {
                 expect(e.hasComponent(Position)).toBe(true);
                 expect(e.hasTag('test')).toBe(true);
             });
@@ -184,7 +188,7 @@ describe('Engine v2 - Composition Architecture', () => {
             const friendly = engine.createEntity('Friendly');
             friendly.addTag('ally');
 
-            const found = engine.findEntity(e => e.hasTag('hostile'));
+            const found = engine.findEntity((e) => e.hasTag('hostile'));
             expect(found).toBe(enemy);
         });
 
@@ -192,7 +196,7 @@ describe('Engine v2 - Composition Architecture', () => {
             engine.createEntity('Entity1');
             engine.createEntity('Entity2');
 
-            const found = engine.findEntity(e => e.hasTag('non-existent'));
+            const found = engine.findEntity((e) => e.hasTag('non-existent'));
             expect(found).toBeUndefined();
         });
 
@@ -202,14 +206,16 @@ describe('Engine v2 - Composition Architecture', () => {
                 engine.createEntity('E2'),
                 engine.createEntity('E3'),
                 engine.createEntity('E4'),
-                engine.createEntity('E5')
+                engine.createEntity('E5'),
             ];
 
-            entities.forEach(e => e.addTag('test'));
+            entities.forEach((e) => {
+                e.addTag('test');
+            });
             entities[2].addTag('special');
             entities[4].addTag('special');
 
-            const found = engine.findEntities(e => e.hasTag('special'));
+            const found = engine.findEntities((e) => e.hasTag('special'));
             expect(found.length).toBe(2);
             expect(found).toContain(entities[2]);
             expect(found).toContain(entities[4]);
@@ -219,7 +225,7 @@ describe('Engine v2 - Composition Architecture', () => {
             engine.createEntity('Entity1');
             engine.createEntity('Entity2');
 
-            const found = engine.findEntities(e => e.hasTag('non-existent'));
+            const found = engine.findEntities((e) => e.hasTag('non-existent'));
             expect(found).toEqual([]);
         });
 
@@ -259,10 +265,11 @@ describe('Engine v2 - Composition Architecture', () => {
             enemy2.addTag('enemy');
 
             // Find enemies with low health
-            const lowHealthEnemies = engine.findEntities(e =>
-                e.hasTag('enemy') &&
-                e.hasComponent(Health) &&
-                e.getComponent(Health).current < 50
+            const lowHealthEnemies = engine.findEntities(
+                (e) =>
+                    e.hasTag('enemy') &&
+                    e.hasComponent(Health) &&
+                    e.getComponent(Health).current < 50
             );
 
             expect(lowHealthEnemies.length).toBe(1);
@@ -330,8 +337,8 @@ describe('Engine v2 - Composition Architecture', () => {
 
             const clone = engine.cloneEntity(original, {
                 components: {
-                    Position: { x: 100 }
-                }
+                    Position: { x: 100 },
+                },
             });
 
             expect(clone.getComponent(Position).x).toBe(100);
@@ -348,8 +355,8 @@ describe('Engine v2 - Composition Architecture', () => {
                 name: 'Clone',
                 components: {
                     Position: { x: 50, y: 60 },
-                    Health: { current: 100 }
-                }
+                    Health: { current: 100 },
+                },
             });
 
             expect(clone.name).toBe('Clone');
@@ -423,7 +430,7 @@ describe('Engine v2 - Composition Architecture', () => {
             engine.registerComponentValidator(Health, {
                 validate: (component: Health) => {
                     return component.current >= 0 ? true : 'Health cannot be negative';
-                }
+                },
             });
 
             const entity = engine.createEntity();
@@ -436,7 +443,7 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should enforce component dependencies', () => {
             engine.registerComponentValidator(Health, {
                 validate: () => true,
-                dependencies: [Position]
+                dependencies: [Position],
             });
 
             const entity = engine.createEntity();
@@ -455,7 +462,7 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should enforce component conflicts', () => {
             engine.registerComponentValidator(Health, {
                 validate: () => true,
-                conflicts: [Damage]
+                conflicts: [Damage],
             });
 
             const entity = engine.createEntity();
@@ -471,9 +478,15 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should create and execute system', () => {
             let executed = false;
 
-            engine.createSystem('TestSystem', { all: [] }, {
-                before: () => { executed = true; }
-            });
+            engine.createSystem(
+                'TestSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        executed = true;
+                    },
+                }
+            );
 
             engine.update(16);
             expect(executed).toBe(true);
@@ -482,15 +495,27 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should execute systems in priority order', () => {
             const executionOrder: string[] = [];
 
-            engine.createSystem('LowPriority', { all: [] }, {
-                priority: 1,
-                before: () => { executionOrder.push('low'); }
-            });
+            engine.createSystem(
+                'LowPriority',
+                { all: [] },
+                {
+                    priority: 1,
+                    before: () => {
+                        executionOrder.push('low');
+                    },
+                }
+            );
 
-            engine.createSystem('HighPriority', { all: [] }, {
-                priority: 100,
-                before: () => { executionOrder.push('high'); }
-            });
+            engine.createSystem(
+                'HighPriority',
+                { all: [] },
+                {
+                    priority: 100,
+                    before: () => {
+                        executionOrder.push('high');
+                    },
+                }
+            );
 
             engine.update(16);
             expect(executionOrder).toEqual(['high', 'low']);
@@ -506,14 +531,15 @@ describe('Engine v2 - Composition Architecture', () => {
 
             let actCount = 0;
 
-            engine.createSystem('MovementSystem',
+            engine.createSystem(
+                'MovementSystem',
                 { all: [Position, Velocity] },
                 {
-                    act: (entity: EntityDef, pos: Position, vel: Velocity) => {
+                    act: (_entity: EntityDef, pos: Position, vel: Velocity) => {
                         pos.x += vel.x;
                         pos.y += vel.y;
                         actCount++;
-                    }
+                    },
                 }
             );
 
@@ -527,9 +553,16 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should support fixed update systems', () => {
             let fixedCount = 0;
 
-            engine.createSystem('FixedSystem', { all: [] }, {
-                before: () => { fixedCount++; }
-            }, true); // true = fixed update
+            engine.createSystem(
+                'FixedSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        fixedCount++;
+                    },
+                },
+                true
+            ); // true = fixed update
 
             // Simulate 3 frames at 60 FPS (16.67ms each)
             engine.update(16.67);
@@ -543,9 +576,13 @@ describe('Engine v2 - Composition Architecture', () => {
         });
 
         test('should get system profiles', () => {
-            engine.createSystem('TestSystem', { all: [] }, {
-                before: () => {}
-            });
+            engine.createSystem(
+                'TestSystem',
+                { all: [] },
+                {
+                    before: () => {},
+                }
+            );
 
             engine.update(16);
 
@@ -576,7 +613,7 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should create query with tag filtering', () => {
             const query = engine.createQuery({
                 all: [Position],
-                tags: ['player']
+                tags: ['player'],
             });
 
             const entity1 = engine.createEntity();
@@ -600,20 +637,20 @@ describe('Engine v2 - Composition Architecture', () => {
                 name: 'Player',
                 components: [
                     { type: Position, args: [10, 20] },
-                    { type: Health, args: [100, 100] }
+                    { type: Health, args: [100, 100] },
                 ],
-                tags: ['player', 'controllable']
+                tags: ['player', 'controllable'],
             };
 
             engine.registerPrefab('Player', playerPrefab);
 
             const player = engine.createFromPrefab('Player', 'Hero');
             expect(player).toBeDefined();
-            expect(player!.name).toBe('Hero');
-            expect(player!.hasComponent(Position)).toBe(true);
-            expect(player!.hasComponent(Health)).toBe(true);
-            expect(player!.hasTag('player')).toBe(true);
-            expect(player!.hasTag('controllable')).toBe(true);
+            expect(player?.name).toBe('Hero');
+            expect(player?.hasComponent(Position)).toBe(true);
+            expect(player?.hasComponent(Health)).toBe(true);
+            expect(player?.hasTag('player')).toBe(true);
+            expect(player?.hasTag('controllable')).toBe(true);
         });
 
         test('should handle missing prefab gracefully', () => {
@@ -670,7 +707,7 @@ describe('Engine v2 - Composition Architecture', () => {
             const restoredParent = entities.find((e: EntityDef) => e.name === 'Parent');
             const restoredChild = entities.find((e: EntityDef) => e.name === 'Child');
 
-            expect(restoredChild!.parent).toBe(restoredParent);
+            expect(restoredChild?.parent).toBe(restoredParent);
         });
 
         test('should track snapshot count', () => {
@@ -732,7 +769,9 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should remove event listeners', () => {
             let callCount = 0;
 
-            const callback = () => { callCount++; };
+            const callback = () => {
+                callCount++;
+            };
             engine.on('test', callback);
 
             engine.emit('test');
@@ -749,8 +788,12 @@ describe('Engine v2 - Composition Architecture', () => {
             let startCalled = false;
             let stopCalled = false;
 
-            engine.on('onStart', () => { startCalled = true; });
-            engine.on('onStop', () => { stopCalled = true; });
+            engine.on('onStart', () => {
+                startCalled = true;
+            });
+            engine.on('onStop', () => {
+                stopCalled = true;
+            });
 
             engine.start();
             expect(startCalled).toBe(true);
@@ -831,9 +874,9 @@ describe('Engine v2 - Composition Architecture', () => {
                 components: [
                     { type: Position, args: [0, 0] },
                     { type: Velocity, args: [0, 0] },
-                    { type: Health, args: [100, 100] }
+                    { type: Health, args: [100, 100] },
                 ],
-                tags: ['player', 'alive']
+                tags: ['player', 'alive'],
             };
 
             engine.registerPrefab('Player', playerPrefab);
@@ -844,28 +887,31 @@ describe('Engine v2 - Composition Architecture', () => {
 
             // Create movement system
             let systemExecuted = false;
-            engine.createSystem('MovementSystem',
+            engine.createSystem(
+                'MovementSystem',
                 { all: [Position, Velocity], tags: ['alive'] },
                 {
-                    act: (entity: EntityDef, pos: Position, vel: Velocity) => {
+                    act: (_entity: EntityDef, pos: Position, vel: Velocity) => {
                         pos.x += vel.x;
                         pos.y += vel.y;
                         systemExecuted = true;
-                    }
+                    },
                 }
             );
 
             // Set velocity
-            player!.getComponent(Velocity).x = 5;
-            player!.getComponent(Velocity).y = 3;
+            if (player) {
+                player.getComponent(Velocity).x = 5;
+                player.getComponent(Velocity).y = 3;
+            }
 
             // Update
             engine.update(16);
 
             // Verify
             expect(systemExecuted).toBe(true);
-            expect(player!.getComponent(Position).x).toBe(5);
-            expect(player!.getComponent(Position).y).toBe(3);
+            expect(player?.getComponent(Position).x).toBe(5);
+            expect(player?.getComponent(Position).y).toBe(3);
         });
     });
 
@@ -877,12 +923,10 @@ describe('Engine v2 - Composition Architecture', () => {
                 version: '1.0.0',
                 install: () => {
                     installCalled = true;
-                }
+                },
             };
 
-            const pluginEngine = new EngineBuilder()
-                .use(testPlugin)
-                .build();
+            const pluginEngine = new EngineBuilder().use(testPlugin).build();
 
             expect(installCalled).toBe(true);
             expect(pluginEngine.hasPlugin('TestPlugin')).toBe(true);
@@ -894,12 +938,10 @@ describe('Engine v2 - Composition Architecture', () => {
                 name: 'TestPlugin',
                 install: (context: any) => {
                     receivedContext = context;
-                }
+                },
             };
 
-            new EngineBuilder()
-                .use(testPlugin)
-                .build();
+            new EngineBuilder().use(testPlugin).build();
 
             expect(receivedContext).toBeDefined();
             expect(receivedContext.registerComponent).toBeDefined();
@@ -916,12 +958,10 @@ describe('Engine v2 - Composition Architecture', () => {
                 name: 'ComponentPlugin',
                 install: (context: any) => {
                     context.registerComponent(PluginComponent);
-                }
+                },
             };
 
-            const pluginEngine = new EngineBuilder()
-                .use(testPlugin)
-                .build();
+            const pluginEngine = new EngineBuilder().use(testPlugin).build();
 
             const entity = pluginEngine.createEntity('Test');
             entity.addComponent(PluginComponent, 42);
@@ -946,15 +986,13 @@ describe('Engine v2 - Composition Architecture', () => {
                         {
                             act: () => {
                                 systemCalled = true;
-                            }
+                            },
                         }
                     );
-                }
+                },
             };
 
-            const pluginEngine = new EngineBuilder()
-                .use(testPlugin)
-                .build();
+            const pluginEngine = new EngineBuilder().use(testPlugin).build();
 
             const entity = pluginEngine.createEntity('Test');
             entity.addComponent(TestComponent, 10);
@@ -976,12 +1014,10 @@ describe('Engine v2 - Composition Architecture', () => {
                 install: (context: any) => {
                     const api = new CustomAPI();
                     context.extend('customApi', api);
-                }
+                },
             };
 
-            const pluginEngine = new EngineBuilder()
-                .use(testPlugin)
-                .build();
+            const pluginEngine = new EngineBuilder().use(testPlugin).build();
 
             expect((pluginEngine as any).customApi).toBeDefined();
             expect((pluginEngine as any).customApi.getValue()).toBe(42);
@@ -991,12 +1027,10 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should prevent duplicate plugin installations', () => {
             const testPlugin = {
                 name: 'DuplicatePlugin',
-                install: () => {}
+                install: () => {},
             };
 
-            const pluginEngine = new EngineBuilder()
-                .withDebugMode(true)
-                .build();
+            const pluginEngine = new EngineBuilder().withDebugMode(true).build();
 
             pluginEngine.installPlugin(testPlugin);
             expect(pluginEngine.hasPlugin('DuplicatePlugin')).toBe(true);
@@ -1004,7 +1038,7 @@ describe('Engine v2 - Composition Architecture', () => {
             // Try to install again - should be ignored
             pluginEngine.installPlugin(testPlugin);
             const installedPlugins = pluginEngine.getInstalledPlugins();
-            const duplicates = installedPlugins.filter(p => p.plugin.name === 'DuplicatePlugin');
+            const duplicates = installedPlugins.filter((p) => p.plugin.name === 'DuplicatePlugin');
             expect(duplicates).toHaveLength(1);
         });
 
@@ -1012,10 +1046,7 @@ describe('Engine v2 - Composition Architecture', () => {
             const plugin1 = { name: 'Plugin1', install: () => {} };
             const plugin2 = { name: 'Plugin2', install: () => {} };
 
-            const pluginEngine = new EngineBuilder()
-                .use(plugin1)
-                .use(plugin2)
-                .build();
+            const pluginEngine = new EngineBuilder().use(plugin1).use(plugin2).build();
 
             expect(pluginEngine.hasPlugin('Plugin1')).toBe(true);
             expect(pluginEngine.hasPlugin('Plugin2')).toBe(true);
@@ -1031,12 +1062,10 @@ describe('Engine v2 - Composition Architecture', () => {
                 install: () => {},
                 uninstall: () => {
                     uninstallCalled = true;
-                }
+                },
             };
 
-            const pluginEngine = new EngineBuilder()
-                .use(testPlugin)
-                .build();
+            const pluginEngine = new EngineBuilder().use(testPlugin).build();
 
             expect(pluginEngine.hasPlugin('UninstallablePlugin')).toBe(true);
 
@@ -1052,14 +1081,12 @@ describe('Engine v2 - Composition Architecture', () => {
             const asyncPlugin = {
                 name: 'AsyncPlugin',
                 install: async () => {
-                    await new Promise(resolve => setTimeout(resolve, 10));
+                    await new Promise((resolve) => setTimeout(resolve, 10));
                     asyncCompleted = true;
-                }
+                },
             };
 
-            const pluginEngine = new EngineBuilder()
-                .use(asyncPlugin)
-                .build();
+            const pluginEngine = new EngineBuilder().use(asyncPlugin).build();
 
             // Give async operation time to complete
             setTimeout(() => {
@@ -1071,7 +1098,10 @@ describe('Engine v2 - Composition Architecture', () => {
 
         test('should allow plugins to register prefabs', () => {
             class PluginPosition {
-                constructor(public x: number = 0, public y: number = 0) {}
+                constructor(
+                    public x: number = 0,
+                    public y: number = 0
+                ) {}
             }
 
             const testPlugin = {
@@ -1080,24 +1110,20 @@ describe('Engine v2 - Composition Architecture', () => {
                     context.registerComponent(PluginPosition);
                     context.registerPrefab('PluginEntity', {
                         name: 'PluginEntity',
-                        components: [
-                            { type: PluginPosition, args: [10, 20] }
-                        ],
-                        tags: ['plugin-created']
+                        components: [{ type: PluginPosition, args: [10, 20] }],
+                        tags: ['plugin-created'],
                     });
-                }
+                },
             };
 
-            const pluginEngine = new EngineBuilder()
-                .use(testPlugin)
-                .build();
+            const pluginEngine = new EngineBuilder().use(testPlugin).build();
 
             const entity = pluginEngine.createFromPrefab('PluginEntity', 'Test');
 
             expect(entity).toBeDefined();
-            expect(entity!.hasComponent(PluginPosition)).toBe(true);
-            expect(entity!.getComponent(PluginPosition).x).toBe(10);
-            expect(entity!.hasTag('plugin-created')).toBe(true);
+            expect(entity?.hasComponent(PluginPosition)).toBe(true);
+            expect(entity?.getComponent(PluginPosition).x).toBe(10);
+            expect(entity?.hasTag('plugin-created')).toBe(true);
         });
 
         test('should allow plugins to use message bus', () => {
@@ -1111,12 +1137,10 @@ describe('Engine v2 - Composition Architecture', () => {
                         messageReceived = true;
                         receivedData = message.data;
                     });
-                }
+                },
             };
 
-            const pluginEngine = new EngineBuilder()
-                .use(testPlugin)
-                .build();
+            const pluginEngine = new EngineBuilder().use(testPlugin).build();
 
             pluginEngine.messageBus.publish('test-message', { value: 123 });
 
@@ -1133,12 +1157,10 @@ describe('Engine v2 - Composition Architecture', () => {
                     context.on('custom-event', () => {
                         eventReceived = true;
                     });
-                }
+                },
             };
 
-            const pluginEngine = new EngineBuilder()
-                .use(testPlugin)
-                .build();
+            const pluginEngine = new EngineBuilder().use(testPlugin).build();
 
             pluginEngine.emit('custom-event');
 
@@ -1150,10 +1172,7 @@ describe('Engine v2 - Composition Architecture', () => {
             const plugin2 = { name: 'Plugin2', install: () => {} };
             const plugin3 = { name: 'Plugin3', install: () => {} };
 
-            const builder = new EngineBuilder()
-                .use(plugin1)
-                .use(plugin2)
-                .use(plugin3);
+            const builder = new EngineBuilder().use(plugin1).use(plugin2).use(plugin3);
 
             expect(builder).toBeDefined();
 
@@ -1168,19 +1187,17 @@ describe('Engine v2 - Composition Architecture', () => {
             const testPlugin = {
                 name: 'InfoPlugin',
                 version: '2.0.0',
-                install: () => {}
+                install: () => {},
             };
 
-            const pluginEngine = new EngineBuilder()
-                .use(testPlugin)
-                .build();
+            const pluginEngine = new EngineBuilder().use(testPlugin).build();
 
             const pluginInfo = pluginEngine.getPlugin('InfoPlugin');
 
             expect(pluginInfo).toBeDefined();
-            expect(pluginInfo!.plugin.name).toBe('InfoPlugin');
-            expect(pluginInfo!.plugin.version).toBe('2.0.0');
-            expect(pluginInfo!.installedAt).toBeGreaterThan(0);
+            expect(pluginInfo?.plugin.name).toBe('InfoPlugin');
+            expect(pluginInfo?.plugin.version).toBe('2.0.0');
+            expect(pluginInfo?.installedAt).toBeGreaterThan(0);
         });
 
         test('should prevent duplicate extension names', () => {
@@ -1188,7 +1205,7 @@ describe('Engine v2 - Composition Architecture', () => {
                 name: 'Plugin1',
                 install: (context: any) => {
                     context.extend('sharedApi', { value: 1 });
-                }
+                },
             };
 
             const plugin2 = {
@@ -1197,13 +1214,10 @@ describe('Engine v2 - Composition Architecture', () => {
                     expect(() => {
                         context.extend('sharedApi', { value: 2 });
                     }).toThrow("Extension 'sharedApi' already exists");
-                }
+                },
             };
 
-            const pluginEngine = new EngineBuilder()
-                .use(plugin1)
-                .use(plugin2)
-                .build();
+            const pluginEngine = new EngineBuilder().use(plugin1).use(plugin2).build();
 
             expect((pluginEngine as any).sharedApi.value).toBe(1);
         });
@@ -1211,7 +1225,11 @@ describe('Engine v2 - Composition Architecture', () => {
 
     describe('Component Pooling', () => {
         class Particle {
-            constructor(public x: number = 0, public y: number = 0, public active: boolean = true) {}
+            constructor(
+                public x: number = 0,
+                public y: number = 0,
+                public active: boolean = true
+            ) {}
         }
 
         test('should register component pool with default options', () => {
@@ -1220,21 +1238,21 @@ describe('Engine v2 - Composition Architecture', () => {
 
             const stats = engine.getComponentPoolStats(Particle);
             expect(stats).toBeDefined();
-            expect(stats!.available).toBe(10); // Default initialSize
-            expect(stats!.totalCreated).toBe(10);
+            expect(stats?.available).toBe(10); // Default initialSize
+            expect(stats?.totalCreated).toBe(10);
         });
 
         test('should register component pool with custom options', () => {
             engine.registerComponent(Particle);
             engine.registerComponentPool(Particle, {
                 initialSize: 20,
-                maxSize: 500
+                maxSize: 500,
             });
 
             const stats = engine.getComponentPoolStats(Particle);
             expect(stats).toBeDefined();
-            expect(stats!.available).toBe(20);
-            expect(stats!.totalCreated).toBe(20);
+            expect(stats?.available).toBe(20);
+            expect(stats?.totalCreated).toBe(20);
         });
 
         test('should acquire components from pool when adding to entity', () => {
@@ -1246,7 +1264,7 @@ describe('Engine v2 - Composition Architecture', () => {
 
             const stats = engine.getComponentPoolStats(Particle);
             expect(stats).toBeDefined();
-            expect(stats!.totalAcquired).toBeGreaterThan(0);
+            expect(stats?.totalAcquired).toBeGreaterThan(0);
             expect(entity1.getComponent(Particle).x).toBe(10);
             expect(entity1.getComponent(Particle).y).toBe(20);
         });
@@ -1259,13 +1277,13 @@ describe('Engine v2 - Composition Architecture', () => {
             entity.addComponent(Particle, 5, 5);
 
             const statsAfterAdd = engine.getComponentPoolStats(Particle);
-            const _acquiredAfterAdd = statsAfterAdd!.totalAcquired;
+            const _acquiredAfterAdd = statsAfterAdd?.totalAcquired;
 
             entity.removeComponent(Particle);
 
             const statsAfterRemove = engine.getComponentPoolStats(Particle);
-            expect(statsAfterRemove!.totalReleased).toBeGreaterThan(0);
-            expect(statsAfterRemove!.available).toBeGreaterThanOrEqual(1);
+            expect(statsAfterRemove?.totalReleased).toBeGreaterThan(0);
+            expect(statsAfterRemove?.available).toBeGreaterThanOrEqual(1);
         });
 
         test('should track pool statistics correctly', () => {
@@ -1281,9 +1299,9 @@ describe('Engine v2 - Composition Architecture', () => {
 
             const stats = engine.getComponentPoolStats(Particle);
             expect(stats).toBeDefined();
-            expect(stats!.totalAcquired).toBeGreaterThanOrEqual(5);
-            expect(stats!.totalReleased).toBeGreaterThanOrEqual(5);
-            expect(stats!.reuseRate).toBeGreaterThan(0);
+            expect(stats?.totalAcquired).toBeGreaterThanOrEqual(5);
+            expect(stats?.totalReleased).toBeGreaterThanOrEqual(5);
+            expect(stats?.reuseRate).toBeGreaterThan(0);
         });
 
         test('should return undefined stats for non-pooled components', () => {
@@ -1315,7 +1333,7 @@ describe('Engine v2 - Composition Architecture', () => {
             }
 
             const stats = engine.getComponentPoolStats(Particle);
-            expect(stats!.available).toBeGreaterThanOrEqual(5);
+            expect(stats?.available).toBeGreaterThanOrEqual(5);
         });
 
         test('should respect maxSize limit', () => {
@@ -1336,7 +1354,7 @@ describe('Engine v2 - Composition Architecture', () => {
             }
 
             const stats = engine.getComponentPoolStats(Particle);
-            expect(stats!.available).toBeLessThanOrEqual(5); // Should not exceed maxSize
+            expect(stats?.available).toBeLessThanOrEqual(5); // Should not exceed maxSize
         });
 
         test('should work alongside non-pooled components', () => {
@@ -1408,9 +1426,14 @@ describe('Engine v2 - Composition Architecture', () => {
             entity2.addComponent(EnemyTag);
 
             let playerCount = 0;
-            engine.createSystem('PlayerSystem',
+            engine.createSystem(
+                'PlayerSystem',
                 { all: [PlayerTag] },
-                { act: (_entity) => { playerCount++; } }
+                {
+                    act: (_entity) => {
+                        playerCount++;
+                    },
+                }
             );
 
             engine.update();
@@ -1433,9 +1456,14 @@ describe('Engine v2 - Composition Architecture', () => {
             entity3.addComponent(AllyTag);
 
             let friendlyCount = 0;
-            engine.createSystem('FriendlySystem',
+            engine.createSystem(
+                'FriendlySystem',
                 { any: [PlayerTag, AllyTag] },
-                { act: (_entity) => { friendlyCount++; } }
+                {
+                    act: (_entity) => {
+                        friendlyCount++;
+                    },
+                }
             );
 
             engine.update();
@@ -1457,9 +1485,14 @@ describe('Engine v2 - Composition Architecture', () => {
             // No tags
 
             let nonPlayerCount = 0;
-            engine.createSystem('NonPlayerSystem',
+            engine.createSystem(
+                'NonPlayerSystem',
                 { none: [PlayerTag] },
-                { act: (_entity) => { nonPlayerCount++; } }
+                {
+                    act: (_entity) => {
+                        nonPlayerCount++;
+                    },
+                }
             );
 
             engine.update();
@@ -1506,12 +1539,15 @@ describe('Engine v2 - Composition Architecture', () => {
             // No PlayerTag
 
             let playerWithPosCount = 0;
-            engine.createSystem('PlayerMovementSystem',
+            engine.createSystem(
+                'PlayerMovementSystem',
                 { all: [Position, PlayerTag] },
-                { act: (entity, pos) => {
-                    playerWithPosCount++;
-                    expect(pos.x).toBe(10);
-                } }
+                {
+                    act: (_entity, pos) => {
+                        playerWithPosCount++;
+                        expect(pos.x).toBe(10);
+                    },
+                }
             );
 
             engine.update();
@@ -1536,7 +1572,7 @@ describe('Engine v2 - Composition Architecture', () => {
 
             engine.registerComponent(PlayerTag);
             engine.registerComponentValidator(PlayerTag, {
-                validate: () => true
+                validate: () => true,
             });
 
             const entity = engine.createEntity();
@@ -1572,15 +1608,27 @@ describe('Engine v2 - Composition Architecture', () => {
             let inputRan = false;
             let logicRan = false;
 
-            engine.createSystem('InputSystem', { all: [] }, {
-                before: () => { inputRan = true; },
-                group: 'Input'
-            });
+            engine.createSystem(
+                'InputSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        inputRan = true;
+                    },
+                    group: 'Input',
+                }
+            );
 
-            engine.createSystem('LogicSystem', { all: [] }, {
-                before: () => { logicRan = true; },
-                group: 'Logic'
-            });
+            engine.createSystem(
+                'LogicSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        logicRan = true;
+                    },
+                    group: 'Logic',
+                }
+            );
 
             engine.update(16);
 
@@ -1595,20 +1643,38 @@ describe('Engine v2 - Composition Architecture', () => {
             engine.createSystemGroup('Logic', { priority: 500 });
             engine.createSystemGroup('Render', { priority: 100 });
 
-            engine.createSystem('InputSystem', { all: [] }, {
-                before: () => { executionOrder.push('Input'); },
-                group: 'Input'
-            });
+            engine.createSystem(
+                'InputSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        executionOrder.push('Input');
+                    },
+                    group: 'Input',
+                }
+            );
 
-            engine.createSystem('LogicSystem', { all: [] }, {
-                before: () => { executionOrder.push('Logic'); },
-                group: 'Logic'
-            });
+            engine.createSystem(
+                'LogicSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        executionOrder.push('Logic');
+                    },
+                    group: 'Logic',
+                }
+            );
 
-            engine.createSystem('RenderSystem', { all: [] }, {
-                before: () => { executionOrder.push('Render'); },
-                group: 'Render'
-            });
+            engine.createSystem(
+                'RenderSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        executionOrder.push('Render');
+                    },
+                    group: 'Render',
+                }
+            );
 
             engine.update(16);
 
@@ -1621,23 +1687,41 @@ describe('Engine v2 - Composition Architecture', () => {
 
             engine.createSystemGroup('Logic', { priority: 500 });
 
-            engine.createSystem('LowPrioritySystem', { all: [] }, {
-                before: () => { executionOrder.push('Low'); },
-                priority: 10,
-                group: 'Logic'
-            });
+            engine.createSystem(
+                'LowPrioritySystem',
+                { all: [] },
+                {
+                    before: () => {
+                        executionOrder.push('Low');
+                    },
+                    priority: 10,
+                    group: 'Logic',
+                }
+            );
 
-            engine.createSystem('HighPrioritySystem', { all: [] }, {
-                before: () => { executionOrder.push('High'); },
-                priority: 100,
-                group: 'Logic'
-            });
+            engine.createSystem(
+                'HighPrioritySystem',
+                { all: [] },
+                {
+                    before: () => {
+                        executionOrder.push('High');
+                    },
+                    priority: 100,
+                    group: 'Logic',
+                }
+            );
 
-            engine.createSystem('MediumPrioritySystem', { all: [] }, {
-                before: () => { executionOrder.push('Medium'); },
-                priority: 50,
-                group: 'Logic'
-            });
+            engine.createSystem(
+                'MediumPrioritySystem',
+                { all: [] },
+                {
+                    before: () => {
+                        executionOrder.push('Medium');
+                    },
+                    priority: 50,
+                    group: 'Logic',
+                }
+            );
 
             engine.update(16);
 
@@ -1652,15 +1736,27 @@ describe('Engine v2 - Composition Architecture', () => {
             let inputRan = false;
             let logicRan = false;
 
-            engine.createSystem('InputSystem', { all: [] }, {
-                before: () => { inputRan = true; },
-                group: 'Input'
-            });
+            engine.createSystem(
+                'InputSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        inputRan = true;
+                    },
+                    group: 'Input',
+                }
+            );
 
-            engine.createSystem('LogicSystem', { all: [] }, {
-                before: () => { logicRan = true; },
-                group: 'Logic'
-            });
+            engine.createSystem(
+                'LogicSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        logicRan = true;
+                    },
+                    group: 'Logic',
+                }
+            );
 
             // Disable Logic group
             engine.disableSystemGroup('Logic');
@@ -1676,10 +1772,16 @@ describe('Engine v2 - Composition Architecture', () => {
 
             let logicRan = false;
 
-            engine.createSystem('LogicSystem', { all: [] }, {
-                before: () => { logicRan = true; },
-                group: 'Logic'
-            });
+            engine.createSystem(
+                'LogicSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        logicRan = true;
+                    },
+                    group: 'Logic',
+                }
+            );
 
             // Disable then re-enable
             engine.disableSystemGroup('Logic');
@@ -1697,15 +1799,27 @@ describe('Engine v2 - Composition Architecture', () => {
 
             engine.createSystemGroup('Input', { priority: 1000 });
 
-            engine.createSystem('GroupedSystem', { all: [] }, {
-                before: () => { executionOrder.push('Grouped'); },
-                group: 'Input'
-            });
+            engine.createSystem(
+                'GroupedSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        executionOrder.push('Grouped');
+                    },
+                    group: 'Input',
+                }
+            );
 
-            engine.createSystem('UngroupedSystem', { all: [] }, {
-                before: () => { executionOrder.push('Ungrouped'); },
-                priority: 500
-            });
+            engine.createSystem(
+                'UngroupedSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        executionOrder.push('Ungrouped');
+                    },
+                    priority: 500,
+                }
+            );
 
             engine.update(16);
 
@@ -1716,10 +1830,14 @@ describe('Engine v2 - Composition Architecture', () => {
 
         test('should throw error when creating system with non-existent group', () => {
             expect(() => {
-                engine.createSystem('TestSystem', { all: [] }, {
-                    act: () => {},
-                    group: 'NonExistentGroup'
-                });
+                engine.createSystem(
+                    'TestSystem',
+                    { all: [] },
+                    {
+                        act: () => {},
+                        group: 'NonExistentGroup',
+                    }
+                );
             }).toThrow("System group 'NonExistentGroup' not found");
         });
 
@@ -1740,10 +1858,17 @@ describe('Engine v2 - Composition Architecture', () => {
 
             engine.createSystemGroup('Physics', { priority: 1000 });
 
-            engine.createSystem('PhysicsSystem', { all: [] }, {
-                before: () => { executionOrder.push('Physics'); },
-                group: 'Physics'
-            }, true); // Fixed update
+            engine.createSystem(
+                'PhysicsSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        executionOrder.push('Physics');
+                    },
+                    group: 'Physics',
+                },
+                true
+            ); // Fixed update
 
             engine.update(17); // 17ms > 16.66ms (60 FPS interval)
 
@@ -1756,19 +1881,37 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should execute systems with runAfter dependencies in correct order', () => {
             const order: string[] = [];
 
-            engine.createSystem('First', { all: [] }, {
-                before: () => { order.push('First'); }
-            });
+            engine.createSystem(
+                'First',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('First');
+                    },
+                }
+            );
 
-            engine.createSystem('Second', { all: [] }, {
-                before: () => { order.push('Second'); },
-                runAfter: ['First']
-            });
+            engine.createSystem(
+                'Second',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('Second');
+                    },
+                    runAfter: ['First'],
+                }
+            );
 
-            engine.createSystem('Third', { all: [] }, {
-                before: () => { order.push('Third'); },
-                runAfter: ['Second']
-            });
+            engine.createSystem(
+                'Third',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('Third');
+                    },
+                    runAfter: ['Second'],
+                }
+            );
 
             engine.update(16);
 
@@ -1778,19 +1921,37 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should execute systems with runBefore dependencies in correct order', () => {
             const order: string[] = [];
 
-            engine.createSystem('Last', { all: [] }, {
-                before: () => { order.push('Last'); }
-            });
+            engine.createSystem(
+                'Last',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('Last');
+                    },
+                }
+            );
 
-            engine.createSystem('Middle', { all: [] }, {
-                before: () => { order.push('Middle'); },
-                runBefore: ['Last']
-            });
+            engine.createSystem(
+                'Middle',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('Middle');
+                    },
+                    runBefore: ['Last'],
+                }
+            );
 
-            engine.createSystem('First', { all: [] }, {
-                before: () => { order.push('First'); },
-                runBefore: ['Middle']
-            });
+            engine.createSystem(
+                'First',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('First');
+                    },
+                    runBefore: ['Middle'],
+                }
+            );
 
             engine.update(16);
 
@@ -1800,24 +1961,48 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should handle complex dependency graph', () => {
             const order: string[] = [];
 
-            engine.createSystem('A', { all: [] }, {
-                before: () => { order.push('A'); }
-            });
+            engine.createSystem(
+                'A',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('A');
+                    },
+                }
+            );
 
-            engine.createSystem('B', { all: [] }, {
-                before: () => { order.push('B'); },
-                runAfter: ['A']
-            });
+            engine.createSystem(
+                'B',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('B');
+                    },
+                    runAfter: ['A'],
+                }
+            );
 
-            engine.createSystem('C', { all: [] }, {
-                before: () => { order.push('C'); },
-                runAfter: ['A']
-            });
+            engine.createSystem(
+                'C',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('C');
+                    },
+                    runAfter: ['A'],
+                }
+            );
 
-            engine.createSystem('D', { all: [] }, {
-                before: () => { order.push('D'); },
-                runAfter: ['B', 'C']
-            });
+            engine.createSystem(
+                'D',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('D');
+                    },
+                    runAfter: ['B', 'C'],
+                }
+            );
 
             engine.update(16);
 
@@ -1831,19 +2016,37 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should combine runAfter and runBefore', () => {
             const order: string[] = [];
 
-            engine.createSystem('First', { all: [] }, {
-                before: () => { order.push('First'); }
-            });
+            engine.createSystem(
+                'First',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('First');
+                    },
+                }
+            );
 
-            engine.createSystem('Middle', { all: [] }, {
-                before: () => { order.push('Middle'); },
-                runAfter: ['First'],
-                runBefore: ['Last']
-            });
+            engine.createSystem(
+                'Middle',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('Middle');
+                    },
+                    runAfter: ['First'],
+                    runBefore: ['Last'],
+                }
+            );
 
-            engine.createSystem('Last', { all: [] }, {
-                before: () => { order.push('Last'); }
-            });
+            engine.createSystem(
+                'Last',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('Last');
+                    },
+                }
+            );
 
             engine.update(16);
 
@@ -1851,15 +2054,23 @@ describe('Engine v2 - Composition Architecture', () => {
         });
 
         test('should detect circular dependencies', () => {
-            engine.createSystem('A', { all: [] }, {
-                before: () => {},
-                runAfter: ['B']
-            });
+            engine.createSystem(
+                'A',
+                { all: [] },
+                {
+                    before: () => {},
+                    runAfter: ['B'],
+                }
+            );
 
-            engine.createSystem('B', { all: [] }, {
-                before: () => {},
-                runAfter: ['A']
-            });
+            engine.createSystem(
+                'B',
+                { all: [] },
+                {
+                    before: () => {},
+                    runAfter: ['A'],
+                }
+            );
 
             expect(() => {
                 engine.update(16);
@@ -1867,20 +2078,32 @@ describe('Engine v2 - Composition Architecture', () => {
         });
 
         test('should detect complex circular dependencies', () => {
-            engine.createSystem('A', { all: [] }, {
-                before: () => {},
-                runAfter: ['C']
-            });
+            engine.createSystem(
+                'A',
+                { all: [] },
+                {
+                    before: () => {},
+                    runAfter: ['C'],
+                }
+            );
 
-            engine.createSystem('B', { all: [] }, {
-                before: () => {},
-                runAfter: ['A']
-            });
+            engine.createSystem(
+                'B',
+                { all: [] },
+                {
+                    before: () => {},
+                    runAfter: ['A'],
+                }
+            );
 
-            engine.createSystem('C', { all: [] }, {
-                before: () => {},
-                runAfter: ['B']
-            });
+            engine.createSystem(
+                'C',
+                { all: [] },
+                {
+                    before: () => {},
+                    runAfter: ['B'],
+                }
+            );
 
             expect(() => {
                 engine.update(16);
@@ -1891,16 +2114,28 @@ describe('Engine v2 - Composition Architecture', () => {
             const order: string[] = [];
 
             // Even though High has higher priority, dependencies should override
-            engine.createSystem('Low', { all: [] }, {
-                before: () => { order.push('Low'); },
-                priority: 1
-            });
+            engine.createSystem(
+                'Low',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('Low');
+                    },
+                    priority: 1,
+                }
+            );
 
-            engine.createSystem('High', { all: [] }, {
-                before: () => { order.push('High'); },
-                priority: 100,
-                runAfter: ['Low'] // Depends on Low despite higher priority
-            });
+            engine.createSystem(
+                'High',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('High');
+                    },
+                    priority: 100,
+                    runAfter: ['Low'], // Depends on Low despite higher priority
+                }
+            );
 
             engine.update(16);
 
@@ -1910,10 +2145,16 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should ignore dependencies on non-existent systems', () => {
             const order: string[] = [];
 
-            engine.createSystem('ExistingSystem', { all: [] }, {
-                before: () => { order.push('Existing'); },
-                runAfter: ['NonExistentSystem'] // This system doesn't exist
-            });
+            engine.createSystem(
+                'ExistingSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('Existing');
+                    },
+                    runAfter: ['NonExistentSystem'], // This system doesn't exist
+                }
+            );
 
             // Should not throw, just ignore the non-existent dependency
             expect(() => {
@@ -1928,16 +2169,28 @@ describe('Engine v2 - Composition Architecture', () => {
 
             engine.createSystemGroup('Logic', { priority: 500 });
 
-            engine.createSystem('First', { all: [] }, {
-                before: () => { order.push('First'); },
-                group: 'Logic'
-            });
+            engine.createSystem(
+                'First',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('First');
+                    },
+                    group: 'Logic',
+                }
+            );
 
-            engine.createSystem('Second', { all: [] }, {
-                before: () => { order.push('Second'); },
-                group: 'Logic',
-                runAfter: ['First']
-            });
+            engine.createSystem(
+                'Second',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('Second');
+                    },
+                    group: 'Logic',
+                    runAfter: ['First'],
+                }
+            );
 
             engine.update(16);
 
@@ -1947,14 +2200,28 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should apply dependencies to fixed update systems', () => {
             const order: string[] = [];
 
-            engine.createSystem('FixedFirst', { all: [] }, {
-                before: () => { order.push('First'); }
-            }, true);
+            engine.createSystem(
+                'FixedFirst',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('First');
+                    },
+                },
+                true
+            );
 
-            engine.createSystem('FixedSecond', { all: [] }, {
-                before: () => { order.push('Second'); },
-                runAfter: ['FixedFirst']
-            }, true);
+            engine.createSystem(
+                'FixedSecond',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('Second');
+                    },
+                    runAfter: ['FixedFirst'],
+                },
+                true
+            );
 
             engine.update(17); // Enough to trigger fixed update
 
@@ -1967,9 +2234,15 @@ describe('Engine v2 - Composition Architecture', () => {
             const gameState = { isPlaying: false };
             let systemRan = false;
 
-            const system = engine.createSystem('TestSystem', { all: [] }, {
-                before: () => { systemRan = true; }
-            });
+            const system = engine.createSystem(
+                'TestSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        systemRan = true;
+                    },
+                }
+            );
             system.runIf(() => gameState.isPlaying);
 
             engine.update(16);
@@ -1984,9 +2257,15 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should support runOnce execution', () => {
             let runCount = 0;
 
-            const system = engine.createSystem('OnceSystem', { all: [] }, {
-                before: () => { runCount++; }
-            });
+            const system = engine.createSystem(
+                'OnceSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        runCount++;
+                    },
+                }
+            );
             system.runOnce();
 
             engine.update(16);
@@ -1999,9 +2278,15 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should support runEvery execution', () => {
             let runCount = 0;
 
-            const system = engine.createSystem('PeriodicSystem', { all: [] }, {
-                before: () => { runCount++; }
-            });
+            const system = engine.createSystem(
+                'PeriodicSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        runCount++;
+                    },
+                }
+            );
             system.runEvery(100); // Every 100ms
 
             engine.update(16); // 16ms
@@ -2024,9 +2309,15 @@ describe('Engine v2 - Composition Architecture', () => {
             let isMinimized = true;
             let systemRan = false;
 
-            const system = engine.createSystem('RenderSystem', { all: [] }, {
-                before: () => { systemRan = true; }
-            });
+            const system = engine.createSystem(
+                'RenderSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        systemRan = true;
+                    },
+                }
+            );
             system.disableWhen(() => isMinimized);
 
             engine.update(16);
@@ -2042,9 +2333,15 @@ describe('Engine v2 - Composition Architecture', () => {
             let isLowPower = false;
             let systemRan = false;
 
-            const system = engine.createSystem('IntenseSystem', { all: [] }, {
-                before: () => { systemRan = true; }
-            });
+            const system = engine.createSystem(
+                'IntenseSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        systemRan = true;
+                    },
+                }
+            );
             system.disableWhen(() => isLowPower);
 
             engine.update(16);
@@ -2061,10 +2358,16 @@ describe('Engine v2 - Composition Architecture', () => {
             let isPaused = false;
             let systemRan = false;
 
-            const system = engine.createSystem('NetworkSystem', { all: [] }, {
-                before: () => { systemRan = true; },
-                enabled: false // Start disabled
-            });
+            const system = engine.createSystem(
+                'NetworkSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        systemRan = true;
+                    },
+                    enabled: false, // Start disabled
+                }
+            );
             system.enableWhen(() => isConnected);
             system.disableWhen(() => isPaused);
 
@@ -2091,9 +2394,15 @@ describe('Engine v2 - Composition Architecture', () => {
             let condition = false;
             let runCount = 0;
 
-            const system = engine.createSystem('ConditionalOnce', { all: [] }, {
-                before: () => { runCount++; }
-            });
+            const system = engine.createSystem(
+                'ConditionalOnce',
+                { all: [] },
+                {
+                    before: () => {
+                        runCount++;
+                    },
+                }
+            );
             system.runIf(() => condition);
             system.runOnce();
 
@@ -2115,9 +2424,15 @@ describe('Engine v2 - Composition Architecture', () => {
             let condition = false;
             let runCount = 0;
 
-            const system = engine.createSystem('ConditionalPeriodic', { all: [] }, {
-                before: () => { runCount++; }
-            });
+            const system = engine.createSystem(
+                'ConditionalPeriodic',
+                { all: [] },
+                {
+                    before: () => {
+                        runCount++;
+                    },
+                }
+            );
             system.runIf(() => condition);
             system.runEvery(50); // Every 50ms
 
@@ -2149,10 +2464,16 @@ describe('Engine v2 - Composition Architecture', () => {
 
             engine.createSystemGroup('Logic', { priority: 500 });
 
-            const system = engine.createSystem('PeriodicGroupSystem', { all: [] }, {
-                before: () => { runCount++; },
-                group: 'Logic'
-            });
+            const system = engine.createSystem(
+                'PeriodicGroupSystem',
+                { all: [] },
+                {
+                    before: () => {
+                        runCount++;
+                    },
+                    group: 'Logic',
+                }
+            );
             system.runEvery(50);
 
             engine.update(16);
@@ -2169,14 +2490,26 @@ describe('Engine v2 - Composition Architecture', () => {
             const order: string[] = [];
             let runSecond = false;
 
-            engine.createSystem('First', { all: [] }, {
-                before: () => { order.push('First'); }
-            });
+            engine.createSystem(
+                'First',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('First');
+                    },
+                }
+            );
 
-            const secondSystem = engine.createSystem('Second', { all: [] }, {
-                before: () => { order.push('Second'); },
-                runAfter: ['First']
-            });
+            const secondSystem = engine.createSystem(
+                'Second',
+                { all: [] },
+                {
+                    before: () => {
+                        order.push('Second');
+                    },
+                    runAfter: ['First'],
+                }
+            );
             secondSystem.runIf(() => runSecond);
 
             // Second won't run
@@ -2282,7 +2615,7 @@ describe('Engine v2 - Composition Architecture', () => {
             entity.addComponent(Velocity, 2, 3);
             entity.addComponent(Health, 50, 100);
 
-            query.forEach((e, comp1, comp2, comp3) => {
+            query.forEach((_e, comp1, comp2, comp3) => {
                 expect(comp1).toBeInstanceOf(Position);
                 expect(comp2).toBeInstanceOf(Velocity);
                 expect(comp3).toBeInstanceOf(Health);
@@ -2344,9 +2677,7 @@ describe('Engine v2 - Composition Architecture', () => {
             engine.registerComponent(Position);
             engine.registerComponent(Velocity);
 
-            const query = engine.query()
-                .withAll(Position, Velocity)
-                .build();
+            const query = engine.query().withAll(Position, Velocity).build();
 
             expect(query).toBeDefined();
 
@@ -2364,9 +2695,7 @@ describe('Engine v2 - Composition Architecture', () => {
             engine.registerComponent(Velocity);
             engine.registerComponent(Health);
 
-            const query = engine.query()
-                .withAny(Position, Velocity)
-                .build();
+            const query = engine.query().withAny(Position, Velocity).build();
 
             const entity1 = engine.createEntity();
             entity1.addComponent(Position, 1, 1);
@@ -2391,10 +2720,7 @@ describe('Engine v2 - Composition Architecture', () => {
             class Dead {}
             engine.registerComponent(Dead);
 
-            const query = engine.query()
-                .withAll(Position)
-                .withNone(Dead)
-                .build();
+            const query = engine.query().withAll(Position).withNone(Dead).build();
 
             const entity1 = engine.createEntity();
             entity1.addComponent(Position, 1, 1);
@@ -2411,10 +2737,7 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should support tag filtering', () => {
             engine.registerComponent(Position);
 
-            const query = engine.query()
-                .withAll(Position)
-                .withTags('player')
-                .build();
+            const query = engine.query().withAll(Position).withTags('player').build();
 
             const entity1 = engine.createEntity();
             entity1.addComponent(Position, 1, 1);
@@ -2432,10 +2755,7 @@ describe('Engine v2 - Composition Architecture', () => {
         test('should support withoutTags constraint', () => {
             engine.registerComponent(Position);
 
-            const query = engine.query()
-                .withAll(Position)
-                .withoutTags('disabled')
-                .build();
+            const query = engine.query().withAll(Position).withoutTags('disabled').build();
 
             const entity1 = engine.createEntity();
             entity1.addComponent(Position, 1, 1);
@@ -2465,7 +2785,8 @@ describe('Engine v2 - Composition Architecture', () => {
             engine.registerComponent(Dead);
             engine.registerComponent(Frozen);
 
-            const query = engine.query()
+            const query = engine
+                .query()
                 .withAll(Position, Velocity)
                 .withAny(Player, Enemy)
                 .withNone(Dead, Frozen)
@@ -2515,13 +2836,11 @@ describe('Engine v2 - Composition Architecture', () => {
 
             // Old object syntax
             const query1 = engine.createQuery({
-                all: [Position, Velocity]
+                all: [Position, Velocity],
             });
 
             // New fluent syntax
-            const query2 = engine.query()
-                .withAll(Position, Velocity)
-                .build();
+            const query2 = engine.query().withAll(Position, Velocity).build();
 
             const entity = engine.createEntity();
             entity.addComponent(Position, 1, 1);
@@ -2539,7 +2858,8 @@ describe('Engine v2 - Composition Architecture', () => {
             engine.registerComponent(Dead);
 
             // Chain methods in different order
-            const query = engine.query()
+            const query = engine
+                .query()
                 .withTags('active')
                 .withNone(Dead)
                 .withAll(Position, Velocity)

@@ -6,12 +6,10 @@
 import type {
     ComponentIdentifier,
     ComponentValidator,
-    SystemType,
     QueryOptions,
     SystemProfile,
     EntityPrefab,
     SerializedWorld,
-    SerializedEntity,
     SystemMessage,
     ComponentPoolOptions,
     PoolStats
@@ -325,7 +323,7 @@ export class SystemManager {
 
         // First, execute systems in groups (sorted by group priority)
         const sortedGroups = Array.from(this.groups.values())
-            .sort((a, b) => b.priority - a.priority);
+            .toSorted((a, b) => b.priority - a.priority);
 
         for (const group of sortedGroups) {
             if (!group.enabled) continue;
@@ -333,7 +331,7 @@ export class SystemManager {
             // Execute systems in this group that are variable update systems (sorted by system priority)
             const groupSystems = group.systems
                 .filter(s => this.systems.includes(s)) // Only variable update systems
-                .sort((a, b) => b.priority - a.priority);
+                .toSorted((a, b) => b.priority - a.priority);
 
             for (const system of groupSystems) {
                 system.step(deltaTime);
@@ -359,7 +357,7 @@ export class SystemManager {
 
             // First, execute systems in groups (sorted by group priority)
             const sortedGroups = Array.from(this.groups.values())
-                .sort((a, b) => b.priority - a.priority);
+                .toSorted((a, b) => b.priority - a.priority);
 
             for (const group of sortedGroups) {
                 if (!group.enabled) continue;
@@ -367,7 +365,7 @@ export class SystemManager {
                 // Execute systems in this group that are fixed update systems (sorted by system priority)
                 const groupSystems = group.systems
                     .filter(s => this.fixedUpdateSystems.includes(s)) // Only fixed update systems
-                    .sort((a, b) => b.priority - a.priority);
+                    .toSorted((a, b) => b.priority - a.priority);
 
                 for (const system of groupSystems) {
                     system.step(this.fixedUpdateInterval);

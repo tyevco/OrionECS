@@ -169,7 +169,7 @@ describe('Engine v2 - Composition Architecture', () => {
         });
 
         test('should overwrite previous entity with same name', () => {
-            const entity1 = engine.createEntity('Duplicate');
+            const _entity1 = engine.createEntity('Duplicate');
             const entity2 = engine.createEntity('Duplicate');
             const found = engine.getEntityByName('Duplicate');
             // Last one with this name wins
@@ -1259,7 +1259,7 @@ describe('Engine v2 - Composition Architecture', () => {
             entity.addComponent(Particle, 5, 5);
 
             const statsAfterAdd = engine.getComponentPoolStats(Particle);
-            const acquiredAfterAdd = statsAfterAdd!.totalAcquired;
+            const _acquiredAfterAdd = statsAfterAdd!.totalAcquired;
 
             entity.removeComponent(Particle);
 
@@ -1410,7 +1410,7 @@ describe('Engine v2 - Composition Architecture', () => {
             let playerCount = 0;
             engine.createSystem('PlayerSystem',
                 { all: [PlayerTag] },
-                { act: (entity) => { playerCount++; } }
+                { act: (_entity) => { playerCount++; } }
             );
 
             engine.update();
@@ -1435,7 +1435,7 @@ describe('Engine v2 - Composition Architecture', () => {
             let friendlyCount = 0;
             engine.createSystem('FriendlySystem',
                 { any: [PlayerTag, AllyTag] },
-                { act: (entity) => { friendlyCount++; } }
+                { act: (_entity) => { friendlyCount++; } }
             );
 
             engine.update();
@@ -1453,13 +1453,13 @@ describe('Engine v2 - Composition Architecture', () => {
             const entity2 = engine.createEntity();
             entity2.addComponent(EnemyTag);
 
-            const entity3 = engine.createEntity();
+            const _entity3 = engine.createEntity();
             // No tags
 
             let nonPlayerCount = 0;
             engine.createSystem('NonPlayerSystem',
                 { none: [PlayerTag] },
-                { act: (entity) => { nonPlayerCount++; } }
+                { act: (_entity) => { nonPlayerCount++; } }
             );
 
             engine.update();
@@ -2263,7 +2263,7 @@ describe('Engine v2 - Composition Architecture', () => {
             const query = engine.createQuery({ all: [Position] });
 
             let callCount = 0;
-            query.forEach((entity, position) => {
+            query.forEach((_entity, _position) => {
                 callCount++;
             });
 
@@ -2332,7 +2332,7 @@ describe('Engine v2 - Composition Architecture', () => {
 
             // New iterator approach
             let count = 0;
-            for (const e of query) {
+            for (const _e of query) {
                 count++;
             }
             expect(count).toBe(1);
@@ -2716,7 +2716,7 @@ describe('Engine v2 - Composition Architecture', () => {
             engine.createEntity().addComponent(Position, 10, 20);
 
             // Use iterator
-            for (const entity of query) {
+            for (const _entity of query) {
                 // Iterate
             }
 

@@ -33,7 +33,6 @@ export function createTagComponent(name: string): ComponentIdentifier<any> {
     const TagClass = {
         [name]: class {
             static readonly __tagName = name;
-            constructor() {}
         }
     }[name];
 

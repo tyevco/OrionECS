@@ -126,6 +126,12 @@ export class Query<C extends any[] = any[]> {
     private cacheVersion: number = 0;
     private currentVersion: number = 0;
 
+    // Performance tracking
+    private _executionCount: number = 0;
+    private _totalTimeMs: number = 0;
+    private _lastMatchCount: number = 0;
+    private _cacheHits: number = 0;
+
     constructor(public options: QueryOptions) {}
 
     private test(entity: Entity): boolean {
@@ -160,16 +166,37 @@ export class Query<C extends any[] = any[]> {
     }
 
     getEntities(): IterableIterator<Entity> {
-        return this.matchingEntities.values();
+        const startTime = performance.now();
+        this._executionCount++;
+        this._lastMatchCount = this.matchingEntities.size;
+
+        const result = this.matchingEntities.values();
+
+        const endTime = performance.now();
+        this._totalTimeMs += (endTime - startTime);
+
+        return result;
     }
 
     getEntitiesArray(): Entity[] {
+        const startTime = performance.now();
+        this._executionCount++;
+        this._lastMatchCount = this.matchingEntities.size;
+
+        let result: Entity[];
         if (this.cacheVersion === this.currentVersion) {
-            return this.cachedArray;
+            this._cacheHits++;
+            result = this.cachedArray;
+        } else {
+            this.cachedArray = Array.from(this.matchingEntities);
+            this.cacheVersion = this.currentVersion;
+            result = this.cachedArray;
         }
-        this.cachedArray = Array.from(this.matchingEntities);
-        this.cacheVersion = this.currentVersion;
-        return this.cachedArray;
+
+        const endTime = performance.now();
+        this._totalTimeMs += (endTime - startTime);
+
+        return result;
     }
 
     get size(): number {
@@ -196,6 +223,76 @@ export class Query<C extends any[] = any[]> {
             ) as C;
             callback(entity, ...componentArgs);
         }
+    }
+
+    /**
+     * Get performance statistics for this query
+     */
+    getStats(): any {
+        return {
+            query: this,
+            executionCount: this._executionCount,
+            totalTimeMs: this._totalTimeMs,
+            averageTimeMs: this._executionCount > 0 ? this._totalTimeMs / this._executionCount : 0,
+            lastMatchCount: this._lastMatchCount,
+            cacheHitRate: this._executionCount > 0 ? (this._cacheHits / this._executionCount) * 100 : 0
+        };
+    }
+}
+
+/**
+ * Fluent query builder for constructing complex queries
+ */
+export class QueryBuilder<C extends any[] = any[]> {
+    private options: QueryOptions = {};
+
+    constructor(private createQueryFn: (options: QueryOptions) => Query<C>) {}
+
+    /**
+     * Add components that entities must have
+     */
+    withAll(...types: ComponentIdentifier[]): this {
+        this.options.all = types;
+        return this;
+    }
+
+    /**
+     * Add components where entities must have at least one
+     */
+    withAny(...types: ComponentIdentifier[]): this {
+        this.options.any = types;
+        return this;
+    }
+
+    /**
+     * Add components that entities must NOT have
+     */
+    withNone(...types: ComponentIdentifier[]): this {
+        this.options.none = types;
+        return this;
+    }
+
+    /**
+     * Add tags that entities must have
+     */
+    withTags(...tags: string[]): this {
+        this.options.tags = tags;
+        return this;
+    }
+
+    /**
+     * Add tags that entities must NOT have
+     */
+    withoutTags(...tags: string[]): this {
+        this.options.withoutTags = tags;
+        return this;
+    }
+
+    /**
+     * Build and return the Query instance
+     */
+    build(): Query<C> {
+        return this.createQueryFn(this.options);
     }
 }
 

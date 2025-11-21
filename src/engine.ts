@@ -15,6 +15,7 @@ import {
 import {
     Entity,
     Query,
+    QueryBuilder,
     System,
     EventEmitter,
     PerformanceMonitor,
@@ -358,6 +359,29 @@ export class Engine {
         }
 
         return query;
+    }
+
+    /**
+     * Create a fluent query builder
+     * @returns QueryBuilder instance for constructing queries with a fluent API
+     */
+    query<C extends any[] = any[]>(): QueryBuilder<C> {
+        return new QueryBuilder<C>((options: QueryOptions) => this.createQuery<C>(options));
+    }
+
+    /**
+     * Get performance statistics for queries
+     * @param query Optional specific query to get stats for. If not provided, returns stats for all queries.
+     * @returns QueryStats or QueryStats[] depending on whether a specific query is provided
+     */
+    getQueryStats(query?: Query<any>): any {
+        if (query) {
+            return query.getStats();
+        }
+
+        // Return stats for all queries
+        const allQueries = this.queryManager.getAllQueries();
+        return allQueries.map(q => q.getStats());
     }
 
     // ========== Prefab Management ==========

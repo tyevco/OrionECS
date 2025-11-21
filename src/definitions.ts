@@ -96,6 +96,15 @@ export interface SystemProfile {
     averageTime: number;
 }
 
+export interface QueryStats {
+    query: any; // Query instance
+    executionCount: number;
+    totalTimeMs: number;
+    averageTimeMs: number;
+    lastMatchCount: number;
+    cacheHitRate?: number;
+}
+
 export interface MemoryStats {
     totalEntities: number;
     activeEntities: number;

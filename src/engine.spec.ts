@@ -2338,4 +2338,404 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(count).toBe(1);
         });
     });
+
+    describe('Fluent Query Builder (ROADMAP #8)', () => {
+        test('should create query using fluent API', () => {
+            engine.registerComponent(Position);
+            engine.registerComponent(Velocity);
+
+            const query = engine.query()
+                .withAll(Position, Velocity)
+                .build();
+
+            expect(query).toBeDefined();
+
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 10, 20);
+            entity.addComponent(Velocity, 1, 1);
+
+            const entities = query.getEntitiesArray();
+            expect(entities).toHaveLength(1);
+            expect(entities[0]).toBe(entity);
+        });
+
+        test('should support withAny constraint', () => {
+            engine.registerComponent(Position);
+            engine.registerComponent(Velocity);
+            engine.registerComponent(Health);
+
+            const query = engine.query()
+                .withAny(Position, Velocity)
+                .build();
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Position, 1, 1);
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(Velocity, 1, 1);
+
+            const entity3 = engine.createEntity();
+            entity3.addComponent(Health, 100, 100);
+
+            const entities = query.getEntitiesArray();
+            expect(entities).toHaveLength(2);
+            expect(entities).toContain(entity1);
+            expect(entities).toContain(entity2);
+            expect(entities).not.toContain(entity3);
+        });
+
+        test('should support withNone constraint', () => {
+            engine.registerComponent(Position);
+            engine.registerComponent(Velocity);
+
+            class Dead {}
+            engine.registerComponent(Dead);
+
+            const query = engine.query()
+                .withAll(Position)
+                .withNone(Dead)
+                .build();
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Position, 1, 1);
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(Position, 2, 2);
+            entity2.addComponent(Dead);
+
+            const entities = query.getEntitiesArray();
+            expect(entities).toHaveLength(1);
+            expect(entities[0]).toBe(entity1);
+        });
+
+        test('should support tag filtering', () => {
+            engine.registerComponent(Position);
+
+            const query = engine.query()
+                .withAll(Position)
+                .withTags('player')
+                .build();
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Position, 1, 1);
+            entity1.addTag('player');
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(Position, 2, 2);
+            entity2.addTag('enemy');
+
+            const entities = query.getEntitiesArray();
+            expect(entities).toHaveLength(1);
+            expect(entities[0]).toBe(entity1);
+        });
+
+        test('should support withoutTags constraint', () => {
+            engine.registerComponent(Position);
+
+            const query = engine.query()
+                .withAll(Position)
+                .withoutTags('disabled')
+                .build();
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Position, 1, 1);
+            entity1.addTag('active');
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(Position, 2, 2);
+            entity2.addTag('disabled');
+
+            const entities = query.getEntitiesArray();
+            expect(entities).toHaveLength(1);
+            expect(entities[0]).toBe(entity1);
+        });
+
+        test('should support complex queries with multiple constraints', () => {
+            engine.registerComponent(Position);
+            engine.registerComponent(Velocity);
+            engine.registerComponent(Health);
+
+            class Player {}
+            class Enemy {}
+            class Dead {}
+            class Frozen {}
+
+            engine.registerComponent(Player);
+            engine.registerComponent(Enemy);
+            engine.registerComponent(Dead);
+            engine.registerComponent(Frozen);
+
+            const query = engine.query()
+                .withAll(Position, Velocity)
+                .withAny(Player, Enemy)
+                .withNone(Dead, Frozen)
+                .withTags('active')
+                .withoutTags('disabled')
+                .build();
+
+            // Should match: has Position+Velocity, has Player, not Dead/Frozen, has 'active', no 'disabled'
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Position, 1, 1);
+            entity1.addComponent(Velocity, 1, 1);
+            entity1.addComponent(Player);
+            entity1.addTag('active');
+
+            // Should match: has Position+Velocity, has Enemy, not Dead/Frozen, has 'active', no 'disabled'
+            const entity2 = engine.createEntity();
+            entity2.addComponent(Position, 2, 2);
+            entity2.addComponent(Velocity, 2, 2);
+            entity2.addComponent(Enemy);
+            entity2.addTag('active');
+
+            // Should NOT match: has Dead component
+            const entity3 = engine.createEntity();
+            entity3.addComponent(Position, 3, 3);
+            entity3.addComponent(Velocity, 3, 3);
+            entity3.addComponent(Player);
+            entity3.addComponent(Dead);
+            entity3.addTag('active');
+
+            // Should NOT match: missing 'active' tag
+            const entity4 = engine.createEntity();
+            entity4.addComponent(Position, 4, 4);
+            entity4.addComponent(Velocity, 4, 4);
+            entity4.addComponent(Player);
+
+            const entities = query.getEntitiesArray();
+            expect(entities).toHaveLength(2);
+            expect(entities).toContain(entity1);
+            expect(entities).toContain(entity2);
+            expect(entities).not.toContain(entity3);
+            expect(entities).not.toContain(entity4);
+        });
+
+        test('should maintain backward compatibility with createQuery', () => {
+            engine.registerComponent(Position);
+            engine.registerComponent(Velocity);
+
+            // Old object syntax
+            const query1 = engine.createQuery({
+                all: [Position, Velocity]
+            });
+
+            // New fluent syntax
+            const query2 = engine.query()
+                .withAll(Position, Velocity)
+                .build();
+
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 1, 1);
+            entity.addComponent(Velocity, 1, 1);
+
+            expect(query1.getEntitiesArray()).toHaveLength(1);
+            expect(query2.getEntitiesArray()).toHaveLength(1);
+        });
+
+        test('should allow chaining in any order', () => {
+            engine.registerComponent(Position);
+            engine.registerComponent(Velocity);
+
+            class Dead {}
+            engine.registerComponent(Dead);
+
+            // Chain methods in different order
+            const query = engine.query()
+                .withTags('active')
+                .withNone(Dead)
+                .withAll(Position, Velocity)
+                .withoutTags('disabled')
+                .build();
+
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 1, 1);
+            entity.addComponent(Velocity, 1, 1);
+            entity.addTag('active');
+
+            expect(query.getEntitiesArray()).toHaveLength(1);
+        });
+    });
+
+    describe('Query Performance Metrics (ROADMAP #28)', () => {
+        test('should track query execution count', () => {
+            engine.registerComponent(Position);
+
+            const query = engine.createQuery({ all: [Position] });
+            engine.createEntity().addComponent(Position, 10, 20);
+
+            // Execute query multiple times
+            query.getEntitiesArray();
+            query.getEntitiesArray();
+            query.getEntitiesArray();
+
+            const stats = engine.getQueryStats(query);
+            expect(stats.executionCount).toBe(3);
+        });
+
+        test('should track total and average execution time', () => {
+            engine.registerComponent(Position);
+
+            const query = engine.createQuery({ all: [Position] });
+            engine.createEntity().addComponent(Position, 10, 20);
+
+            // Execute query multiple times
+            query.getEntitiesArray();
+            query.getEntitiesArray();
+
+            const stats = engine.getQueryStats(query);
+            expect(stats.totalTimeMs).toBeGreaterThan(0);
+            expect(stats.averageTimeMs).toBeGreaterThan(0);
+            expect(stats.averageTimeMs).toBe(stats.totalTimeMs / stats.executionCount);
+        });
+
+        test('should track last match count', () => {
+            engine.registerComponent(Position);
+
+            const query = engine.createQuery({ all: [Position] });
+
+            engine.createEntity().addComponent(Position, 10, 20);
+            engine.createEntity().addComponent(Position, 30, 40);
+            engine.createEntity().addComponent(Position, 50, 60);
+
+            query.getEntitiesArray();
+
+            const stats = engine.getQueryStats(query);
+            expect(stats.lastMatchCount).toBe(3);
+        });
+
+        test('should track cache hit rate', () => {
+            engine.registerComponent(Position);
+
+            const query = engine.createQuery({ all: [Position] });
+            engine.createEntity().addComponent(Position, 10, 20);
+
+            // First call - no cache hit
+            query.getEntitiesArray();
+
+            // Second call - cache hit (no entities added/removed)
+            query.getEntitiesArray();
+
+            // Third call - cache hit
+            query.getEntitiesArray();
+
+            const stats = engine.getQueryStats(query);
+            expect(stats.cacheHitRate).toBeGreaterThan(0);
+            // 2 cache hits out of 3 executions = 66.67%
+            expect(stats.cacheHitRate).toBeCloseTo(66.67, 1);
+        });
+
+        test('should reset cache hit rate when entities change', () => {
+            engine.registerComponent(Position);
+
+            const query = engine.createQuery({ all: [Position] });
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Position, 10, 20);
+
+            // First call
+            query.getEntitiesArray();
+
+            // Second call - cache hit
+            query.getEntitiesArray();
+
+            // Add another entity - invalidates cache
+            const entity2 = engine.createEntity();
+            entity2.addComponent(Position, 30, 40);
+
+            // Third call - cache miss due to entity addition
+            query.getEntitiesArray();
+
+            // Fourth call - cache hit
+            query.getEntitiesArray();
+
+            const stats = engine.getQueryStats(query);
+            // 2 cache hits out of 4 executions = 50%
+            expect(stats.cacheHitRate).toBeCloseTo(50, 1);
+        });
+
+        test('should get stats for all queries', () => {
+            engine.registerComponent(Position);
+            engine.registerComponent(Velocity);
+
+            const query1 = engine.createQuery({ all: [Position] });
+            const query2 = engine.createQuery({ all: [Velocity] });
+
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 1, 1);
+            entity.addComponent(Velocity, 2, 2);
+
+            query1.getEntitiesArray();
+            query1.getEntitiesArray();
+
+            query2.getEntitiesArray();
+            query2.getEntitiesArray();
+            query2.getEntitiesArray();
+
+            const allStats = engine.getQueryStats();
+
+            expect(Array.isArray(allStats)).toBe(true);
+            expect(allStats.length).toBeGreaterThanOrEqual(2);
+
+            // Find our specific queries in the stats
+            const stats1 = allStats.find((s: any) => s.query === query1);
+            const stats2 = allStats.find((s: any) => s.query === query2);
+
+            expect(stats1).toBeDefined();
+            expect(stats2).toBeDefined();
+            expect(stats1.executionCount).toBe(2);
+            expect(stats2.executionCount).toBe(3);
+        });
+
+        test('should track stats independently for each query', () => {
+            engine.registerComponent(Position);
+            engine.registerComponent(Velocity);
+
+            const query1 = engine.createQuery({ all: [Position] });
+            const query2 = engine.createQuery({ all: [Velocity] });
+
+            engine.createEntity().addComponent(Position, 1, 1);
+
+            query1.getEntitiesArray();
+            query1.getEntitiesArray();
+            query1.getEntitiesArray();
+
+            query2.getEntitiesArray();
+
+            const stats1 = engine.getQueryStats(query1);
+            const stats2 = engine.getQueryStats(query2);
+
+            expect(stats1.executionCount).toBe(3);
+            expect(stats2.executionCount).toBe(1);
+            expect(stats1.lastMatchCount).toBe(1);
+            expect(stats2.lastMatchCount).toBe(0);
+        });
+
+        test('should track stats for iterator usage', () => {
+            engine.registerComponent(Position);
+
+            const query = engine.createQuery({ all: [Position] });
+            engine.createEntity().addComponent(Position, 10, 20);
+
+            // Use iterator
+            for (const entity of query) {
+                // Iterate
+            }
+
+            const stats = engine.getQueryStats(query);
+            expect(stats.executionCount).toBe(1);
+            expect(stats.lastMatchCount).toBe(1);
+        });
+
+        test('should have zero stats for never-executed query', () => {
+            engine.registerComponent(Position);
+
+            const query = engine.createQuery({ all: [Position] });
+
+            const stats = engine.getQueryStats(query);
+            expect(stats.executionCount).toBe(0);
+            expect(stats.totalTimeMs).toBe(0);
+            expect(stats.averageTimeMs).toBe(0);
+            expect(stats.lastMatchCount).toBe(0);
+            expect(stats.cacheHitRate).toBe(0);
+        });
+    });
 });

@@ -4,6 +4,13 @@ export type ComponentArgs<T> = T extends new (...args: infer A) => any ? A : nev
 export type EventTypes<T = any> = string | symbol | keyof T;
 export type EventCallback<T = void> = (...args: any[]) => T;
 
+// Component lifecycle hooks
+export interface ComponentLifecycle {
+    onCreate?(entity: EntityDef): void;
+    onDestroy?(entity: EntityDef): void;
+    onChanged?(): void;
+}
+
 // Enhanced system options with profiling and lifecycle hooks
 export interface SystemOptions<C extends any[] = any[]> {
     act?: (entity: EntityDef, ...components: { [K in keyof C]: C[K] }) => void;

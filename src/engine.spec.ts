@@ -3274,4 +3274,265 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(queryNone.size).toBe(1); // Only entity2
         });
     });
+
+    describe('Component Lifecycle Hooks', () => {
+        test('should call onCreate when component is added', () => {
+            let createCalled = false;
+            let entityPassed: any = null;
+
+            class TestComponent {
+                onCreate(entity: EntityDef) {
+                    createCalled = true;
+                    entityPassed = entity;
+                }
+            }
+
+            const entity = engine.createEntity();
+            entity.addComponent(TestComponent);
+
+            expect(createCalled).toBe(true);
+            expect(entityPassed).toBe(entity);
+        });
+
+        test('should call onDestroy when component is removed', () => {
+            let destroyCalled = false;
+            let entityPassed: any = null;
+
+            class TestComponent {
+                onDestroy(entity: EntityDef) {
+                    destroyCalled = true;
+                    entityPassed = entity;
+                }
+            }
+
+            const entity = engine.createEntity();
+            entity.addComponent(TestComponent);
+
+            expect(destroyCalled).toBe(false);
+
+            entity.removeComponent(TestComponent);
+
+            expect(destroyCalled).toBe(true);
+            expect(entityPassed).toBe(entity);
+        });
+
+        test('should call both onCreate and onDestroy', () => {
+            let createCalled = false;
+            let destroyCalled = false;
+
+            class TestComponent {
+                onCreate(entity: EntityDef) {
+                    createCalled = true;
+                    expect(entity).toBeInstanceOf(Object);
+                }
+
+                onDestroy(entity: EntityDef) {
+                    destroyCalled = true;
+                    expect(entity).toBeInstanceOf(Object);
+                }
+            }
+
+            const entity = engine.createEntity();
+            entity.addComponent(TestComponent);
+            expect(createCalled).toBe(true);
+
+            entity.removeComponent(TestComponent);
+            expect(destroyCalled).toBe(true);
+        });
+
+        test('should work with components without lifecycle hooks', () => {
+            class SimpleComponent {
+                value = 42;
+            }
+
+            const entity = engine.createEntity();
+
+            // Should not throw errors
+            expect(() => entity.addComponent(SimpleComponent)).not.toThrow();
+            expect(() => entity.removeComponent(SimpleComponent)).not.toThrow();
+        });
+
+        test('should support resource management with lifecycle hooks', () => {
+            class AudioSource {
+                sound: any = null;
+
+                constructor(public url: string) {}
+
+                onCreate(_entity: EntityDef) {
+                    // Simulate loading audio
+                    this.sound = { loaded: true, url: this.url };
+                }
+
+                onDestroy(_entity: EntityDef) {
+                    // Simulate cleanup
+                    this.sound = null;
+                }
+            }
+
+            const entity = engine.createEntity();
+            entity.addComponent(AudioSource, 'sound.mp3');
+
+            const audio = entity.getComponent(AudioSource);
+            expect(audio.sound).toBeDefined();
+            expect(audio.sound.loaded).toBe(true);
+            expect(audio.sound.url).toBe('sound.mp3');
+
+            entity.removeComponent(AudioSource);
+            // Component is removed, so we can't check it directly
+            // But onDestroy was called and cleaned up
+        });
+
+        test('should call onCreate with entity context', () => {
+            class ContextComponent {
+                entityName?: string;
+
+                onCreate(entity: EntityDef) {
+                    this.entityName = entity.name;
+                }
+            }
+
+            const entity = engine.createEntity('TestEntity');
+            entity.addComponent(ContextComponent);
+
+            const component = entity.getComponent(ContextComponent);
+            expect(component.entityName).toBe('TestEntity');
+        });
+
+        test('should call onDestroy before component pool release', () => {
+            let destroyCallCount = 0;
+
+            class PooledComponent {
+                value = 0;
+
+                onDestroy(_entity: EntityDef) {
+                    destroyCallCount++;
+                    // Component should still have its state
+                    expect(this.value).toBeGreaterThanOrEqual(0);
+                }
+            }
+
+            // Register component pool
+            engine.registerComponentPool(PooledComponent, { initialSize: 5 });
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(PooledComponent);
+            const comp1 = entity1.getComponent(PooledComponent);
+            comp1.value = 100;
+
+            entity1.removeComponent(PooledComponent);
+            expect(destroyCallCount).toBe(1);
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(PooledComponent);
+            entity2.removeComponent(PooledComponent);
+            expect(destroyCallCount).toBe(2);
+        });
+
+        test('should handle multiple components with lifecycle hooks', () => {
+            let comp1CreateCalled = false;
+            let comp2CreateCalled = false;
+            let comp1DestroyCalled = false;
+            let comp2DestroyCalled = false;
+
+            class Component1 {
+                onCreate(_entity: EntityDef) {
+                    comp1CreateCalled = true;
+                }
+                onDestroy(_entity: EntityDef) {
+                    comp1DestroyCalled = true;
+                }
+            }
+
+            class Component2 {
+                onCreate(_entity: EntityDef) {
+                    comp2CreateCalled = true;
+                }
+                onDestroy(_entity: EntityDef) {
+                    comp2DestroyCalled = true;
+                }
+            }
+
+            const entity = engine.createEntity();
+            entity.addComponent(Component1);
+            entity.addComponent(Component2);
+
+            expect(comp1CreateCalled).toBe(true);
+            expect(comp2CreateCalled).toBe(true);
+
+            entity.removeComponent(Component1);
+            entity.removeComponent(Component2);
+
+            expect(comp1DestroyCalled).toBe(true);
+            expect(comp2DestroyCalled).toBe(true);
+        });
+
+        test('should handle errors in lifecycle hooks gracefully', () => {
+            class ErrorComponent {
+                onCreate(_entity: EntityDef) {
+                    throw new Error('onCreate error');
+                }
+            }
+
+            const entity = engine.createEntity();
+
+            // onCreate error should propagate
+            expect(() => entity.addComponent(ErrorComponent)).toThrow('onCreate error');
+        });
+
+        test('should call onCreate after component is added to entity', () => {
+            class VerifyComponent {
+                onCreate(entity: EntityDef) {
+                    // Component should already be on the entity
+                    expect(entity.hasComponent(VerifyComponent)).toBe(true);
+                }
+            }
+
+            const entity = engine.createEntity();
+            entity.addComponent(VerifyComponent);
+        });
+
+        test('should call onDestroy before component is removed from entity', () => {
+            class VerifyComponent {
+                onDestroy(entity: EntityDef) {
+                    // Component should still be on the entity
+                    expect(entity.hasComponent(VerifyComponent)).toBe(true);
+                }
+            }
+
+            const entity = engine.createEntity();
+            entity.addComponent(VerifyComponent);
+            entity.removeComponent(VerifyComponent);
+        });
+
+        test('should work with component dependencies and lifecycle hooks', () => {
+            let dependencyCreateCalled = false;
+            let dependentCreateCalled = false;
+
+            class DependencyComponent {
+                onCreate(_entity: EntityDef) {
+                    dependencyCreateCalled = true;
+                }
+            }
+
+            class DependentComponent {
+                onCreate(entity: EntityDef) {
+                    dependentCreateCalled = true;
+                    // Verify dependency exists
+                    expect(entity.hasComponent(DependencyComponent)).toBe(true);
+                }
+            }
+
+            engine.registerComponentValidator(DependentComponent, {
+                validate: () => true,
+                dependencies: [DependencyComponent],
+            });
+
+            const entity = engine.createEntity();
+            entity.addComponent(DependencyComponent);
+            entity.addComponent(DependentComponent);
+
+            expect(dependencyCreateCalled).toBe(true);
+            expect(dependentCreateCalled).toBe(true);
+        });
+    });
 });

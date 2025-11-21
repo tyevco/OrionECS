@@ -33,6 +33,12 @@
       "rules": {
         "typescript/no-extraneous-class": "off"
       }
+    },
+    {
+      "files": ["managers.ts"],
+      "rules": {
+        "unicorn/no-array-sort": "off"
+      }
     }
   ]
 }

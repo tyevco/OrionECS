@@ -342,17 +342,18 @@ export class SystemManager {
         this.ensureSorted();
 
         // First, execute systems in groups (sorted by group priority)
-        const sortedGroups = Array.from(this.groups.values()).toSorted(
-            (a, b) => b.priority - a.priority
-        );
+        const sortedGroups = Array.from(this.groups.values())
+            .slice()
+            .sort((a: SystemGroup, b: SystemGroup) => b.priority - a.priority);
 
         for (const group of sortedGroups) {
             if (!group.enabled) continue;
 
             // Execute systems in this group that are variable update systems (sorted by system priority)
             const groupSystems = group.systems
-                .filter((s) => this.systems.includes(s))
-                .toSorted((a, b) => b.priority - a.priority);
+                .filter((s: System<any>) => this.systems.includes(s))
+                .slice()
+                .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
 
             for (const system of groupSystems) {
                 system.step(deltaTime);
@@ -378,17 +379,18 @@ export class SystemManager {
             iterations < this.maxFixedIterations
         ) {
             // First, execute systems in groups (sorted by group priority)
-            const sortedGroups = Array.from(this.groups.values()).toSorted(
-                (a, b) => b.priority - a.priority
-            );
+            const sortedGroups = Array.from(this.groups.values())
+                .slice()
+                .sort((a: SystemGroup, b: SystemGroup) => b.priority - a.priority);
 
             for (const group of sortedGroups) {
                 if (!group.enabled) continue;
 
                 // Execute systems in this group that are fixed update systems (sorted by system priority)
                 const groupSystems = group.systems
-                    .filter((s) => this.fixedUpdateSystems.includes(s))
-                    .toSorted((a, b) => b.priority - a.priority);
+                    .filter((s: System<any>) => this.fixedUpdateSystems.includes(s))
+                    .slice()
+                    .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
 
                 for (const system of groupSystems) {
                     system.step(this.fixedUpdateInterval);

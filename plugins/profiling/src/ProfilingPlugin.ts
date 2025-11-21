@@ -10,7 +10,7 @@
  * - System execution profiling
  */
 
-import type { EnginePlugin, PluginContext, SystemProfile } from '../src/index';
+import type { EnginePlugin, PluginContext, SystemProfile } from '../../../core/src/index';
 
 /**
  * Frame profile data

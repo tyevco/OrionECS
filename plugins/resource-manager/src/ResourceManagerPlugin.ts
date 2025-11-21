@@ -9,7 +9,7 @@
  * - Resource usage statistics and monitoring
  */
 
-import type { EnginePlugin, PluginContext } from '../src/index';
+import type { EnginePlugin, PluginContext } from '../../../core/src/index';
 
 /**
  * Base resource interface

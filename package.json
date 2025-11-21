@@ -1,40 +1,22 @@
 {
-  "name": "orion-ecs",
+  "name": "orion-ecs-monorepo",
   "version": "0.1.1-ts",
-  "description": "A lightweight and flexible Entity Component System (ECS) framework written in TypeScript",
-  "main": "dist/orion.js",
-  "types": "dist/orion.d.ts",
+  "private": true,
+  "description": "OrionECS - Entity Component System framework monorepo",
   "scripts": {
-    "build": "tsup",
-    "test": "jest",
+    "build": "npm run build --workspace=core",
+    "test": "npm run test --workspace=core",
     "benchmark": "jest --projects ./jest.bench.config.js",
     "prepare": "husky",
-    "lint": "npm run lint:oxlint && npm run lint:biome",
-    "lint:oxlint": "oxlint src",
-    "lint:biome": "biome lint src",
+    "lint": "npm run lint --workspace=core",
     "format": "biome format --write .",
     "format:check": "biome format .",
-    "typecheck": "tsc --noEmit",
-    "check": "npm run typecheck && npm run lint && npm run format:check"
+    "typecheck": "npm run typecheck --workspace=core",
+    "check": "npm run check --workspace=core"
   },
-  "keywords": [
-    "ecs",
-    "entity-component-system",
-    "game-development"
+  "workspaces": [
+    "core"
   ],
-  "author": {
-    "name": "Tyler Coles",
-    "email": "tyevco@gmail.com"
-  },
-  "license": "MIT",
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/tyevco/orionecs"
-  },
-  "bugs": {
-    "url": "https://github.com/tyevco/orionecs/issues"
-  },
-  "homepage": "https://github.com/tyevco/orionecs#readme",
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@babel/preset-env": "^7.28.5",
@@ -55,9 +37,6 @@
     "ts-jest": "^29.4.5",
     "tsup": "^8.5.1",
     "typescript": "^5.9.3"
-  },
-  "publishConfig": {
-    "access": "public"
   },
   "lint-staged": {
     "*.{ts,js,json}": [

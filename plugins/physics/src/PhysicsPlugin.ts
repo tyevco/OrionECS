@@ -7,7 +7,7 @@
  * - Extends the engine with custom APIs
  */
 
-import type { EnginePlugin, PluginContext, QueryOptions } from '../src/index';
+import type { EnginePlugin, PluginContext, QueryOptions } from '../../../core/src/index';
 
 // Physics components
 export class RigidBody {

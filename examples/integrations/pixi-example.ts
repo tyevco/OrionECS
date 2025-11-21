@@ -12,8 +12,8 @@
  * 4. Initialize and run the game loop
  */
 
-import { EngineBuilder } from '../../src/engine';
-import type { EntityDef } from '../../src/definitions';
+import { EngineBuilder } from '../../core/src/engine';
+import type { EntityDef } from '../../core/src/definitions';
 
 // ============================================================================
 // Pixi.js Imports (uncomment when pixi.js is installed)

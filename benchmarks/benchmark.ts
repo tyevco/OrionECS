@@ -1,5 +1,5 @@
 import { benchmarkSuite } from "jest-bench";
-import { EngineBuilder } from '../src/engine';
+import { EngineBuilder } from '../core/src/engine';
 
 // Test components for benchmarks
 class Position {

@@ -9,7 +9,7 @@
  * - Custom API extension for spatial operations
  */
 
-import type { EnginePlugin, PluginContext, EntityDef } from '../src/index';
+import type { EnginePlugin, PluginContext, EntityDef } from '../../../core/src/index';
 
 // Spatial components
 export class SpatialPosition {

@@ -73,6 +73,144 @@ const engine = new EngineBuilder()
 
 ---
 
+### ✅ Entity Cloning/Copying
+**Status:** ✅ Implemented (engine.ts:219)
+**Priority:** Complete
+
+Ability to clone entities with their current runtime state.
+
+```typescript
+// Clone an entity (deep copy of components)
+const clone = engine.cloneEntity(originalEntity);
+
+// Clone with modifications
+const clone = engine.cloneEntity(originalEntity, {
+  name: 'Clone1',
+  components: {
+    Position: { x: 10, y: 20 } // Override specific component values
+  }
+});
+
+// Instance method
+const clone = entity.clone();
+```
+
+---
+
+### ✅ Entity Search Methods
+**Status:** ✅ Implemented (engine.ts:203-215)
+**Priority:** Complete
+
+Convenient methods for finding entities by name, ID, or predicate.
+
+```typescript
+// Direct name lookup (O(1) with index)
+const boss = engine.getEntityByName('BossEnemy');
+
+// Get entity by numeric ID
+const entity = engine.getEntityByNumericId(42);
+
+// Find first entity matching predicate
+const player = engine.findEntity(e => e.hasTag('player'));
+
+// Find all entities matching predicate
+const enemies = engine.findEntities(e =>
+  e.hasTag('enemy') && e.getComponent(Health).current > 0
+);
+```
+
+---
+
+### ✅ System Groups/Phases
+**Status:** ✅ Implemented (engine.ts:341-349)
+**Priority:** Complete
+
+Organize systems into named groups with clear execution order.
+
+```typescript
+// Define execution phases
+engine.createSystemGroup('Input', { priority: 1000 });
+engine.createSystemGroup('Logic', { priority: 500 });
+engine.createSystemGroup('Physics', { priority: 100 });
+engine.createSystemGroup('Rendering', { priority: -100 });
+
+// Groups can be enabled/disabled
+engine.disableSystemGroup('Rendering'); // Headless mode
+engine.enableSystemGroup('Rendering');
+```
+
+---
+
+### ✅ Transaction/Batch Operations
+**Status:** ✅ Implemented (engine.ts:425-485)
+**Priority:** Complete
+
+Batch multiple entity/component operations and defer query updates.
+
+```typescript
+// Start transaction
+engine.beginTransaction();
+
+// Perform many entity/component changes
+for (let i = 0; i < 1000; i++) {
+  const entity = engine.createEntity();
+  entity.addComponent(Position, i, i);
+  entity.addComponent(Velocity, 1, 1);
+}
+
+// Single query update at commit
+engine.commitTransaction();
+
+// Or rollback changes
+engine.rollbackTransaction();
+
+// Check transaction status
+if (engine.isInTransaction()) {
+  // ...
+}
+```
+
+---
+
+### ✅ Enhanced Entity Templates/Prefabs
+**Status:** ✅ Implemented (engine.ts:501-559)
+**Priority:** Complete
+
+Advanced prefab features with parameterization and inheritance.
+
+```typescript
+// Prefabs with parameters
+const enemyPrefab = engine.definePrefab('Enemy', (type: string, level: number) => ({
+  name: `${type}Enemy`,
+  components: [
+    { type: Position, args: [0, 0] },
+    { type: Health, args: [50 * level, 50 * level] },
+    { type: Damage, args: [10 * level] }
+  ],
+  tags: ['enemy', type]
+}));
+
+// Use with parameters
+const goblin = engine.createFromPrefab('Enemy', 'Goblin', 5);
+
+// Prefab inheritance
+const bossPrefab = engine.extendPrefab('Enemy', {
+  components: [
+    { type: BossAI, args: [] }
+  ],
+  tags: ['boss']
+});
+
+// Prefab variants
+const fastEnemyVariant = engine.variantOfPrefab('Enemy', {
+  components: {
+    Velocity: { x: 2, y: 2 } // Override specific values
+  }
+});
+```
+
+---
+
 ## 🚀 Performance & Scalability
 
 ### 4. Spatial Partitioning System
@@ -200,54 +338,7 @@ query.forEach((entity, position, velocity) => {
 
 ## 💎 Developer Experience
 
-### 7. Entity Cloning/Copying
-**Status:** Planned
-**Priority:** High
-**Implementation:** Can be implemented as a plugin
-**Impact:** Developer Experience
-
-Add ability to clone entities with their current runtime state.
-
-```typescript
-// Clone an entity (deep copy of components)
-const clone = engine.cloneEntity(originalEntity);
-
-// Clone with modifications
-const clone = engine.cloneEntity(originalEntity, {
-  name: 'Clone1',
-  components: {
-    Position: { x: 10, y: 20 } // Override specific component values
-  }
-});
-
-// Instance method
-const clone = entity.clone();
-```
-
-**Differences from Prefabs:**
-- Prefabs: Templates with default values
-- Cloning: Copies runtime state of a specific entity instance
-
-**Use Cases:**
-- Duplicating configured entities
-- Creating entity variations
-- Testing and debugging
-- Save/load individual entities
-
-**Plugin Implementation:**
-```typescript
-class EntityCloningPlugin implements EnginePlugin {
-  install(context: PluginContext) {
-    context.extend('cloning', {
-      cloneEntity: (entity, overrides?) => { /* ... */ }
-    });
-  }
-}
-```
-
----
-
-### 8. Fluent Query Builder
+### 7. Fluent Query Builder
 **Status:** Planned
 **Priority:** Medium
 **Impact:** Developer Experience
@@ -281,103 +372,7 @@ const query = engine.query()
 
 ---
 
-### 9. Entity Search Methods
-**Status:** Planned
-**Priority:** Medium
-**Implementation:** Can be implemented as a plugin
-**Impact:** Developer Experience
-
-Add convenient methods for finding entities.
-
-```typescript
-// Find first entity matching predicate
-const player = engine.findEntity(e => e.hasTag('player'));
-
-// Find all entities matching predicate
-const enemies = engine.findEntities(e =>
-  e.hasTag('enemy') && e.getComponent(Health).current > 0
-);
-
-// Direct name lookup (O(1) with index)
-const boss = engine.getEntityByName('BossEnemy');
-
-// Get entity by numeric ID
-const entity = engine.getEntityByNumericId(42);
-```
-
-**Benefits:**
-- Common use cases made simple
-- Efficient name-based lookup (Map index)
-- Reduces boilerplate code
-
-**Plugin Implementation:**
-```typescript
-class EntitySearchPlugin implements EnginePlugin {
-  install(context: PluginContext) {
-    const engine = context.getEngine();
-    context.extend('search', {
-      findEntity: (predicate) => { /* ... */ },
-      findEntities: (predicate) => { /* ... */ },
-      getEntityByName: (name) => { /* O(1) lookup with Map */ }
-    });
-  }
-}
-```
-
----
-
-### 10. System Groups/Phases
-**Status:** Planned
-**Priority:** High
-**Impact:** Developer Experience, Architecture
-
-Organize systems into named groups with clear execution order.
-
-```typescript
-// Define execution phases
-engine.createSystemGroup('Input', { priority: 1000 });
-engine.createSystemGroup('Logic', { priority: 500 });
-engine.createSystemGroup('Physics', { priority: 100 });
-engine.createSystemGroup('Animation', { priority: 50 });
-engine.createSystemGroup('Rendering', { priority: -100 });
-
-// Create systems in groups
-engine.createSystem('PlayerInput', query, options, false, { group: 'Input' });
-engine.createSystem('AISystem', query, options, false, { group: 'Logic' });
-engine.createSystem('MovementSystem', query, options, false, { group: 'Physics' });
-engine.createSystem('RenderSystem', query, options, false, { group: 'Rendering' });
-
-// Groups can be enabled/disabled
-engine.disableSystemGroup('Rendering'); // Headless mode
-engine.enableSystemGroup('Rendering');
-```
-
-**Benefits:**
-- Clear execution order (no magic priority numbers)
-- Self-documenting system organization
-- Enable/disable entire phases
-- Better than flat priority system
-
-**Execution Order:**
-```
-Input (priority: 1000)
-  ├─ PlayerInputSystem
-  └─ GamepadSystem
-Logic (priority: 500)
-  ├─ AISystem
-  └─ CombatSystem
-Physics (priority: 100)
-  ├─ MovementSystem
-  └─ CollisionSystem
-Animation (priority: 50)
-  └─ AnimationSystem
-Rendering (priority: -100)
-  └─ RenderSystem
-```
-
----
-
-### 11. Component Lifecycle Hooks
+### 8. Component Lifecycle Hooks
 **Status:** Planned
 **Priority:** Low
 **Impact:** Developer Experience
@@ -483,56 +478,7 @@ autosaveSystem.runEvery(60000); // Every 60 seconds
 
 ---
 
-### 14. Transaction/Batch Operations
-**Status:** Planned
-**Priority:** Medium
-**Implementation:** Can be implemented as a plugin
-**Impact:** Performance
-
-Batch multiple entity/component operations and defer query updates.
-
-```typescript
-// Start transaction
-engine.beginTransaction();
-
-// Perform many entity/component changes
-for (let i = 0; i < 1000; i++) {
-  const entity = engine.createEntity();
-  entity.addComponent(Position, i, i);
-  entity.addComponent(Velocity, 1, 1);
-}
-
-// Single query update at commit
-engine.commitTransaction();
-```
-
-**Benefits:**
-- Significantly faster bulk operations
-- Single query update instead of N updates
-- Consistent world state during transaction
-
-**Use Cases:**
-- Level loading
-- Scene transitions
-- Bulk entity spawning
-- State restoration
-
-**Plugin Implementation:**
-```typescript
-class TransactionPlugin implements EnginePlugin {
-  install(context: PluginContext) {
-    context.extend('transaction', {
-      begin: () => { /* Defer query updates */ },
-      commit: () => { /* Apply all changes at once */ },
-      rollback: () => { /* Discard changes */ }
-    });
-  }
-}
-```
-
----
-
-### 15. Component Change Events
+### 9. Component Change Events
 **Status:** Planned
 **Priority:** Low
 **Implementation:** Can be implemented as a plugin
@@ -834,52 +780,7 @@ const pos = entity.getComponent(Transform).position;
 
 ---
 
-### 23. Enhanced Entity Templates/Prefabs
-**Status:** Planned
-**Priority:** Medium
-**Impact:** Developer Experience
-
-Add advanced prefab features.
-
-```typescript
-// Prefabs with parameters
-const enemyPrefab = engine.definePrefab('Enemy', (type: string, level: number) => ({
-  name: `${type}Enemy`,
-  components: [
-    { type: Position, args: [0, 0] },
-    { type: Health, args: [50 * level, 50 * level] },
-    { type: Damage, args: [10 * level] }
-  ],
-  tags: ['enemy', type]
-}));
-
-// Use with parameters
-const goblin = engine.createFromPrefab('Enemy', 'Goblin', 5);
-
-// Prefab inheritance
-const bossPrefab = engine.extendPrefab('Enemy', {
-  components: [
-    { type: BossAI, args: [] }
-  ],
-  tags: ['boss']
-});
-
-// Prefab variants
-const fastEnemyVariant = engine.variantOfPrefab('Enemy', {
-  components: {
-    Velocity: { x: 2, y: 2 } // Override specific values
-  }
-});
-```
-
-**Benefits:**
-- More flexible entity creation
-- Reduces prefab duplication
-- Parameterized templates
-
----
-
-### 24. Network Synchronization Support
+### 17. Network Synchronization Support
 **Status:** Planned
 **Priority:** Low
 **Implementation:** ✨ Best implemented as a plugin
@@ -1215,33 +1116,34 @@ Help users migrate from other ECS libraries and between versions.
 - ✅ Tag component helper (`createTagComponent`)
 - ✅ Plugin system with full extensibility
 - ✅ Benchmark infrastructure
+- ✅ Entity cloning/copying (`cloneEntity`)
+- ✅ Entity search methods (`findEntity`, `findEntities`, `getEntityByName`)
+- ✅ System groups/phases (`createSystemGroup`, `enableSystemGroup`, `disableSystemGroup`)
+- ✅ Transaction/batch operations (`beginTransaction`, `commitTransaction`, `rollbackTransaction`)
+- ✅ Enhanced prefab system with inheritance (`definePrefab`, `extendPrefab`, `variantOfPrefab`)
 
 ### Immediate (Next Release)
-1. Entity name indexing for O(1) lookup
-2. Entity cloning/copying functionality
-3. Interactive examples and tutorials
+1. Interactive examples and tutorials
+2. Fluent query builder
 
 ### Short Term (1-2 releases)
-4. Spatial partitioning system (ideal for plugin)
-5. System groups/phases
-6. Fluent query builder
-7. Entity search methods
-8. Enhanced prefab system with inheritance
+3. Spatial partitioning system (ideal for plugin)
+4. Query result iterators
+5. Better TypeScript generics
 
 ### Medium Term (3-6 releases)
-9. Entity archetypes for cache locality
-10. System dependencies (declarative ordering)
-11. Transaction/batch operations (ideal for plugin)
-12. Query result iterators
-13. Better TypeScript generics
+6. Entity archetypes for cache locality
+7. System dependencies (declarative ordering)
+8. Component lifecycle hooks
+9. Conditional system execution
 
 ### Long Term (Future)
-14. Network synchronization (ideal for plugin)
-15. Replay system (ideal for plugin)
-16. Entity inspector (ideal for plugin)
-17. Component lifecycle hooks
-18. Enhanced profiling (ideal for plugin)
-19. Debug visualization tools (ideal for plugin)
+10. Network synchronization (ideal for plugin)
+11. Replay system (ideal for plugin)
+12. Entity inspector (ideal for plugin)
+13. Enhanced profiling (ideal for plugin)
+14. Debug visualization tools (ideal for plugin)
+15. Resource management (ideal for plugin)
 
 ---
 

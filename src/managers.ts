@@ -342,17 +342,20 @@ export class SystemManager {
         this.ensureSorted();
 
         // First, execute systems in groups (sorted by group priority)
-        const sortedGroups = Array.from(this.groups.values()).toSorted(
-            (a, b) => b.priority - a.priority
-        );
+        // eslint-disable-next-line unicorn/no-array-method-this-argument -- Node 18 compatibility: toSorted() not available
+        const sortedGroups = Array.from(this.groups.values())
+            .slice()
+            .sort((a, b) => b.priority - a.priority);
 
         for (const group of sortedGroups) {
             if (!group.enabled) continue;
 
             // Execute systems in this group that are variable update systems (sorted by system priority)
+            // eslint-disable-next-line unicorn/no-array-method-this-argument -- Node 18 compatibility: toSorted() not available
             const groupSystems = group.systems
-                .filter((s) => this.systems.includes(s)) // Only variable update systems
-                .toSorted((a, b) => b.priority - a.priority);
+                .filter((s) => this.systems.includes(s))
+                .slice()
+                .sort((a, b) => b.priority - a.priority);
 
             for (const system of groupSystems) {
                 system.step(deltaTime);
@@ -378,17 +381,20 @@ export class SystemManager {
             iterations < this.maxFixedIterations
         ) {
             // First, execute systems in groups (sorted by group priority)
-            const sortedGroups = Array.from(this.groups.values()).toSorted(
-                (a, b) => b.priority - a.priority
-            );
+            // eslint-disable-next-line unicorn/no-array-method-this-argument -- Node 18 compatibility: toSorted() not available
+            const sortedGroups = Array.from(this.groups.values())
+                .slice()
+                .sort((a, b) => b.priority - a.priority);
 
             for (const group of sortedGroups) {
                 if (!group.enabled) continue;
 
                 // Execute systems in this group that are fixed update systems (sorted by system priority)
+                // eslint-disable-next-line unicorn/no-array-method-this-argument -- Node 18 compatibility: toSorted() not available
                 const groupSystems = group.systems
-                    .filter((s) => this.fixedUpdateSystems.includes(s)) // Only fixed update systems
-                    .toSorted((a, b) => b.priority - a.priority);
+                    .filter((s) => this.fixedUpdateSystems.includes(s))
+                    .slice()
+                    .sort((a, b) => b.priority - a.priority);
 
                 for (const system of groupSystems) {
                     system.step(this.fixedUpdateInterval);

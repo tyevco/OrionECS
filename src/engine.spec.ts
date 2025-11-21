@@ -657,6 +657,169 @@ describe('Engine v2 - Composition Architecture', () => {
             const entity = engine.createFromPrefab('NonExistent');
             expect(entity).toBeNull();
         });
+
+        test('should support parameterized prefabs', () => {
+            // Register a parameterized prefab (function)
+            engine.registerPrefab('Enemy', (params: { type: string; level: number }) => ({
+                name: `${params.type}Enemy`,
+                components: [
+                    { type: Position, args: [0, 0] },
+                    { type: Health, args: [50 * params.level, 50 * params.level] },
+                    { type: Damage, args: [10 * params.level] },
+                ],
+                tags: ['enemy', params.type],
+            }));
+
+            // Create entity with parameters
+            const goblin = engine.createFromPrefab('Enemy', 'Goblin1', {
+                type: 'Goblin',
+                level: 5,
+            });
+            expect(goblin).toBeDefined();
+            expect(goblin?.name).toBe('Goblin1');
+            expect(goblin?.hasComponent(Health)).toBe(true);
+            expect(goblin?.getComponent(Health).current).toBe(250);
+            expect(goblin?.getComponent(Health).max).toBe(250);
+            expect(goblin?.getComponent(Damage).value).toBe(50);
+            expect(goblin?.hasTag('enemy')).toBe(true);
+            expect(goblin?.hasTag('Goblin')).toBe(true);
+
+            // Create another entity with different parameters
+            const boss = engine.createFromPrefab('Enemy', 'Boss1', { type: 'Boss', level: 10 });
+            expect(boss).toBeDefined();
+            expect(boss?.getComponent(Health).current).toBe(500);
+            expect(boss?.getComponent(Damage).value).toBe(100);
+            expect(boss?.hasTag('Boss')).toBe(true);
+        });
+
+        test('should extend prefabs', () => {
+            // Register base prefab
+            engine.registerPrefab('BasicEnemy', {
+                name: 'BasicEnemy',
+                components: [
+                    { type: Position, args: [0, 0] },
+                    { type: Health, args: [100, 100] },
+                ],
+                tags: ['enemy'],
+            });
+
+            // Extend the base prefab
+            const bossPrefab = engine.extendPrefab('BasicEnemy', {
+                name: 'Boss',
+                components: [{ type: Damage, args: [50] }],
+                tags: ['boss'],
+            });
+
+            // Register extended prefab
+            engine.registerPrefab('Boss', bossPrefab);
+
+            // Create entity from extended prefab
+            const boss = engine.createFromPrefab('Boss', 'BossEnemy');
+            expect(boss).toBeDefined();
+            expect(boss?.hasComponent(Position)).toBe(true);
+            expect(boss?.hasComponent(Health)).toBe(true);
+            expect(boss?.hasComponent(Damage)).toBe(true);
+            expect(boss?.getComponent(Damage).value).toBe(50);
+            expect(boss?.hasTag('enemy')).toBe(true);
+            expect(boss?.hasTag('boss')).toBe(true);
+        });
+
+        test('should create prefab variants with component overrides', () => {
+            // Register base prefab
+            engine.registerPrefab('BasicEnemy', {
+                name: 'BasicEnemy',
+                components: [
+                    { type: Position, args: [0, 0] },
+                    { type: Health, args: [100, 100] },
+                    { type: Velocity, args: [1, 1] },
+                ],
+                tags: ['enemy'],
+            });
+
+            // Create variant with overridden component values
+            const fastEnemyPrefab = engine.variantOfPrefab('BasicEnemy', {
+                Position: { x: 100, y: 100 },
+                Health: { current: 50, max: 50 },
+                Velocity: { x: 3, y: 3 },
+            });
+
+            // Register variant prefab
+            engine.registerPrefab('FastEnemy', fastEnemyPrefab);
+
+            // Create entity from variant prefab
+            const fastEnemy = engine.createFromPrefab('FastEnemy', 'FastEnemy1');
+            expect(fastEnemy).toBeDefined();
+            expect(fastEnemy?.getComponent(Position).x).toBe(100);
+            expect(fastEnemy?.getComponent(Position).y).toBe(100);
+            expect(fastEnemy?.getComponent(Health).current).toBe(50);
+            expect(fastEnemy?.getComponent(Health).max).toBe(50);
+            expect(fastEnemy?.getComponent(Velocity).x).toBe(3);
+            expect(fastEnemy?.getComponent(Velocity).y).toBe(3);
+            expect(fastEnemy?.hasTag('enemy')).toBe(true);
+        });
+
+        test('should throw error when extending non-existent prefab', () => {
+            expect(() => {
+                engine.extendPrefab('DoesNotExist', {
+                    components: [{ type: Position, args: [0, 0] }],
+                });
+            }).toThrow(/not found/i);
+        });
+
+        test('should throw error when creating variant of non-existent prefab', () => {
+            expect(() => {
+                engine.variantOfPrefab('DoesNotExist', {
+                    Position: { x: 10, y: 10 },
+                });
+            }).toThrow(/not found/i);
+        });
+
+        test('should handle parameterized prefabs without parameters', () => {
+            // Register parameterized prefab with default values
+            engine.registerPrefab('DefaultEnemy', (params: { level: number } = { level: 1 }) => ({
+                name: 'DefaultEnemy',
+                components: [
+                    { type: Position, args: [0, 0] },
+                    { type: Health, args: [100 * params.level, 100 * params.level] },
+                ],
+                tags: ['enemy'],
+            }));
+
+            // Create entity without parameters (should use defaults)
+            const enemy = engine.createFromPrefab('DefaultEnemy', 'DefaultEnemy1');
+            expect(enemy).toBeDefined();
+            expect(enemy?.getComponent(Health).current).toBe(100);
+            expect(enemy?.getComponent(Health).max).toBe(100);
+        });
+
+        test('should preserve parent reference in extended prefabs', () => {
+            engine.registerPrefab('Base', {
+                name: 'Base',
+                components: [{ type: Position, args: [0, 0] }],
+                tags: ['base'],
+            });
+
+            const extended = engine.extendPrefab('Base', {
+                name: 'Extended',
+                tags: ['extended'],
+            });
+
+            expect(extended.parent).toBe('Base');
+        });
+
+        test('should preserve parent reference in variant prefabs', () => {
+            engine.registerPrefab('Base', {
+                name: 'Base',
+                components: [{ type: Position, args: [0, 0] }],
+                tags: ['base'],
+            });
+
+            const variant = engine.variantOfPrefab('Base', {
+                Position: { x: 10, y: 10 },
+            });
+
+            expect(variant.parent).toBe('Base');
+        });
     });
 
     describe('Snapshot System', () => {

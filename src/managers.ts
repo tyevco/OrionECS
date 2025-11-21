@@ -18,6 +18,7 @@ import type {
     ComponentValidator,
     EntityPrefab,
     PoolStats,
+    PrefabDefinition,
     QueryOptions,
     SerializedWorld,
     SystemMessage,
@@ -490,22 +491,122 @@ export class QueryManager {
  * Manages prefab registration and instantiation
  */
 export class PrefabManager {
-    private prefabs: Map<string, EntityPrefab> = new Map();
+    private prefabs: Map<string, PrefabDefinition> = new Map();
 
-    register(name: string, prefab: EntityPrefab): void {
+    /**
+     * Register a prefab (static or parameterized)
+     */
+    register(name: string, prefab: PrefabDefinition): void {
         this.prefabs.set(name, prefab);
     }
 
-    get(name: string): EntityPrefab | undefined {
-        return this.prefabs.get(name);
+    /**
+     * Get a prefab by name, optionally passing parameters for function-based prefabs
+     */
+    get(name: string, params?: any): EntityPrefab | undefined {
+        const prefabDef = this.prefabs.get(name);
+        if (!prefabDef) return undefined;
+
+        // If it's a function, call it with params
+        if (typeof prefabDef === 'function') {
+            return prefabDef(params);
+        }
+
+        return prefabDef;
     }
 
     has(name: string): boolean {
         return this.prefabs.has(name);
     }
 
-    getAllPrefabs(): Map<string, EntityPrefab> {
+    getAllPrefabs(): Map<string, PrefabDefinition> {
         return new Map(this.prefabs);
+    }
+
+    /**
+     * Create a new prefab that extends a base prefab
+     */
+    extendPrefab(baseName: string, extensions: Partial<EntityPrefab>): EntityPrefab {
+        const base = this.get(baseName);
+        if (!base) {
+            throw new Error(`Base prefab '${baseName}' not found`);
+        }
+
+        return {
+            name: extensions.name || base.name,
+            components: [...base.components, ...(extensions.components || [])],
+            tags: [...(base.tags || []), ...(extensions.tags || [])],
+            children: extensions.children || base.children,
+            parent: baseName,
+        };
+    }
+
+    /**
+     * Create a variant of a prefab with overridden component values
+     */
+    variantOfPrefab(baseName: string, overrides: Record<string, any>): EntityPrefab {
+        const base = this.get(baseName);
+        if (!base) {
+            throw new Error(`Base prefab '${baseName}' not found`);
+        }
+
+        // Clone base prefab and apply component overrides
+        const variant: EntityPrefab = {
+            name: base.name,
+            components: base.components.map((comp) => {
+                const override = overrides[comp.type.name];
+                if (override) {
+                    // If override is an array, use it directly as args
+                    if (Array.isArray(override)) {
+                        return {
+                            type: comp.type,
+                            args: override,
+                        };
+                    }
+
+                    // If override is an object, create instance and apply overrides
+                    if (typeof override === 'object') {
+                        // Create temporary instance with original args
+                        const tempInstance = new comp.type(...comp.args);
+
+                        // Apply overrides to the instance
+                        Object.assign(tempInstance, override);
+
+                        // Extract values as args array
+                        // Reconstruct args from the modified instance
+                        const newArgs = comp.args.map((arg, idx) => {
+                            // Try to get the property value from the instance
+                            const keys = Object.keys(tempInstance);
+                            if (keys[idx] !== undefined) {
+                                return (tempInstance as any)[keys[idx]];
+                            }
+                            return arg;
+                        });
+
+                        return {
+                            type: comp.type,
+                            args: newArgs,
+                        };
+                    }
+
+                    // For primitive overrides, replace first arg
+                    return {
+                        type: comp.type,
+                        args: [override, ...comp.args.slice(1)],
+                    };
+                }
+                // No override, return copy of original
+                return {
+                    type: comp.type,
+                    args: [...comp.args],
+                };
+            }),
+            tags: [...(base.tags || [])],
+            children: base.children,
+            parent: baseName,
+        };
+
+        return variant;
     }
 }
 

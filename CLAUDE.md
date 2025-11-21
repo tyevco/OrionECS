@@ -16,20 +16,20 @@ Orion ECS is a comprehensive Entity Component System (ECS) framework written in 
 ### Composition-Based Architecture (v2.0)
 
 The implementation uses focused managers for separation of concerns:
-- **EngineBuilder** (`src/engine.ts`): Fluent builder for composing an Engine from managers
-- **Engine** (`src/engine.ts`): Main facade providing a clean API over specialized managers
-- **Core Components** (`src/core.ts`): Entity, Query, System, EventEmitter, PerformanceMonitor, EntityManager
-- **Managers** (`src/managers.ts`): ComponentManager, SystemManager, QueryManager, PrefabManager, SnapshotManager, MessageManager
+- **EngineBuilder** (`core/src/engine.ts`): Fluent builder for composing an Engine from managers
+- **Engine** (`core/src/engine.ts`): Main facade providing a clean API over specialized managers
+- **Core Components** (`core/src/core.ts`): Entity, Query, System, EventEmitter, PerformanceMonitor, EntityManager
+- **Managers** (`core/src/managers.ts`): ComponentManager, SystemManager, QueryManager, PrefabManager, SnapshotManager, MessageManager
 
 ## Core Architecture
 
 ### Main Files
 
-**src/engine.ts** - Engine facade and builder
+**core/src/engine.ts** - Engine facade and builder
 - `EngineBuilder`: Fluent API for configuring and building an Engine instance
 - `Engine`: Main class providing a clean API over the manager-based architecture
 
-**src/core.ts** - Core ECS components
+**core/src/core.ts** - Core ECS components
 - `Entity`: Full-featured entities with hierarchy, tags, and serialization
 - `System`: Advanced systems with profiling, priority, and lifecycle hooks
 - `Query`: Advanced query system with ALL/ANY/NOT and tag support
@@ -39,7 +39,7 @@ The implementation uses focused managers for separation of concerns:
 - `PerformanceMonitor`: Frame time tracking and statistics
 - `EntityManager`: Entity lifecycle and pooling management
 
-**src/managers.ts** - Specialized manager classes
+**core/src/managers.ts** - Specialized manager classes
 - `ComponentManager`: Component registration, validation, and storage
 - `SystemManager`: System execution, profiling, and fixed/variable update handling
 - `QueryManager`: Query creation and entity matching
@@ -113,16 +113,43 @@ Entity lifecycle is managed through advanced object pooling to minimize garbage 
 
 ### Testing Details
 - Tests use Jest with ts-jest preset
-- Main engine tests: `src/engine.spec.ts`
+- Main engine tests: `core/src/engine.spec.ts`
 - Benchmarks: `**/*.bench.ts` files in `/benchmarks/` directory
 - Benchmark config uses specialized jest-bench environment for performance testing
 
-### Implementation Files
-- `src/engine.ts` - Engine facade and EngineBuilder for composition-based architecture
-- `src/core.ts` - Core ECS components (Entity, Query, System, EventEmitter, etc.)
-- `src/managers.ts` - Focused manager classes for separation of concerns
-- `src/definitions.ts` - TypeScript interfaces and type definitions
-- `src/index.ts` - Public API exports
+### Repository Structure
+The repository uses a monorepo structure with npm workspaces:
+
+- Root `/` - Workspace coordinator
+  - `package.json` - Workspace configuration and shared scripts
+  - `.husky/`, linter configs - Repository-level tooling
+  - `benchmarks/` - Performance benchmarks
+  - `examples/` - Example games and integrations
+
+- `core/` - Core OrionECS engine package
+  - `package.json` - Core package configuration
+  - `tsconfig.json` - Core TypeScript configuration
+  - `tsup.config.ts` - Core build configuration
+  - `jest.config.js` - Core test configuration
+  - `src/` - Core implementation
+    - `engine.ts` - Engine facade and EngineBuilder
+    - `core.ts` - Core ECS components (Entity, Query, System, etc.)
+    - `managers.ts` - Specialized manager classes
+    - `definitions.ts` - TypeScript interfaces and type definitions
+    - `index.ts` - Public API exports
+    - `engine.spec.ts` - Comprehensive test suite
+
+- `plugins/` - Official OrionECS plugins (each can be a separate package)
+  - `physics/src/PhysicsPlugin.ts` - Rigid body dynamics
+  - `spatial-partition/src/SpatialPartitionPlugin.ts` - Collision detection
+  - `debug-visualizer/src/DebugVisualizerPlugin.ts` - Debug tools
+  - `profiling/src/ProfilingPlugin.ts` - Performance metrics
+  - `resource-manager/src/ResourceManagerPlugin.ts` - Asset management
+  - Each plugin directory ready for its own `package.json`
+
+- `examples/` - Sample applications
+  - `games/` - Complete game examples (Asteroids, Platformer)
+  - `integrations/` - Framework integrations (Pixi.js)
 
 ## Code Patterns
 
@@ -221,10 +248,10 @@ const debugInfo = engine.getDebugInfo();
 Orion ECS features a powerful plugin architecture for extending functionality without modifying core code.
 
 **Plugin Architecture Notes:**
-- Plugins implement the `EnginePlugin` interface (`src/definitions.ts`)
+- Plugins implement the `EnginePlugin` interface (`core/src/definitions.ts`)
 - Use `PluginContext` for sandboxed access to engine features
 - Register plugins via `EngineBuilder.use(plugin)` before building
-- Plugins installed during engine construction (see `src/engine.ts` EngineBuilder)
+- Plugins installed during engine construction (see `core/src/engine.ts` EngineBuilder)
 - Custom APIs added via `context.extend()` become properties on engine instance
 
 **Implementation Pattern:**
@@ -254,7 +281,7 @@ const engine = new EngineBuilder()
 - **Integrations**: Rendering engines (Pixi.js, Three.js), UI frameworks
 - **Development Tools**: Debuggers, visualizers, profilers
 
-**Reference Implementation:** See `examples/PhysicsPlugin.ts` for a complete, tested plugin example.
+**Reference Implementation:** See `plugins/physics/src/PhysicsPlugin.ts` for a complete, tested plugin example.
 
 **For detailed plugin API and examples, see README.md Plugin System section.**
 

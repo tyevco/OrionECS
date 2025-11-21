@@ -9,7 +9,7 @@
  * - Query performance analysis
  */
 
-import type { EnginePlugin, PluginContext, EntityDef, SystemProfile, QueryStats } from '../src/index';
+import type { EnginePlugin, PluginContext, EntityDef, SystemProfile, QueryStats } from '../../../core/src/index';
 
 /**
  * Debug API that will be added to the engine

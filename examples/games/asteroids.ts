@@ -12,8 +12,8 @@
  * - Tag-based entity management
  */
 
-import { EngineBuilder } from '../../src/engine';
-import type { EntityDef } from '../../src/definitions';
+import { EngineBuilder } from '../../core/src/engine';
+import type { EntityDef } from '../../core/src/definitions';
 
 // ============================================================================
 // Components

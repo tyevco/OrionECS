@@ -174,7 +174,7 @@ export class SystemManager {
         return group;
     }
 
-    createSystem<C extends any[] = any[]>(
+    createSystem<C extends readonly any[] = any[]>(
         system: System<C>,
         isFixedUpdate: boolean = false
     ): System<C> {
@@ -460,7 +460,7 @@ export class SystemManager {
 export class QueryManager {
     private queries: Query<any>[] = [];
 
-    createQuery<C extends any[] = any[]>(options: QueryOptions): Query<C> {
+    createQuery<C extends readonly any[] = any[]>(options: QueryOptions<any>): Query<C> {
         const query = new Query<C>(options);
         this.queries.push(query);
         return query;

@@ -1,6 +1,14 @@
 export type ComponentIdentifier<T = any> = new (...args: any[]) => T;
 export type ComponentArgs<T> = T extends new (...args: infer A) => any ? A : never;
 
+// Extract instance type from ComponentIdentifier
+export type ComponentInstance<T> = T extends ComponentIdentifier<infer I> ? I : never;
+
+// Map array of ComponentIdentifiers to their instance types
+export type ComponentTypes<T extends readonly ComponentIdentifier[]> = {
+    [K in keyof T]: T[K] extends ComponentIdentifier<infer I> ? I : never;
+};
+
 export type EventTypes<T = any> = string | symbol | keyof T;
 export type EventCallback<T = void> = (...args: any[]) => T;
 
@@ -12,8 +20,8 @@ export interface ComponentLifecycle {
 }
 
 // Enhanced system options with profiling and lifecycle hooks
-export interface SystemOptions<C extends any[] = any[]> {
-    act?: (entity: EntityDef, ...components: { [K in keyof C]: C[K] }) => void;
+export interface SystemOptions<C extends readonly any[] = any[]> {
+    act?: (entity: EntityDef, ...components: C) => void;
     before?: () => void;
     after?: () => void;
     priority?: number;
@@ -24,7 +32,7 @@ export interface SystemOptions<C extends any[] = any[]> {
     runBefore?: string[];
 }
 
-export type SystemType<T extends any[] = any[]> = SystemOptions<T> & Partial<EngineEvents>;
+export type SystemType<T extends readonly any[] = any[]> = SystemOptions<T> & Partial<EngineEvents>;
 
 // Enhanced engine events
 export interface EngineEvents {
@@ -72,8 +80,8 @@ export interface EntityDef {
 }
 
 // Query system enhancements
-export interface QueryOptions {
-    all?: ComponentIdentifier[];
+export interface QueryOptions<All extends readonly ComponentIdentifier[] = ComponentIdentifier[]> {
+    all?: All;
     any?: ComponentIdentifier[];
     none?: ComponentIdentifier[];
     tags?: string[];
@@ -167,15 +175,15 @@ export interface PluginContext {
     ): void;
 
     // System creation
-    createSystem<C extends any[] = any[]>(
+    createSystem<All extends readonly ComponentIdentifier[]>(
         name: string,
-        queryOptions: QueryOptions,
-        options: SystemType<C>,
+        queryOptions: QueryOptions<All>,
+        options: SystemType<ComponentTypes<All>>,
         isFixedUpdate?: boolean
-    ): any; // System<C>
+    ): any; // System<ComponentTypes<All>>
 
     // Query creation
-    createQuery<_C extends any[] = any[]>(options: QueryOptions): any; // Query<C>
+    createQuery<All extends readonly ComponentIdentifier[]>(options: QueryOptions<All>): any; // Query<ComponentTypes<All>>
 
     // Prefab registration and management
     registerPrefab(name: string, prefab: EntityPrefab): void;

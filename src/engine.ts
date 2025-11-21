@@ -15,6 +15,7 @@ import {
 import type {
     ComponentIdentifier,
     ComponentPoolOptions,
+    ComponentTypes,
     ComponentValidator,
     EnginePlugin,
     EntityPrefab,
@@ -349,14 +350,14 @@ export class Engine {
         this.systemManager.disableGroup(name);
     }
 
-    createSystem<C extends any[] = any[]>(
+    createSystem<All extends readonly ComponentIdentifier[]>(
         name: string,
-        queryOptions: QueryOptions,
-        options: SystemType<C>,
+        queryOptions: QueryOptions<All>,
+        options: SystemType<ComponentTypes<All>>,
         isFixedUpdate: boolean = false
-    ): System<C> {
-        const query = this.queryManager.createQuery<C>(queryOptions);
-        const system = new System<C>(name, query, options);
+    ): System<ComponentTypes<All>> {
+        const query = this.queryManager.createQuery<ComponentTypes<All>>(queryOptions);
+        const system = new System<ComponentTypes<All>>(name, query, options);
 
         // Update new query with all existing entities
         for (const entity of this.entityManager.getAllEntities()) {
@@ -376,8 +377,10 @@ export class Engine {
 
     // ========== Query Management ==========
 
-    createQuery<C extends any[] = any[]>(options: QueryOptions): Query<C> {
-        const query = this.queryManager.createQuery<C>(options);
+    createQuery<All extends readonly ComponentIdentifier[]>(
+        options: QueryOptions<All>
+    ): Query<ComponentTypes<All>> {
+        const query = this.queryManager.createQuery<ComponentTypes<All>>(options);
 
         // Update new query with all existing entities
         for (const entity of this.entityManager.getAllEntities()) {
@@ -391,8 +394,10 @@ export class Engine {
      * Create a fluent query builder
      * @returns QueryBuilder instance for constructing queries with a fluent API
      */
-    query<C extends any[] = any[]>(): QueryBuilder<C> {
-        return new QueryBuilder<C>((options: QueryOptions) => this.createQuery<C>(options));
+    query<C extends readonly any[] = any[]>(): QueryBuilder<C> {
+        return new QueryBuilder<C>((options: QueryOptions<any>) => {
+            return this.queryManager.createQuery<C>(options);
+        });
     }
 
     /**
@@ -838,15 +843,17 @@ export class Engine {
             ): void => {
                 this.registerComponentValidator(type, validator);
             },
-            createSystem: <C extends any[] = any[]>(
+            createSystem: <All extends readonly ComponentIdentifier[]>(
                 name: string,
-                queryOptions: QueryOptions,
-                options: SystemType<C>,
+                queryOptions: QueryOptions<All>,
+                options: SystemType<ComponentTypes<All>>,
                 isFixedUpdate: boolean = false
             ): any => {
                 return this.createSystem(name, queryOptions, options, isFixedUpdate);
             },
-            createQuery: <_C extends any[] = any[]>(options: QueryOptions): any => {
+            createQuery: <All extends readonly ComponentIdentifier[]>(
+                options: QueryOptions<All>
+            ): any => {
                 return this.createQuery(options);
             },
             registerPrefab: (name: string, prefab: EntityPrefab): void => {

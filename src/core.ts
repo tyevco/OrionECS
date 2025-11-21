@@ -136,7 +136,7 @@ export class ComponentArray<T> {
 /**
  * Query for finding entities with specific components and tags
  */
-export class Query<C extends any[] = any[]> {
+export class Query<C extends readonly any[] = any[]> {
     private matchingEntities: Set<Entity> = new Set();
     private cachedArray: Entity[] = [];
     private cacheVersion: number = 0;
@@ -148,16 +148,18 @@ export class Query<C extends any[] = any[]> {
     private _lastMatchCount: number = 0;
     private _cacheHits: number = 0;
 
-    constructor(public options: QueryOptions) {}
+    constructor(public options: QueryOptions<any>) {}
 
     private test(entity: Entity): boolean {
         const { all = [], any = [], none = [], tags = [], withoutTags = [] } = this.options;
 
-        if (all.length > 0 && !all.every((type) => entity.hasComponent(type))) return false;
-        if (any.length > 0 && !any.some((type) => entity.hasComponent(type))) return false;
-        if (none.some((type) => entity.hasComponent(type))) return false;
-        if (tags.length > 0 && !tags.every((tag) => entity.hasTag(tag))) return false;
-        if (withoutTags.some((tag) => entity.hasTag(tag))) return false;
+        if (all.length > 0 && !all.every((type: ComponentIdentifier) => entity.hasComponent(type)))
+            return false;
+        if (any.length > 0 && !any.some((type: ComponentIdentifier) => entity.hasComponent(type)))
+            return false;
+        if (none.some((type: ComponentIdentifier) => entity.hasComponent(type))) return false;
+        if (tags.length > 0 && !tags.every((tag: string) => entity.hasTag(tag))) return false;
+        if (withoutTags.some((tag: string) => entity.hasTag(tag))) return false;
 
         return true;
     }
@@ -260,10 +262,10 @@ export class Query<C extends any[] = any[]> {
 /**
  * Fluent query builder for constructing complex queries
  */
-export class QueryBuilder<C extends any[] = any[]> {
-    private options: QueryOptions = {};
+export class QueryBuilder<C extends readonly any[] = any[]> {
+    private options: QueryOptions<any> = {};
 
-    constructor(private createQueryFn: (options: QueryOptions) => Query<C>) {}
+    constructor(private createQueryFn: (options: QueryOptions<any>) => Query<C>) {}
 
     /**
      * Add components that entities must have
@@ -600,7 +602,7 @@ export class SystemGroup {
 /**
  * System for processing entities with specific components
  */
-export class System<C extends any[] = any[]> {
+export class System<C extends readonly any[] = any[]> {
     private query: Query<C>;
     private _enabled: boolean = true;
     private _priority: number = 0;

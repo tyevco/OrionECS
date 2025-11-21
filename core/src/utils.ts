@@ -30,7 +30,9 @@ import type { ComponentIdentifier } from './definitions';
 export function createTagComponent(name: string): ComponentIdentifier<any> {
     // Create a unique class for this tag
     // Using class expression with a computed name
+    // eslint-disable-next-line @typescript-eslint/no-extraneous-class -- Tag components are marker classes by design
     const TagClass = {
+        // biome-ignore lint/complexity/noStaticOnlyClass: Tag components are marker classes by design
         [name]: class {
             static readonly __tagName = name;
         },

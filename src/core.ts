@@ -139,9 +139,9 @@ export class Query<C extends any[] = any[]> {
 
         if (all.length > 0 && !all.every(type => entity.hasComponent(type))) return false;
         if (any.length > 0 && !any.some(type => entity.hasComponent(type))) return false;
-        if (none.length > 0 && none.some(type => entity.hasComponent(type))) return false;
+        if (none.some(type => entity.hasComponent(type))) return false;
         if (tags.length > 0 && !tags.every(tag => entity.hasTag(tag))) return false;
-        if (withoutTags.length > 0 && withoutTags.some(tag => entity.hasTag(tag))) return false;
+        if (withoutTags.some(tag => entity.hasTag(tag))) return false;
 
         return true;
     }

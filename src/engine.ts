@@ -656,52 +656,51 @@ export class Engine {
      * Create a plugin context for a plugin to use during installation
      */
     private createPluginContext(): PluginContext {
-        const self = this;
         return {
-            registerComponent<T>(type: ComponentIdentifier<T>): void {
-                self.registerComponent(type);
+            registerComponent: <T>(type: ComponentIdentifier<T>): void => {
+                this.registerComponent(type);
             },
-            registerComponentValidator<T>(type: ComponentIdentifier<T>, validator: ComponentValidator<T>): void {
-                self.registerComponentValidator(type, validator);
+            registerComponentValidator: <T>(type: ComponentIdentifier<T>, validator: ComponentValidator<T>): void => {
+                this.registerComponentValidator(type, validator);
             },
-            createSystem<C extends any[] = any[]>(
+            createSystem: <C extends any[] = any[]>(
                 name: string,
                 queryOptions: QueryOptions,
                 options: SystemType<C>,
                 isFixedUpdate: boolean = false
-            ): any {
-                return self.createSystem(name, queryOptions, options, isFixedUpdate);
+            ): any => {
+                return this.createSystem(name, queryOptions, options, isFixedUpdate);
             },
-            createQuery<C extends any[] = any[]>(options: QueryOptions): any {
-                return self.createQuery(options);
+            createQuery: <_C extends any[] = any[]>(options: QueryOptions): any => {
+                return this.createQuery(options);
             },
-            registerPrefab(name: string, prefab: EntityPrefab): void {
-                self.registerPrefab(name, prefab);
+            registerPrefab: (name: string, prefab: EntityPrefab): void => {
+                this.registerPrefab(name, prefab);
             },
-            on(event: string, callback: Function): () => void {
-                return self.on(event, callback);
+            on: (event: string, callback: Function): (() => void) => {
+                return this.on(event, callback);
             },
-            emit(event: string, ...args: any[]): void {
-                self.emit(event, ...args);
+            emit: (event: string, ...args: any[]): void => {
+                this.emit(event, ...args);
             },
             messageBus: {
-                subscribe(messageType: string, callback: (message: any) => void): () => void {
-                    return self.messageBus.subscribe(messageType, callback);
+                subscribe: (messageType: string, callback: (message: any) => void): (() => void) => {
+                    return this.messageBus.subscribe(messageType, callback);
                 },
-                publish(messageType: string, data: any, sender?: string): void {
-                    self.messageBus.publish(messageType, data, sender);
+                publish: (messageType: string, data: any, sender?: string): void => {
+                    this.messageBus.publish(messageType, data, sender);
                 }
             },
-            extend<T extends object>(extensionName: string, api: T): void {
-                if (self.extensions.has(extensionName)) {
+            extend: <T extends object>(extensionName: string, api: T): void => {
+                if (this.extensions.has(extensionName)) {
                     throw new Error(`Extension '${extensionName}' already exists`);
                 }
-                self.extensions.set(extensionName, api);
+                this.extensions.set(extensionName, api);
                 // Dynamically add extension to engine instance
-                (self as any)[extensionName] = api;
+                (this as any)[extensionName] = api;
             },
-            getEngine(): any {
-                return self;
+            getEngine: (): any => {
+                return this;
             }
         };
     }

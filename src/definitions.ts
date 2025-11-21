@@ -2,7 +2,7 @@
 export type ComponentIdentifier<T = any> = (new (...args: any[]) => T);
 export type ComponentArgs<T> = T extends new (...args: infer A) => any ? A : never;
 
-export type EventTypes<T = any> = string | Symbol | keyof T;
+export type EventTypes<T = any> = string | symbol | keyof T;
 export type EventCallback<T = void> = ((...args: any[]) => T);
 
 // Enhanced system options with profiling and lifecycle hooks
@@ -147,7 +147,7 @@ export interface PluginContext {
     ): any; // System<C>
 
     // Query creation
-    createQuery<C extends any[] = any[]>(options: QueryOptions): any; // Query<C>
+    createQuery<_C extends any[] = any[]>(options: QueryOptions): any; // Query<C>
 
     // Prefab registration
     registerPrefab(name: string, prefab: EntityPrefab): void;

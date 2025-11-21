@@ -1,9 +1,8 @@
-
-export type ComponentIdentifier<T = any> = (new (...args: any[]) => T);
+export type ComponentIdentifier<T = any> = new (...args: any[]) => T;
 export type ComponentArgs<T> = T extends new (...args: infer A) => any ? A : never;
 
 export type EventTypes<T = any> = string | symbol | keyof T;
-export type EventCallback<T = void> = ((...args: any[]) => T);
+export type EventCallback<T = void> = (...args: any[]) => T;
 
 // Enhanced system options with profiling and lifecycle hooks
 export interface SystemOptions<C extends any[] = any[]> {
@@ -31,7 +30,13 @@ export interface EngineEvents {
     onSceneChanged: EventCallback;
 }
 
-export type EngineEventNames = keyof EngineEvents | 'onEntityCreated' | 'onEntityReleased' | 'onComponentAdded' | 'onComponentRemoved' | 'onEntityHierarchyChanged';
+export type EngineEventNames =
+    | keyof EngineEvents
+    | 'onEntityCreated'
+    | 'onEntityReleased'
+    | 'onComponentAdded'
+    | 'onComponentRemoved'
+    | 'onEntityHierarchyChanged';
 
 // Enhanced entity interface
 export interface EntityDef {
@@ -41,7 +46,10 @@ export interface EntityDef {
     children: EntityDef[];
     tags: Set<string>;
     queueFree(): void;
-    addComponent<T>(type: new (...args: any[]) => T, ...args: ConstructorParameters<typeof type>): this;
+    addComponent<T>(
+        type: new (...args: any[]) => T,
+        ...args: ConstructorParameters<typeof type>
+    ): this;
     removeComponent<T>(type: new (...args: any[]) => T): this;
     hasComponent<T>(type: new (...args: any[]) => T): boolean;
     getComponent<T>(type: new (...args: any[]) => T): T;
@@ -136,7 +144,10 @@ export interface SystemMessage {
 export interface PluginContext {
     // Component registration
     registerComponent<T>(type: ComponentIdentifier<T>): void;
-    registerComponentValidator<T>(type: ComponentIdentifier<T>, validator: ComponentValidator<T>): void;
+    registerComponentValidator<T>(
+        type: ComponentIdentifier<T>,
+        validator: ComponentValidator<T>
+    ): void;
 
     // System creation
     createSystem<C extends any[] = any[]>(
@@ -153,7 +164,7 @@ export interface PluginContext {
     registerPrefab(name: string, prefab: EntityPrefab): void;
 
     // Event system
-    on(event: string, callback: Function): () => void;
+    on(event: string, callback: (...args: any[]) => void): () => void;
     emit(event: string, ...args: any[]): void;
 
     // Message bus

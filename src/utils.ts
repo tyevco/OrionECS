@@ -33,14 +33,14 @@ export function createTagComponent(name: string): ComponentIdentifier<any> {
     const TagClass = {
         [name]: class {
             static readonly __tagName = name;
-        }
+        },
     }[name];
 
     // Set the class name for debugging and type checking
     Object.defineProperty(TagClass, 'name', {
         value: name,
         writable: false,
-        configurable: true
+        configurable: true,
     });
 
     return TagClass as ComponentIdentifier<any>;

@@ -3,19 +3,26 @@
  * Each manager handles a single responsibility
  */
 
+import {
+    ComponentArray,
+    type Entity,
+    MessageBus,
+    Pool,
+    Query,
+    type System,
+    SystemGroup,
+} from './core';
 import type {
     ComponentIdentifier,
+    ComponentPoolOptions,
     ComponentValidator,
-    QueryOptions,
-    SystemProfile,
     EntityPrefab,
+    PoolStats,
+    QueryOptions,
     SerializedWorld,
     SystemMessage,
-    ComponentPoolOptions,
-    PoolStats
-} from "./definitions";
-
-import { Entity, Query, System, ComponentArray, Pool, MessageBus, SystemGroup } from "./core";
+    SystemProfile,
+} from './definitions';
 
 // Constants
 const MAX_MESSAGE_HISTORY = 1000;
@@ -25,8 +32,8 @@ const MAX_SNAPSHOTS = 10;
  * Manages component storage, validation, and registration
  */
 export class ComponentManager {
-    private componentArrays: Map<Function, ComponentArray<any>> = new Map();
-    private validators: Map<Function, ComponentValidator> = new Map();
+    private componentArrays: Map<ComponentIdentifier, ComponentArray<any>> = new Map();
+    private validators: Map<ComponentIdentifier, ComponentValidator> = new Map();
     private registry: Map<string, ComponentIdentifier> = new Map();
     private componentPools: Map<ComponentIdentifier, Pool<any>> = new Map();
 
@@ -57,14 +64,17 @@ export class ComponentManager {
         return this.registry.get(name);
     }
 
-    getAllComponentArrays(): Map<Function, ComponentArray<any>> {
+    getAllComponentArrays(): Map<ComponentIdentifier, ComponentArray<any>> {
         return this.componentArrays;
     }
 
     /**
      * Register a component pool for object reuse
      */
-    registerComponentPool<T extends object>(type: ComponentIdentifier<T>, options: ComponentPoolOptions = {}): void {
+    registerComponentPool<T extends object>(
+        type: ComponentIdentifier<T>,
+        options: ComponentPoolOptions = {}
+    ): void {
         const { initialSize = 10, maxSize = 1000 } = options;
 
         // Create pool with factory and reset function
@@ -150,10 +160,7 @@ export class SystemManager {
     private maxFixedIterations: number;
     private groups: Map<string, SystemGroup> = new Map();
 
-    constructor(
-        fixedUpdateFPS: number = 60,
-        maxFixedIterations: number = 10
-    ) {
+    constructor(fixedUpdateFPS: number = 60, maxFixedIterations: number = 10) {
         this.fixedUpdateInterval = 1000 / fixedUpdateFPS;
         this.maxFixedIterations = maxFixedIterations;
     }
@@ -175,7 +182,9 @@ export class SystemManager {
         if (system.group) {
             const group = this.groups.get(system.group);
             if (!group) {
-                throw new Error(`System group '${system.group}' not found. Create it first with createSystemGroup().`);
+                throw new Error(
+                    `System group '${system.group}' not found. Create it first with createSystemGroup().`
+                );
             }
             group.systems.push(system);
         }
@@ -216,7 +225,7 @@ export class SystemManager {
             // So these systems should come before this system in the graph
             for (const dep of system.runAfter) {
                 if (systemMap.has(dep)) {
-                    adjList.get(dep)!.add(system.name);
+                    adjList.get(dep)?.add(system.name);
                     inDegree.set(system.name, (inDegree.get(system.name) || 0) + 1);
                 }
             }
@@ -225,7 +234,7 @@ export class SystemManager {
             // So this system should come before these systems in the graph
             for (const dep of system.runBefore) {
                 if (systemMap.has(dep)) {
-                    adjList.get(system.name)!.add(dep);
+                    adjList.get(system.name)?.add(dep);
                     inDegree.set(dep, (inDegree.get(dep) || 0) + 1);
                 }
             }
@@ -243,16 +252,22 @@ export class SystemManager {
         }
 
         while (queue.length > 0) {
-            const current = queue.shift()!;
-            const system = systemMap.get(current)!;
+            const current = queue.shift();
+            if (current === undefined) continue;
+
+            const system = systemMap.get(current);
+            if (!system) continue;
             result.push(system);
 
             // Reduce in-degree for neighbors
-            for (const neighbor of adjList.get(current)!) {
-                const newDegree = (inDegree.get(neighbor) || 0) - 1;
-                inDegree.set(neighbor, newDegree);
-                if (newDegree === 0) {
-                    queue.push(neighbor);
+            const neighbors = adjList.get(current);
+            if (neighbors) {
+                for (const neighbor of neighbors) {
+                    const newDegree = (inDegree.get(neighbor) || 0) - 1;
+                    inDegree.set(neighbor, newDegree);
+                    if (newDegree === 0) {
+                        queue.push(neighbor);
+                    }
                 }
             }
         }
@@ -260,8 +275,8 @@ export class SystemManager {
         // Check for circular dependencies
         if (result.length !== systems.length) {
             // Find systems involved in the cycle
-            const remaining = systems.filter(s => !result.includes(s));
-            const cycleNames = remaining.map(s => s.name).join(', ');
+            const remaining = systems.filter((s) => !result.includes(s));
+            const cycleNames = remaining.map((s) => s.name).join(', ');
             throw new Error(`Circular dependency detected in systems: ${cycleNames}`);
         }
 
@@ -285,9 +300,10 @@ export class SystemManager {
 
             // Rebuild result maintaining topological order for systems with deps
             // and priority order for systems without deps
-            return result.map(s => {
+            return result.map((s) => {
                 if (s.runAfter.length === 0 && s.runBefore.length === 0) {
-                    return noDeps.shift()!;
+                    const noDep = noDeps.shift();
+                    return noDep !== undefined ? noDep : s;
                 }
                 return s;
             });
@@ -299,7 +315,9 @@ export class SystemManager {
     private ensureSorted(): void {
         if (!this.systemsSorted) {
             // First check if any systems have dependencies
-            const hasDependencies = this.systems.some(s => s.runAfter.length > 0 || s.runBefore.length > 0);
+            const hasDependencies = this.systems.some(
+                (s) => s.runAfter.length > 0 || s.runBefore.length > 0
+            );
             if (hasDependencies) {
                 this.systems = this.topologicalSort(this.systems);
             } else {
@@ -308,7 +326,9 @@ export class SystemManager {
             this.systemsSorted = true;
         }
         if (!this.fixedSystemsSorted) {
-            const hasDependencies = this.fixedUpdateSystems.some(s => s.runAfter.length > 0 || s.runBefore.length > 0);
+            const hasDependencies = this.fixedUpdateSystems.some(
+                (s) => s.runAfter.length > 0 || s.runBefore.length > 0
+            );
             if (hasDependencies) {
                 this.fixedUpdateSystems = this.topologicalSort(this.fixedUpdateSystems);
             } else {
@@ -322,15 +342,16 @@ export class SystemManager {
         this.ensureSorted();
 
         // First, execute systems in groups (sorted by group priority)
-        const sortedGroups = Array.from(this.groups.values())
-            .toSorted((a, b) => b.priority - a.priority);
+        const sortedGroups = Array.from(this.groups.values()).toSorted(
+            (a, b) => b.priority - a.priority
+        );
 
         for (const group of sortedGroups) {
             if (!group.enabled) continue;
 
             // Execute systems in this group that are variable update systems (sorted by system priority)
             const groupSystems = group.systems
-                .filter(s => this.systems.includes(s)) // Only variable update systems
+                .filter((s) => this.systems.includes(s)) // Only variable update systems
                 .toSorted((a, b) => b.priority - a.priority);
 
             for (const system of groupSystems) {
@@ -352,19 +373,21 @@ export class SystemManager {
         this.fixedUpdateAccumulator += deltaTime;
         let iterations = 0;
 
-        while (this.fixedUpdateAccumulator >= this.fixedUpdateInterval &&
-               iterations < this.maxFixedIterations) {
-
+        while (
+            this.fixedUpdateAccumulator >= this.fixedUpdateInterval &&
+            iterations < this.maxFixedIterations
+        ) {
             // First, execute systems in groups (sorted by group priority)
-            const sortedGroups = Array.from(this.groups.values())
-                .toSorted((a, b) => b.priority - a.priority);
+            const sortedGroups = Array.from(this.groups.values()).toSorted(
+                (a, b) => b.priority - a.priority
+            );
 
             for (const group of sortedGroups) {
                 if (!group.enabled) continue;
 
                 // Execute systems in this group that are fixed update systems (sorted by system priority)
                 const groupSystems = group.systems
-                    .filter(s => this.fixedUpdateSystems.includes(s)) // Only fixed update systems
+                    .filter((s) => this.fixedUpdateSystems.includes(s)) // Only fixed update systems
                     .toSorted((a, b) => b.priority - a.priority);
 
                 for (const system of groupSystems) {
@@ -421,7 +444,7 @@ export class SystemManager {
     }
 
     getProfiles(): SystemProfile[] {
-        return this.getAllSystems().map(system => system.profile);
+        return this.getAllSystems().map((system) => system.profile);
     }
 }
 

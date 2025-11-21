@@ -7,11 +7,11 @@ import type {
     ComponentIdentifier,
     EntityDef,
     QueryOptions,
-    SystemType,
-    SystemProfile,
     SerializedEntity,
-    SystemMessage
-} from "./definitions";
+    SystemMessage,
+    SystemProfile,
+    SystemType,
+} from './definitions';
 
 // Constants
 const DEFAULT_POOL_MAX_SIZE = 1000;
@@ -41,7 +41,10 @@ export class Pool<T> {
     public acquire(): T {
         this._totalAcquired++;
         if (this.available.length > 0) {
-            return this.available.pop()!;
+            const item = this.available.pop();
+            if (item !== undefined) {
+                return item;
+            }
         }
         this._totalCreated++;
         return this.createFunc();
@@ -61,7 +64,10 @@ export class Pool<T> {
             totalCreated: this._totalCreated,
             totalAcquired: this._totalAcquired,
             totalReleased: this._totalReleased,
-            reuseRate: this._totalAcquired > 0 ? (this._totalAcquired - this._totalCreated) / this._totalAcquired : 0
+            reuseRate:
+                this._totalAcquired > 0
+                    ? (this._totalAcquired - this._totalCreated) / this._totalAcquired
+                    : 0,
         };
     }
 }
@@ -79,9 +85,11 @@ export class ComponentArray<T> {
         this._version++;
         this._lastChanged = performance.now();
         if (this.freeIndices.length > 0) {
-            const index = this.freeIndices.pop()!;
-            this.components[index] = component;
-            return index;
+            const index = this.freeIndices.pop();
+            if (index !== undefined) {
+                this.components[index] = component;
+                return index;
+            }
         }
         return this.components.push(component) - 1;
     }
@@ -111,10 +119,18 @@ export class ComponentArray<T> {
         }
     }
 
-    get version(): number { return this._version; }
-    get lastChanged(): number { return this._lastChanged; }
-    get size(): number { return this.components.length - this.freeIndices.length; }
-    get memoryEstimate(): number { return this.components.length * ESTIMATED_COMPONENT_SIZE_BYTES; }
+    get version(): number {
+        return this._version;
+    }
+    get lastChanged(): number {
+        return this._lastChanged;
+    }
+    get size(): number {
+        return this.components.length - this.freeIndices.length;
+    }
+    get memoryEstimate(): number {
+        return this.components.length * ESTIMATED_COMPONENT_SIZE_BYTES;
+    }
 }
 
 /**
@@ -137,11 +153,11 @@ export class Query<C extends any[] = any[]> {
     private test(entity: Entity): boolean {
         const { all = [], any = [], none = [], tags = [], withoutTags = [] } = this.options;
 
-        if (all.length > 0 && !all.every(type => entity.hasComponent(type))) return false;
-        if (any.length > 0 && !any.some(type => entity.hasComponent(type))) return false;
-        if (none.some(type => entity.hasComponent(type))) return false;
-        if (tags.length > 0 && !tags.every(tag => entity.hasTag(tag))) return false;
-        if (withoutTags.some(tag => entity.hasTag(tag))) return false;
+        if (all.length > 0 && !all.every((type) => entity.hasComponent(type))) return false;
+        if (any.length > 0 && !any.some((type) => entity.hasComponent(type))) return false;
+        if (none.some((type) => entity.hasComponent(type))) return false;
+        if (tags.length > 0 && !tags.every((tag) => entity.hasTag(tag))) return false;
+        if (withoutTags.some((tag) => entity.hasTag(tag))) return false;
 
         return true;
     }
@@ -173,7 +189,7 @@ export class Query<C extends any[] = any[]> {
         const result = this.matchingEntities.values();
 
         const endTime = performance.now();
-        this._totalTimeMs += (endTime - startTime);
+        this._totalTimeMs += endTime - startTime;
 
         return result;
     }
@@ -194,7 +210,7 @@ export class Query<C extends any[] = any[]> {
         }
 
         const endTime = performance.now();
-        this._totalTimeMs += (endTime - startTime);
+        this._totalTimeMs += endTime - startTime;
 
         return result;
     }
@@ -235,7 +251,8 @@ export class Query<C extends any[] = any[]> {
             totalTimeMs: this._totalTimeMs,
             averageTimeMs: this._executionCount > 0 ? this._totalTimeMs / this._executionCount : 0,
             lastMatchCount: this._lastMatchCount,
-            cacheHitRate: this._executionCount > 0 ? (this._cacheHits / this._executionCount) * 100 : 0
+            cacheHitRate:
+                this._executionCount > 0 ? (this._cacheHits / this._executionCount) * 100 : 0,
         };
     }
 }
@@ -304,7 +321,7 @@ export class Entity implements EntityDef {
     private readonly _numericId: number;
     private _name?: string;
     private _dirty: boolean = false;
-    private _componentIndices: Map<Function, number> = new Map();
+    private _componentIndices: Map<ComponentIdentifier, number> = new Map();
     private _markedForDelete: boolean = false;
     private _parent?: Entity;
     private _children: Set<Entity> = new Set();
@@ -321,18 +338,38 @@ export class Entity implements EntityDef {
         this._numericId = Entity._nextId++;
     }
 
-    get id(): symbol { return this._id; }
-    get numericId(): number { return this._numericId; }
-    get name(): string | undefined { return this._name; }
-    set name(value: string | undefined) { this._name = value; }
-    get parent(): EntityDef | undefined { return this._parent; }
-    get children(): EntityDef[] { return Array.from(this._children); }
-    get tags(): Set<string> { return new Set(this._tags); }
-    get isDirty(): boolean { return this._dirty; }
-    get isMarkedForDeletion(): boolean { return this._markedForDelete; }
-    get changeVersion(): number { return this._changeVersion; }
+    get id(): symbol {
+        return this._id;
+    }
+    get numericId(): number {
+        return this._numericId;
+    }
+    get name(): string | undefined {
+        return this._name;
+    }
+    set name(value: string | undefined) {
+        this._name = value;
+    }
+    get parent(): EntityDef | undefined {
+        return this._parent;
+    }
+    get children(): EntityDef[] {
+        return Array.from(this._children);
+    }
+    get tags(): Set<string> {
+        return new Set(this._tags);
+    }
+    get isDirty(): boolean {
+        return this._dirty;
+    }
+    get isMarkedForDeletion(): boolean {
+        return this._markedForDelete;
+    }
+    get changeVersion(): number {
+        return this._changeVersion;
+    }
 
-    getComponentTypes(): Function[] {
+    getComponentTypes(): ComponentIdentifier[] {
         return Array.from(this._componentIndices.keys());
     }
 
@@ -343,14 +380,19 @@ export class Entity implements EntityDef {
         throw new Error('Invalid entity type - expected Entity instance');
     }
 
-    addComponent<T>(type: ComponentIdentifier<T>, ...args: ConstructorParameters<typeof type>): this {
+    addComponent<T>(
+        type: ComponentIdentifier<T>,
+        ...args: ConstructorParameters<typeof type>
+    ): this {
         if (!this._componentIndices.has(type)) {
             const validator = this.componentManager.getValidator(type);
 
             if (validator?.dependencies) {
                 for (const dep of validator.dependencies) {
                     if (!this.hasComponent(dep)) {
-                        throw new Error(`Component ${type.name} requires ${dep.name} on entity ${this._name || this._numericId}`);
+                        throw new Error(
+                            `Component ${type.name} requires ${dep.name} on entity ${this._name || this._numericId}`
+                        );
                     }
                 }
             }
@@ -358,7 +400,9 @@ export class Entity implements EntityDef {
             if (validator?.conflicts) {
                 for (const conflict of validator.conflicts) {
                     if (this.hasComponent(conflict)) {
-                        throw new Error(`Component ${type.name} conflicts with ${conflict.name} on entity ${this._name || this._numericId}`);
+                        throw new Error(
+                            `Component ${type.name} conflicts with ${conflict.name} on entity ${this._name || this._numericId}`
+                        );
                     }
                 }
             }
@@ -370,8 +414,13 @@ export class Entity implements EntityDef {
             if (validator) {
                 const validationResult = validator.validate(component);
                 if (validationResult !== true) {
-                    const errorMessage = typeof validationResult === 'string' ? validationResult : 'Component validation failed';
-                    throw new Error(`${errorMessage} for ${type.name} on entity ${this._name || this._numericId}`);
+                    const errorMessage =
+                        typeof validationResult === 'string'
+                            ? validationResult
+                            : 'Component validation failed';
+                    throw new Error(
+                        `${errorMessage} for ${type.name} on entity ${this._name || this._numericId}`
+                    );
                 }
             }
 
@@ -409,12 +458,16 @@ export class Entity implements EntityDef {
     getComponent<T>(type: ComponentIdentifier<T>): T {
         const index = this._componentIndices.get(type);
         if (index === undefined) {
-            throw new Error(`Component ${type.name} not found on entity ${this._name || this._numericId}`);
+            throw new Error(
+                `Component ${type.name} not found on entity ${this._name || this._numericId}`
+            );
         }
         const componentArray = this.componentManager.getComponentArray(type);
         const component = componentArray.get(index);
         if (component === null) {
-            throw new Error(`Component ${type.name} is null on entity ${this._name || this._numericId}`);
+            throw new Error(
+                `Component ${type.name} is null on entity ${this._name || this._numericId}`
+            );
         }
         return component as T;
     }
@@ -486,7 +539,9 @@ export class Entity implements EntityDef {
         const components: { [componentName: string]: any } = {};
 
         for (const [componentType, index] of this._componentIndices) {
-            const componentArray = this.componentManager.getComponentArray(componentType as ComponentIdentifier);
+            const componentArray = this.componentManager.getComponentArray(
+                componentType as ComponentIdentifier
+            );
             const component = componentArray.get(index);
             if (component) {
                 components[componentType.name] = { ...component };
@@ -498,7 +553,7 @@ export class Entity implements EntityDef {
             name: this._name,
             tags: Array.from(this._tags),
             components,
-            children: Array.from(this._children).map(child => child.serialize())
+            children: Array.from(this._children).map((child) => child.serialize()),
         };
     }
 
@@ -565,7 +620,9 @@ export class System<C extends any[] = any[]> {
         this._runBefore = options.runBefore || [];
 
         if (options.tags) {
-            options.tags.forEach(tag => this._tags.add(tag));
+            options.tags.forEach((tag) => {
+                this._tags.add(tag);
+            });
         }
 
         this._profile = {
@@ -573,19 +630,37 @@ export class System<C extends any[] = any[]> {
             executionTime: 0,
             entityCount: 0,
             callCount: 0,
-            averageTime: 0
+            averageTime: 0,
         };
     }
 
-    get enabled(): boolean { return this._enabled; }
-    set enabled(value: boolean) { this._enabled = value; }
-    get priority(): number { return this._priority; }
-    set priority(value: number) { this._priority = value; }
-    get tags(): Set<string> { return new Set(this._tags); }
-    get profile(): SystemProfile { return { ...this._profile }; }
-    get group(): string | undefined { return this._group; }
-    get runAfter(): string[] { return [...this._runAfter]; }
-    get runBefore(): string[] { return [...this._runBefore]; }
+    get enabled(): boolean {
+        return this._enabled;
+    }
+    set enabled(value: boolean) {
+        this._enabled = value;
+    }
+    get priority(): number {
+        return this._priority;
+    }
+    set priority(value: number) {
+        this._priority = value;
+    }
+    get tags(): Set<string> {
+        return new Set(this._tags);
+    }
+    get profile(): SystemProfile {
+        return { ...this._profile };
+    }
+    get group(): string | undefined {
+        return this._group;
+    }
+    get runAfter(): string[] {
+        return [...this._runAfter];
+    }
+    get runBefore(): string[] {
+        return [...this._runBefore];
+    }
 
     hasTag(tag: string): boolean {
         return this._tags.has(tag);
@@ -703,14 +778,18 @@ export class System<C extends any[] = any[]> {
 
     private getComponents(entity: Entity): C {
         const { all = [] } = this.query.options;
-        return all.map((componentType: ComponentIdentifier) => entity.getComponent(componentType)) as C;
+        return all.map((componentType: ComponentIdentifier) =>
+            entity.getComponent(componentType)
+        ) as C;
     }
 
     private updateProfile(executionTime: number, entityCount: number): void {
         this._profile.executionTime = executionTime;
         this._profile.entityCount = entityCount;
         this._profile.callCount++;
-        this._profile.averageTime = (this._profile.averageTime * (this._profile.callCount - 1) + executionTime) / this._profile.callCount;
+        this._profile.averageTime =
+            (this._profile.averageTime * (this._profile.callCount - 1) + executionTime) /
+            this._profile.callCount;
     }
 }
 
@@ -730,7 +809,8 @@ export class MessageBus {
         if (!this.subscribers.has(messageType)) {
             this.subscribers.set(messageType, new Set());
         }
-        this.subscribers.get(messageType)!.add(callback);
+        const subscriberSet = this.subscribers.get(messageType);
+        subscriberSet?.add(callback);
 
         return () => {
             this.subscribers.get(messageType)?.delete(callback);
@@ -742,7 +822,7 @@ export class MessageBus {
             type: messageType,
             data,
             sender,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         };
 
         this.messageHistory.push(message);
@@ -764,7 +844,7 @@ export class MessageBus {
 
     getMessageHistory(messageType?: string): SystemMessage[] {
         if (messageType) {
-            return this.messageHistory.filter(msg => msg.type === messageType);
+            return this.messageHistory.filter((msg) => msg.type === messageType);
         }
         return [...this.messageHistory];
     }
@@ -774,20 +854,21 @@ export class MessageBus {
  * Event emitter for engine events
  */
 export class EventEmitter {
-    private listeners: Map<string, Set<Function>> = new Map();
+    private listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
     private eventHistory: Array<{ event: string; args: any[]; timestamp: number }> = [];
     private maxHistorySize: number = MAX_EVENT_HISTORY;
 
-    on(event: string, callback: Function): () => void {
+    on(event: string, callback: (...args: any[]) => void): () => void {
         if (!this.listeners.has(event)) {
             this.listeners.set(event, new Set());
         }
-        this.listeners.get(event)!.add(callback);
+        const listenerSet = this.listeners.get(event);
+        listenerSet?.add(callback);
 
         return () => this.off(event, callback);
     }
 
-    off(event: string, callback: Function): void {
+    off(event: string, callback: (...args: any[]) => void): void {
         const callbacks = this.listeners.get(event);
         if (callbacks) {
             callbacks.delete(callback);
@@ -861,7 +942,7 @@ export class EntityManager {
     private entitiesToDelete: Set<Entity> = new Set();
 
     constructor(
-        private componentManager: any,
+        componentManager: any,
         private eventEmitter: EventEmitter
     ) {
         this.entityPool = new Pool(
@@ -1012,7 +1093,8 @@ export class EntityManager {
             if (!this.entitiesByTag.has(tag)) {
                 this.entitiesByTag.set(tag, new Set());
             }
-            this.entitiesByTag.get(tag)!.add(entity);
+            const tagSet = this.entitiesByTag.get(tag);
+            tagSet?.add(entity);
         }
     }
 

@@ -4,39 +4,37 @@
  */
 
 import {
-    ComponentManager,
-    SystemManager,
-    QueryManager,
-    PrefabManager,
-    SnapshotManager,
-    MessageManager
-} from './managers';
-
-import {
-    Entity,
-    Query,
-    QueryBuilder,
-    System,
+    type Entity,
+    EntityManager,
     EventEmitter,
     PerformanceMonitor,
-    EntityManager
+    type Query,
+    QueryBuilder,
+    System,
 } from './core';
-
 import type {
     ComponentIdentifier,
-    ComponentValidator,
-    QueryOptions,
-    SystemType,
-    SystemProfile,
-    EntityPrefab,
-    SerializedWorld,
-    MemoryStats,
-    EnginePlugin,
-    PluginContext,
-    InstalledPlugin,
     ComponentPoolOptions,
-    PoolStats
+    ComponentValidator,
+    EnginePlugin,
+    EntityPrefab,
+    InstalledPlugin,
+    MemoryStats,
+    PluginContext,
+    PoolStats,
+    QueryOptions,
+    SerializedWorld,
+    SystemProfile,
+    SystemType,
 } from './definitions';
+import {
+    ComponentManager,
+    MessageManager,
+    PrefabManager,
+    QueryManager,
+    SnapshotManager,
+    SystemManager,
+} from './managers';
 
 /**
  * Builder for composing an Engine from focused managers
@@ -201,7 +199,10 @@ export class Engine {
         return this.entityManager.findEntities(predicate);
     }
 
-    cloneEntity(entity: Entity, overrides?: { name?: string; components?: Record<string, any> }): Entity {
+    cloneEntity(
+        entity: Entity,
+        overrides?: { name?: string; components?: Record<string, any> }
+    ): Entity {
         // Create new entity with overridden name or default
         const cloneName = overrides?.name ?? (entity.name ? `${entity.name}_clone` : undefined);
         const clone = this.createEntity(cloneName);
@@ -214,7 +215,7 @@ export class Engine {
             const componentData = JSON.parse(JSON.stringify(originalComponent));
 
             // Apply component overrides if provided
-            if (overrides?.components && overrides.components[componentType.name]) {
+            if (overrides?.components?.[componentType.name]) {
                 Object.assign(componentData, overrides.components[componentType.name]);
             }
 
@@ -222,7 +223,9 @@ export class Engine {
             const newComponent = Object.assign(new (componentType as any)(), componentData);
 
             // Add component to clone using internal API to avoid re-instantiation
-            const componentArray = this.componentManager.getComponentArray(componentType as ComponentIdentifier);
+            const componentArray = this.componentManager.getComponentArray(
+                componentType as ComponentIdentifier
+            );
             const index = componentArray.add(newComponent);
             (clone as any)._componentIndices.set(componentType, index);
             (clone as any)._dirty = true;
@@ -238,7 +241,9 @@ export class Engine {
         this.queryManager.updateQueries(clone);
 
         if (this.debugMode) {
-            console.log(`[ECS Debug] Cloned entity ${entity.name || entity.numericId} to ${clone.name || clone.numericId}`);
+            console.log(
+                `[ECS Debug] Cloned entity ${entity.name || entity.numericId} to ${clone.name || clone.numericId}`
+            );
         }
 
         return clone;
@@ -269,7 +274,9 @@ export class Engine {
         }
 
         if (this.debugMode) {
-            console.log(`[ECS Debug] Created ${entities.length} entities${prefabName ? ` from prefab '${prefabName}'` : ''}`);
+            console.log(
+                `[ECS Debug] Created ${entities.length} entities${prefabName ? ` from prefab '${prefabName}'` : ''}`
+            );
         }
 
         return entities;
@@ -295,7 +302,10 @@ export class Engine {
     /**
      * Register a component pool for efficient component reuse
      */
-    registerComponentPool<T extends object>(type: ComponentIdentifier<T>, options: ComponentPoolOptions = {}): void {
+    registerComponentPool<T extends object>(
+        type: ComponentIdentifier<T>,
+        options: ComponentPoolOptions = {}
+    ): void {
         this.componentManager.registerComponentPool(type, options);
         if (this.debugMode) {
             console.log(`[ECS Debug] Component pool registered for ${type.name}`);
@@ -381,7 +391,7 @@ export class Engine {
 
         // Return stats for all queries
         const allQueries = this.queryManager.getAllQueries();
-        return allQueries.map(q => q.getStats());
+        return allQueries.map((q) => q.getStats());
     }
 
     // ========== Prefab Management ==========
@@ -433,7 +443,9 @@ export class Engine {
         const world = this.serialize();
         this.snapshotManager.createSnapshot(world);
         if (this.debugMode) {
-            console.log(`[ECS Debug] Snapshot created (${this.snapshotManager.getSnapshotCount()} total)`);
+            console.log(
+                `[ECS Debug] Snapshot created (${this.snapshotManager.getSnapshotCount()} total)`
+            );
         }
     }
 
@@ -460,7 +472,9 @@ export class Engine {
             const entity = this.createEntity(serializedEntity.name);
 
             // Add components
-            for (const [componentName, componentData] of Object.entries(serializedEntity.components)) {
+            for (const [componentName, componentData] of Object.entries(
+                serializedEntity.components
+            )) {
                 const componentType = this.componentManager.getComponentByName(componentName);
                 if (componentType) {
                     // Reconstruct component from data
@@ -524,17 +538,17 @@ export class Engine {
             publish: (messageType: string, data: any, sender?: string) =>
                 this.messageManager.publish(messageType, data, sender),
             getMessageHistory: (messageType?: string) =>
-                this.messageManager.getHistory(messageType)
+                this.messageManager.getHistory(messageType),
         };
     }
 
     // ========== Events ==========
 
-    on(event: string, callback: Function): () => void {
+    on(event: string, callback: (...args: any[]) => void): () => void {
         return this.eventEmitter.on(event, callback);
     }
 
-    off(event: string, callback: Function): void {
+    off(event: string, callback: (...args: any[]) => void): void {
         this.eventEmitter.off(event, callback);
     }
 
@@ -565,7 +579,7 @@ export class Engine {
 
     update(deltaTime?: number): void {
         const now = performance.now();
-        const dt = deltaTime !== undefined ? deltaTime : (now - this.lastUpdateTime);
+        const dt = deltaTime !== undefined ? deltaTime : now - this.lastUpdateTime;
         this.lastUpdateTime = now;
 
         this.performanceMonitor.addSample(dt);
@@ -591,13 +605,14 @@ export class Engine {
     // ========== Serialization ==========
 
     serialize(): SerializedWorld {
-        const entities = this.entityManager.getAllEntities()
-            .filter(entity => !entity.parent) // Only serialize root entities
-            .map(entity => entity.serialize());
+        const entities = this.entityManager
+            .getAllEntities()
+            .filter((entity) => !entity.parent) // Only serialize root entities
+            .map((entity) => entity.serialize());
 
         return {
             entities,
-            timestamp: Date.now()
+            timestamp: Date.now(),
         };
     }
 
@@ -616,13 +631,13 @@ export class Engine {
         }
 
         const entities = this.entityManager.getAllEntities();
-        const activeEntities = entities.filter(e => !e.isMarkedForDeletion);
+        const activeEntities = entities.filter((e) => !e.isMarkedForDeletion);
 
         return {
             totalEntities: entities.length,
             activeEntities: activeEntities.length,
             componentArrays: componentStats,
-            totalMemoryEstimate: totalMemory
+            totalMemoryEstimate: totalMemory,
         };
     }
 
@@ -637,8 +652,8 @@ export class Engine {
             performance: {
                 averageFrameTime: this.performanceMonitor.getAverage(),
                 minFrameTime: this.performanceMonitor.getMin(),
-                maxFrameTime: this.performanceMonitor.getMax()
-            }
+                maxFrameTime: this.performanceMonitor.getMax(),
+            },
         };
     }
 
@@ -646,7 +661,7 @@ export class Engine {
         return {
             averageFrameTime: this.performanceMonitor.getAverage(),
             minFrameTime: this.performanceMonitor.getMin(),
-            maxFrameTime: this.performanceMonitor.getMax()
+            maxFrameTime: this.performanceMonitor.getMax(),
         };
     }
 
@@ -660,7 +675,10 @@ export class Engine {
             registerComponent: <T>(type: ComponentIdentifier<T>): void => {
                 this.registerComponent(type);
             },
-            registerComponentValidator: <T>(type: ComponentIdentifier<T>, validator: ComponentValidator<T>): void => {
+            registerComponentValidator: <T>(
+                type: ComponentIdentifier<T>,
+                validator: ComponentValidator<T>
+            ): void => {
                 this.registerComponentValidator(type, validator);
             },
             createSystem: <C extends any[] = any[]>(
@@ -677,19 +695,22 @@ export class Engine {
             registerPrefab: (name: string, prefab: EntityPrefab): void => {
                 this.registerPrefab(name, prefab);
             },
-            on: (event: string, callback: Function): (() => void) => {
+            on: (event: string, callback: (...args: any[]) => void): (() => void) => {
                 return this.on(event, callback);
             },
             emit: (event: string, ...args: any[]): void => {
                 this.emit(event, ...args);
             },
             messageBus: {
-                subscribe: (messageType: string, callback: (message: any) => void): (() => void) => {
+                subscribe: (
+                    messageType: string,
+                    callback: (message: any) => void
+                ): (() => void) => {
                     return this.messageBus.subscribe(messageType, callback);
                 },
                 publish: (messageType: string, data: any, sender?: string): void => {
                     this.messageBus.publish(messageType, data, sender);
-                }
+                },
             },
             extend: <T extends object>(extensionName: string, api: T): void => {
                 if (this.extensions.has(extensionName)) {
@@ -701,7 +722,7 @@ export class Engine {
             },
             getEngine: (): any => {
                 return this;
-            }
+            },
         };
     }
 
@@ -721,22 +742,24 @@ export class Engine {
 
         // Handle async installation
         if (result instanceof Promise) {
-            result.then(() => {
-                this.installedPlugins.set(plugin.name, {
-                    plugin,
-                    installedAt: Date.now()
+            result
+                .then(() => {
+                    this.installedPlugins.set(plugin.name, {
+                        plugin,
+                        installedAt: Date.now(),
+                    });
+                    this.eventEmitter.emit('onPluginInstalled', plugin);
+                    if (this.debugMode) {
+                        console.log(`[ECS Debug] Plugin '${plugin.name}' installed successfully`);
+                    }
+                })
+                .catch((error) => {
+                    console.error(`[ECS] Failed to install plugin '${plugin.name}':`, error);
                 });
-                this.eventEmitter.emit('onPluginInstalled', plugin);
-                if (this.debugMode) {
-                    console.log(`[ECS Debug] Plugin '${plugin.name}' installed successfully`);
-                }
-            }).catch(error => {
-                console.error(`[ECS] Failed to install plugin '${plugin.name}':`, error);
-            });
         } else {
             this.installedPlugins.set(plugin.name, {
                 plugin,
-                installedAt: Date.now()
+                installedAt: Date.now(),
             });
             this.eventEmitter.emit('onPluginInstalled', plugin);
             if (this.debugMode) {

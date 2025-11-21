@@ -234,7 +234,7 @@ export class ResourceManagerAPI {
         ...args: any[]
     ): Promise<void> {
         const promises = keys.map(async (key) => {
-            const resource = await this.get(resourceType, key, ...args);
+            await this.get(resourceType, key, ...args);
             // Don't release - keep in cache with refCount = 1
         });
 
@@ -322,7 +322,7 @@ export class ResourceManagerAPI {
     async clearAll(): Promise<void> {
         console.log('[ResourceManager] Clearing all resources...');
 
-        for (const [typeName, typeMap] of this.resources.entries()) {
+        for (const typeMap of this.resources.values()) {
             for (const entry of typeMap.values()) {
                 await entry.resource.unload();
             }
@@ -338,7 +338,7 @@ export class ResourceManagerAPI {
     async cleanupUnused(): Promise<number> {
         let cleaned = 0;
 
-        for (const [typeName, typeMap] of this.resources.entries()) {
+        for (const typeMap of this.resources.values()) {
             const toDelete: string[] = [];
 
             for (const [key, entry] of typeMap.entries()) {

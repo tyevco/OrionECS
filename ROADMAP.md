@@ -2,17 +2,15 @@
 
 This document outlines planned improvements, features, and enhancements for the Orion ECS framework. Items are organized by category and priority.
 
-## 🔧 Missing Implementations (High Priority)
+## 🔧 Recently Implemented Features
 
-These features are mentioned in documentation but not yet implemented in the codebase.
+These features have been recently added to the codebase:
 
-### 1. Bulk Entity Creation
-**Status:** Not Implemented
-**Priority:** High
-**Implementation:** Can be implemented as a plugin
-**Referenced:** CLAUDE.md:170, benchmarks/benchmark.ts:81
+### ✅ Bulk Entity Creation
+**Status:** ✅ Implemented (engine.ts:258)
+**Priority:** Complete
 
-Add `createEntities(count, prefab?)` method to efficiently create multiple entities at once.
+The `createEntities(count, prefab?)` method efficiently creates multiple entities at once.
 
 ```typescript
 // Create 100 entities from a prefab
@@ -22,31 +20,13 @@ const enemies = engine.createEntities(100, 'EnemyPrefab');
 const particles = engine.createEntities(50);
 ```
 
-**Use Cases:**
-- Spawning waves of enemies
-- Particle systems
-- Procedural generation
-- Bulk scene population
-
-**Plugin Implementation:**
-```typescript
-class BulkOperationsPlugin implements EnginePlugin {
-  install(context: PluginContext) {
-    context.extend('bulk', {
-      createEntities: (count, prefab?) => { /* ... */ }
-    });
-  }
-}
-```
-
 ---
 
-### 2. Component Pooling Registration
-**Status:** Not Implemented
-**Priority:** Medium
-**Referenced:** README.md:282
+### ✅ Component Pooling Registration
+**Status:** ✅ Implemented (engine.ts:309)
+**Priority:** Complete
 
-Implement `registerComponentPool()` for component-level object pooling.
+Component-level object pooling is fully implemented via `registerComponentPool()`.
 
 ```typescript
 // Register a pool for frequently created/destroyed components
@@ -56,24 +36,17 @@ engine.registerComponentPool(Particle, {
 });
 ```
 
-**Benefits:**
-- Reduces garbage collection pressure
-- Improves performance for frequently created/destroyed components
-- Complements existing entity pooling
-
-**Note:** Entity pooling already exists; this extends pooling to component instances.
-
 ---
 
-### 3. Tag Component Helper
-**Status:** Not Implemented
-**Priority:** Low
-**Implementation:** Can be implemented as a plugin
-**Referenced:** CLAUDE.md
+### ✅ Tag Component Helper
+**Status:** ✅ Implemented (utils.ts:30)
+**Priority:** Complete
 
-Add `createTagComponent()` utility for standardizing tag-only components.
+The `createTagComponent()` utility is available for standardizing tag-only components.
 
 ```typescript
+import { createTagComponent } from 'orion-ecs';
+
 // Helper function for creating tag components
 const PlayerTag = createTagComponent('Player');
 const EnemyTag = createTagComponent('Enemy');
@@ -83,20 +56,19 @@ const ActiveTag = createTagComponent('Active');
 entity.addComponent(PlayerTag);
 ```
 
-**Benefits:**
-- Type-safe tag components
-- Consistent pattern for marker components
-- Better TypeScript inference
+---
 
-**Plugin Implementation:**
+### ✅ Plugin System
+**Status:** ✅ Implemented
+**Priority:** Complete
+
+Full plugin architecture with `EnginePlugin` interface, `PluginContext`, and plugin management. See examples/PhysicsPlugin.ts for a complete example.
+
 ```typescript
-class TagComponentPlugin implements EnginePlugin {
-  install(context: PluginContext) {
-    context.extend('tags', {
-      createTagComponent: (name) => { /* ... */ }
-    });
-  }
-}
+const engine = new EngineBuilder()
+  .use(new PhysicsPlugin())
+  .use(new NetworkingPlugin())
+  .build();
 ```
 
 ---
@@ -649,30 +621,24 @@ game.createSystem('MovementSystem', {
 
 ---
 
-### 17. Benchmark Fixes
-**Status:** Not Implemented
-**Priority:** High
+### 17. Benchmark Infrastructure
+**Status:** ✅ Implemented
+**Priority:** Complete
 **Impact:** Testing, Documentation
 
-Fix benchmarks to use the proper EngineBuilder pattern.
+Benchmarks are properly configured using EngineBuilder pattern.
 
-**Current Issue:**
+**Implementation:**
 ```typescript
-// benchmarks/benchmark.ts uses direct construction
-const engine = new Engine(...args); // Won't work - needs many dependencies
-```
-
-**Fix:**
-```typescript
-// Use EngineBuilder
+// benchmarks/benchmark.ts uses EngineBuilder
 const engine = new EngineBuilder()
   .withDebugMode(false)
   .build();
 ```
 
-**Impact:**
-- Benchmarks currently cannot run
-- Performance data in PERFORMANCE.md may be outdated
+**Note:**
+- Benchmarks are correctly implemented
+- Run with `npm run benchmark` (requires jest installation)
 
 ---
 
@@ -829,59 +795,6 @@ class ReplayPlugin implements EnginePlugin {
 ---
 
 ## 🔌 Extensibility & Integration
-
-### 21. Plugin System
-**Status:** ✅ Completed
-**Priority:** Medium
-**Impact:** Extensibility, Ecosystem
-
-Add a plugin architecture for modular extensions.
-
-```typescript
-// Physics plugin
-class PhysicsPlugin implements EnginePlugin {
-  install(engine: Engine) {
-    // Register components
-    engine.registerComponent(RigidBody);
-    engine.registerComponent(Collider);
-
-    // Register systems
-    engine.createSystem('PhysicsSystem', ...);
-
-    // Add custom APIs
-    engine.physics = new PhysicsAPI(engine);
-  }
-}
-
-// Use plugins
-const engine = new EngineBuilder()
-  .use(new PhysicsPlugin())
-  .use(new NetworkingPlugin())
-  .use(new AudioPlugin())
-  .build();
-```
-
-**Benefits:**
-- Modular feature additions
-- Third-party extensions
-- Cleaner core framework
-- Ecosystem growth
-
-**Example Plugins:**
-- Physics (Box2D, Matter.js integration)
-- Networking (multiplayer sync)
-- Audio (spatial audio)
-- AI (behavior trees, pathfinding)
-- Rendering (Pixi.js, Three.js integration)
-
-**Implementation Notes:**
-- ✅ Implemented with full TypeScript support
-- ✅ Plugins can register components, systems, and prefabs
-- ✅ Plugins can extend engine with custom APIs via `context.extend()`
-- ✅ Supports both sync and async installation/uninstallation
-- ✅ Full test coverage with 17 comprehensive tests
-- ✅ Example PhysicsPlugin available in `examples/PhysicsPlugin.ts`
-- ✅ Complete documentation in README.md and CLAUDE.md
 
 ---
 
@@ -1296,33 +1209,39 @@ Help users migrate from other ECS libraries and between versions.
 
 ## 🎯 Priority Summary
 
+### ✅ Recently Completed
+- ✅ Bulk entity creation (`createEntities`)
+- ✅ Component pooling (`registerComponentPool`)
+- ✅ Tag component helper (`createTagComponent`)
+- ✅ Plugin system with full extensibility
+- ✅ Benchmark infrastructure
+
 ### Immediate (Next Release)
-1. Fix missing implementations (bulk entity creation, etc.)
-2. Fix benchmarks to use EngineBuilder
-3. Entity name indexing
+1. Entity name indexing for O(1) lookup
+2. Entity cloning/copying functionality
+3. Interactive examples and tutorials
 
 ### Short Term (1-2 releases)
-4. Spatial partitioning system
-5. Entity cloning
-6. System groups/phases
-7. Fluent query builder
-8. Entity search methods
-9. Interactive examples
+4. Spatial partitioning system (ideal for plugin)
+5. System groups/phases
+6. Fluent query builder
+7. Entity search methods
+8. Enhanced prefab system with inheritance
 
 ### Medium Term (3-6 releases)
-10. Entity archetypes
-11. System dependencies
-12. Transaction/batch operations
-13. Plugin system
-14. Enhanced prefab system
-15. Query result iterators
+9. Entity archetypes for cache locality
+10. System dependencies (declarative ordering)
+11. Transaction/batch operations (ideal for plugin)
+12. Query result iterators
+13. Better TypeScript generics
 
 ### Long Term (Future)
-16. Network synchronization
-17. Replay system
-18. Entity inspector
-19. Component lifecycle hooks
-20. Enhanced profiling
+14. Network synchronization (ideal for plugin)
+15. Replay system (ideal for plugin)
+16. Entity inspector (ideal for plugin)
+17. Component lifecycle hooks
+18. Enhanced profiling (ideal for plugin)
+19. Debug visualization tools (ideal for plugin)
 
 ---
 
@@ -1338,4 +1257,4 @@ For questions or suggestions, please open an issue or discussion on GitHub.
 
 ---
 
-**Last Updated:** 2025-11-20
+**Last Updated:** 2025-11-21

@@ -137,7 +137,8 @@ class Health {
   constructor(public current: number = 100, public max: number = 100) {}
 }
 
-// Tag components for categorization
+// Tag components for categorization (from utils.ts)
+import { createTagComponent } from 'orion-ecs';
 const PlayerTag = createTagComponent('Player');
 ```
 
@@ -167,10 +168,11 @@ engine.createSystem('MovementSystem', {
 - Cleanup: `entity.queueFree()` for deferred deletion
 
 **Advanced Features:**
-- Bulk creation: `engine.createEntities(10, prefabTemplate)`
+- Bulk creation: `engine.createEntities(10)` or `engine.createEntities(10, 'PrefabName')`
 - Hierarchies: `parent.addChild(child)` or `child.setParent(parent)`
 - Tags: `entity.addTag('player').addTag('active')`
 - Prefabs: `engine.createFromPrefab('PlayerPrefab', 'Player1')`
+- Component pooling: `engine.registerComponentPool(Particle, { initialSize: 100 })`
 
 ### Advanced Features Usage
 
@@ -216,106 +218,45 @@ const debugInfo = engine.getDebugInfo();
 
 ### Plugin System
 
-Orion ECS features a powerful plugin architecture that allows contributors to add new features without modifying the core project. Plugins can register components, create systems, add custom APIs, and more.
+Orion ECS features a powerful plugin architecture for extending functionality without modifying core code.
 
-**Creating a Plugin:**
+**Plugin Architecture Notes:**
+- Plugins implement the `EnginePlugin` interface (`src/definitions.ts`)
+- Use `PluginContext` for sandboxed access to engine features
+- Register plugins via `EngineBuilder.use(plugin)` before building
+- Plugins installed during engine construction (see `src/engine.ts` EngineBuilder)
+- Custom APIs added via `context.extend()` become properties on engine instance
+
+**Implementation Pattern:**
 ```typescript
-import type { EnginePlugin, PluginContext } from 'orion-ecs';
-
+// Basic plugin structure
 class MyPlugin implements EnginePlugin {
   name = 'MyPlugin';
   version = '1.0.0';
 
   install(context: PluginContext): void {
-    // Register components
-    context.registerComponent(MyComponent);
-
-    // Create systems
-    context.createSystem('MySystem',
-      { all: [MyComponent] },
-      { act: (entity, component) => { /* ... */ } }
-    );
-
-    // Extend engine with custom API
-    context.extend('myApi', new MyAPI());
-
-    // Subscribe to events
-    context.on('onEntityCreated', (entity) => {
-      console.log('Entity created:', entity);
-    });
-
-    // Use message bus
-    context.messageBus.subscribe('custom-event', (msg) => {
-      console.log('Received:', msg.data);
-    });
+    // Register components, create systems, extend API
+    context.extend('myApi', { /* custom methods */ });
   }
 
-  uninstall(): void {
-    // Optional cleanup
-    console.log('Plugin uninstalled');
-  }
+  uninstall?(): void { /* cleanup */ }
 }
-```
 
-**Using Plugins:**
-```typescript
-import { EngineBuilder } from 'orion-ecs';
-import { PhysicsPlugin } from './plugins/PhysicsPlugin';
-import { NetworkingPlugin } from './plugins/NetworkingPlugin';
-
+// Usage
 const engine = new EngineBuilder()
-  .use(new PhysicsPlugin())
-  .use(new NetworkingPlugin())
-  .withDebugMode(true)
+  .use(new MyPlugin())
   .build();
-
-// Access plugin-provided APIs
-engine.physics.setGravity(0, 9.8);
-engine.networking.connect('ws://server.com');
 ```
 
-**Plugin Context API:**
-The `PluginContext` provides plugins with safe access to:
-- `registerComponent(type)` - Register component classes
-- `registerComponentValidator(type, validator)` - Add component validation
-- `createSystem(name, query, options, isFixed?)` - Create new systems
-- `createQuery(options)` - Create entity queries
-- `registerPrefab(name, prefab)` - Register entity templates
-- `on(event, callback)` - Subscribe to engine events
-- `emit(event, ...args)` - Emit custom events
-- `messageBus` - Inter-system messaging
-- `extend(name, api)` - Add custom APIs to engine instance
-- `getEngine()` - Access full engine for advanced use cases
+**Common Plugin Use Cases:**
+- **Feature Extensions**: Physics, networking, audio systems
+- **Utility Functions**: Bulk operations, search methods, cloning
+- **Integrations**: Rendering engines (Pixi.js, Three.js), UI frameworks
+- **Development Tools**: Debuggers, visualizers, profilers
 
-**Plugin Management:**
-```typescript
-// Check if plugin is installed
-if (engine.hasPlugin('PhysicsPlugin')) {
-  console.log('Physics plugin is active');
-}
+**Reference Implementation:** See `examples/PhysicsPlugin.ts` for a complete, tested plugin example.
 
-// Get plugin information
-const pluginInfo = engine.getPlugin('PhysicsPlugin');
-console.log(`Installed at: ${new Date(pluginInfo.installedAt)}`);
-
-// List all plugins
-const plugins = engine.getInstalledPlugins();
-plugins.forEach(p => {
-  console.log(`${p.plugin.name} v${p.plugin.version || 'unknown'}`);
-});
-
-// Uninstall a plugin
-await engine.uninstallPlugin('PhysicsPlugin');
-```
-
-**Example Plugins:**
-- **Physics** - Box2D/Matter.js integration with RigidBody, Collider components
-- **Networking** - Multiplayer synchronization and client prediction
-- **Audio** - Spatial audio with AudioSource components
-- **AI** - Behavior trees and pathfinding systems
-- **Rendering** - Pixi.js, Three.js, or custom renderer integration
-
-See `examples/PhysicsPlugin.ts` for a complete working example.
+**For detailed plugin API and examples, see README.md Plugin System section.**
 
 ## When to Use Orion ECS
 

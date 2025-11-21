@@ -121,7 +121,6 @@ export class ProfilerAPI {
         if (!this.recording || !this.currentSession) return;
 
         const profiles = this.engine.getSystemProfiles?.() || [];
-        const frameStart = performance.now();
 
         const frameProfile: FrameProfile = {
             frameNumber: this.frameCount++,

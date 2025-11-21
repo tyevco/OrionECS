@@ -1,0 +1,394 @@
+import { Vector2 } from './Vector2';
+
+/**
+ * Represents a 2D axis-aligned bounding box (AABB).
+ * Useful for collision detection, spatial queries, and UI layout.
+ */
+export class Bounds {
+  private _left: number;
+  private _top: number;
+  private _width: number;
+  private _height: number;
+
+  /**
+   * Creates a new Bounds with the specified properties.
+   * @param left The left edge position
+   * @param top The top edge position
+   * @param width The width of the bounds
+   * @param height The height of the bounds
+   */
+  constructor(left: number = 0, top: number = 0, width: number = 0, height: number = 0) {
+    this._left = left;
+    this._top = top;
+    this._width = width;
+    this._height = height;
+  }
+
+  /**
+   * Gets the left edge position.
+   */
+  public get left(): number {
+    return this._left;
+  }
+
+  /**
+   * Sets the left edge position.
+   */
+  public set left(value: number) {
+    this._left = value;
+  }
+
+  /**
+   * Gets the top edge position.
+   */
+  public get top(): number {
+    return this._top;
+  }
+
+  /**
+   * Sets the top edge position.
+   */
+  public set top(value: number) {
+    this._top = value;
+  }
+
+  /**
+   * Gets the width of the bounds.
+   */
+  public get width(): number {
+    return this._width;
+  }
+
+  /**
+   * Sets the width of the bounds.
+   */
+  public set width(value: number) {
+    this._width = value;
+  }
+
+  /**
+   * Gets the height of the bounds.
+   */
+  public get height(): number {
+    return this._height;
+  }
+
+  /**
+   * Sets the height of the bounds.
+   */
+  public set height(value: number) {
+    this._height = value;
+  }
+
+  /**
+   * Gets the right edge position.
+   */
+  public get right(): number {
+    return this._left + this._width;
+  }
+
+  /**
+   * Gets the bottom edge position.
+   */
+  public get bottom(): number {
+    return this._top + this._height;
+  }
+
+  /**
+   * Gets the center position as a Vector2.
+   */
+  public get center(): Vector2 {
+    return new Vector2(
+      this._left + this._width / 2,
+      this._top + this._height / 2
+    );
+  }
+
+  /**
+   * Gets the top-left corner as a Vector2.
+   */
+  public get topLeft(): Vector2 {
+    return new Vector2(this._left, this._top);
+  }
+
+  /**
+   * Gets the top-right corner as a Vector2.
+   */
+  public get topRight(): Vector2 {
+    return new Vector2(this.right, this._top);
+  }
+
+  /**
+   * Gets the bottom-left corner as a Vector2.
+   */
+  public get bottomLeft(): Vector2 {
+    return new Vector2(this._left, this.bottom);
+  }
+
+  /**
+   * Gets the bottom-right corner as a Vector2.
+   */
+  public get bottomRight(): Vector2 {
+    return new Vector2(this.right, this.bottom);
+  }
+
+  /**
+   * Checks if this bounds contains a point.
+   * @param position The point to check
+   * @returns True if the point is inside the bounds
+   */
+  public contains(position: Vector2): boolean {
+    return (
+      position.x >= this._left &&
+      position.x <= this.right &&
+      position.y >= this._top &&
+      position.y <= this.bottom
+    );
+  }
+
+  /**
+   * Checks if this bounds contains another bounds entirely.
+   * @param other The bounds to check
+   * @returns True if the other bounds is completely inside this bounds
+   */
+  public containsBounds(other: Bounds): boolean {
+    return (
+      other.left >= this._left &&
+      other.right <= this.right &&
+      other.top >= this._top &&
+      other.bottom <= this.bottom
+    );
+  }
+
+  /**
+   * Checks if this bounds intersects with another bounds.
+   * @param other The bounds to check for intersection
+   * @returns True if the bounds overlap
+   */
+  public intersects(other: Bounds): boolean {
+    return !(
+      other.left > this.right ||
+      other.right < this._left ||
+      other.top > this.bottom ||
+      other.bottom < this._top
+    );
+  }
+
+  /**
+   * Calculates the intersection area with another bounds.
+   * @param other The bounds to intersect with
+   * @returns A new Bounds representing the intersection, or null if no intersection
+   */
+  public intersection(other: Bounds): Bounds | null {
+    if (!this.intersects(other)) {
+      return null;
+    }
+
+    const left = Math.max(this._left, other.left);
+    const top = Math.max(this._top, other.top);
+    const right = Math.min(this.right, other.right);
+    const bottom = Math.min(this.bottom, other.bottom);
+
+    return new Bounds(left, top, right - left, bottom - top);
+  }
+
+  /**
+   * Calculates the union (bounding box) of this bounds and another bounds.
+   * @param other The bounds to union with
+   * @returns A new Bounds that encompasses both bounds
+   */
+  public union(other: Bounds): Bounds {
+    const left = Math.min(this._left, other.left);
+    const top = Math.min(this._top, other.top);
+    const right = Math.max(this.right, other.right);
+    const bottom = Math.max(this.bottom, other.bottom);
+
+    return new Bounds(left, top, right - left, bottom - top);
+  }
+
+  /**
+   * Expands this bounds by the specified amount in all directions.
+   * @param amount The amount to expand by
+   * @returns This bounds for chaining
+   */
+  public expand(amount: number): this {
+    this._left -= amount;
+    this._top -= amount;
+    this._width += amount * 2;
+    this._height += amount * 2;
+    return this;
+  }
+
+  /**
+   * Shrinks this bounds by the specified amount in all directions.
+   * @param amount The amount to shrink by
+   * @returns This bounds for chaining
+   */
+  public shrink(amount: number): this {
+    return this.expand(-amount);
+  }
+
+  /**
+   * Offsets this bounds by the specified amount.
+   * @param x The x offset
+   * @param y The y offset
+   * @returns This bounds for chaining
+   */
+  public offset(x: number, y: number): this {
+    this._left += x;
+    this._top += y;
+    return this;
+  }
+
+  /**
+   * Offsets this bounds by a vector.
+   * @param vector The offset vector
+   * @returns This bounds for chaining
+   */
+  public offsetVector(vector: Vector2): this {
+    return this.offset(vector.x, vector.y);
+  }
+
+  /**
+   * Calculates the area of this bounds.
+   * @returns The area (width * height)
+   */
+  public area(): number {
+    return this._width * this._height;
+  }
+
+  /**
+   * Calculates the perimeter of this bounds.
+   * @returns The perimeter
+   */
+  public perimeter(): number {
+    return 2 * (this._width + this._height);
+  }
+
+  /**
+   * Checks if this bounds is empty (width or height is zero or negative).
+   * @returns True if the bounds is empty
+   */
+  public isEmpty(): boolean {
+    return this._width <= 0 || this._height <= 0;
+  }
+
+  /**
+   * Clamps a point to be within this bounds.
+   * @param position The point to clamp
+   * @returns A new clamped Vector2
+   */
+  public clamp(position: Vector2): Vector2 {
+    return new Vector2(
+      Math.max(this._left, Math.min(this.right, position.x)),
+      Math.max(this._top, Math.min(this.bottom, position.y))
+    );
+  }
+
+  /**
+   * Creates a deep copy of this bounds.
+   * @returns A new Bounds with the same values
+   */
+  public clone(): Bounds {
+    return new Bounds(this._left, this._top, this._width, this._height);
+  }
+
+  /**
+   * Copies values from another bounds.
+   * @param other The bounds to copy from
+   * @returns This bounds for chaining
+   */
+  public copy(other: Bounds): this {
+    this._left = other.left;
+    this._top = other.top;
+    this._width = other.width;
+    this._height = other.height;
+    return this;
+  }
+
+  /**
+   * Checks if this bounds equals another bounds.
+   * @param other The bounds to compare with
+   * @param epsilon Optional tolerance for floating point comparison
+   * @returns True if bounds are equal
+   */
+  public equals(other: Bounds, epsilon: number = 0): boolean {
+    if (epsilon === 0) {
+      return (
+        this._left === other.left &&
+        this._top === other.top &&
+        this._width === other.width &&
+        this._height === other.height
+      );
+    }
+    return (
+      Math.abs(this._left - other.left) <= epsilon &&
+      Math.abs(this._top - other.top) <= epsilon &&
+      Math.abs(this._width - other.width) <= epsilon &&
+      Math.abs(this._height - other.height) <= epsilon
+    );
+  }
+
+  /**
+   * Converts this bounds to a string representation.
+   * @returns String in format "Bounds(left, top, width, height)"
+   */
+  public toString(): string {
+    return `Bounds(${this._left}, ${this._top}, ${this._width}, ${this._height})`;
+  }
+
+  /**
+   * Creates a Bounds from two corner points.
+   * @param corner1 The first corner
+   * @param corner2 The opposite corner
+   * @returns A new Bounds
+   */
+  public static fromCorners(corner1: Vector2, corner2: Vector2): Bounds {
+    const left = Math.min(corner1.x, corner2.x);
+    const top = Math.min(corner1.y, corner2.y);
+    const right = Math.max(corner1.x, corner2.x);
+    const bottom = Math.max(corner1.y, corner2.y);
+    return new Bounds(left, top, right - left, bottom - top);
+  }
+
+  /**
+   * Creates a Bounds from center point and size.
+   * @param center The center position
+   * @param width The width
+   * @param height The height
+   * @returns A new Bounds
+   */
+  public static fromCenter(center: Vector2, width: number, height: number): Bounds {
+    return new Bounds(
+      center.x - width / 2,
+      center.y - height / 2,
+      width,
+      height
+    );
+  }
+
+  /**
+   * Creates a Bounds that encompasses all provided points.
+   * @param points Array of points
+   * @returns A new Bounds, or null if no points provided
+   */
+  public static fromPoints(points: Vector2[]): Bounds | null {
+    if (points.length === 0) {
+      return null;
+    }
+
+    let minX = points[0].x;
+    let minY = points[0].y;
+    let maxX = points[0].x;
+    let maxY = points[0].y;
+
+    for (let i = 1; i < points.length; i++) {
+      minX = Math.min(minX, points[i].x);
+      minY = Math.min(minY, points[i].y);
+      maxX = Math.max(maxX, points[i].x);
+      maxY = Math.max(maxY, points[i].y);
+    }
+
+    return new Bounds(minX, minY, maxX - minX, maxY - minY);
+  }
+}

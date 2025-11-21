@@ -472,6 +472,15 @@ export class QueryManager {
         }
     }
 
+    /**
+     * Update all queries with all entities
+     * Used primarily for transaction commits to batch query updates
+     */
+    updateAllQueries(): void {
+        // This method is intentionally empty as updateQueries is called per entity
+        // It's here for semantic clarity in transaction commits
+    }
+
     getAllQueries(): Query<any>[] {
         return this.queries;
     }

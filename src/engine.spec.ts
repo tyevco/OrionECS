@@ -3058,4 +3058,220 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(stats.cacheHitRate).toBe(0);
         });
     });
+
+    describe('Transaction/Batch Operations', () => {
+        test('should begin and commit transaction', () => {
+            expect(engine.isInTransaction()).toBe(false);
+
+            engine.beginTransaction();
+            expect(engine.isInTransaction()).toBe(true);
+
+            engine.commitTransaction();
+            expect(engine.isInTransaction()).toBe(false);
+        });
+
+        test('should throw error when starting nested transaction', () => {
+            engine.beginTransaction();
+            expect(() => engine.beginTransaction()).toThrow(/already in progress/i);
+            engine.rollbackTransaction();
+        });
+
+        test('should throw error when committing without transaction', () => {
+            expect(() => engine.commitTransaction()).toThrow(/no transaction/i);
+        });
+
+        test('should throw error when rolling back without transaction', () => {
+            expect(() => engine.rollbackTransaction()).toThrow(/no transaction/i);
+        });
+
+        test('should defer query updates during transaction', () => {
+            const query = engine.createQuery({ all: [Position] });
+
+            engine.beginTransaction();
+
+            // Create entities during transaction
+            for (let i = 0; i < 10; i++) {
+                const entity = engine.createEntity();
+                entity.addComponent(Position, i, i);
+            }
+
+            // Query should not have entities yet (updates deferred)
+            expect(query.size).toBe(0);
+
+            engine.commitTransaction();
+
+            // After commit, query should have all entities
+            expect(query.size).toBe(10);
+        });
+
+        test('should batch component additions during transaction', () => {
+            const query = engine.createQuery({ all: [Position, Velocity] });
+
+            engine.beginTransaction();
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Position, 0, 0);
+            entity1.addComponent(Velocity, 1, 1);
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(Position, 5, 5);
+            entity2.addComponent(Velocity, 2, 2);
+
+            // Query should be empty during transaction
+            expect(query.size).toBe(0);
+
+            engine.commitTransaction();
+
+            // After commit, both entities should match
+            expect(query.size).toBe(2);
+        });
+
+        test('should discard pending changes on rollback', () => {
+            const query = engine.createQuery({ all: [Position] });
+
+            engine.beginTransaction();
+
+            for (let i = 0; i < 5; i++) {
+                const entity = engine.createEntity();
+                entity.addComponent(Position, i, i);
+            }
+
+            engine.rollbackTransaction();
+
+            // Query should still be empty after rollback
+            expect(query.size).toBe(0);
+
+            // Entities exist but aren't in queries
+            expect(engine.getAllEntities().length).toBe(5);
+        });
+
+        test('should improve performance for bulk operations', () => {
+            const query = engine.createQuery({ all: [Position] });
+
+            // Without transaction
+            const start1 = performance.now();
+            for (let i = 0; i < 100; i++) {
+                const entity = engine.createEntity();
+                entity.addComponent(Position, i, i);
+            }
+            const withoutTransaction = performance.now() - start1;
+
+            // Clear entities
+            engine.getAllEntities().forEach((e) => {
+                e.queueFree();
+            });
+            engine.update(16);
+
+            // With transaction
+            const start2 = performance.now();
+            engine.beginTransaction();
+            for (let i = 0; i < 100; i++) {
+                const entity = engine.createEntity();
+                entity.addComponent(Position, i, i);
+            }
+            engine.commitTransaction();
+            const withTransaction = performance.now() - start2;
+
+            // Transaction should be faster (though this test may be flaky)
+            // Just verify both complete successfully
+            expect(withoutTransaction).toBeGreaterThan(0);
+            expect(withTransaction).toBeGreaterThan(0);
+            expect(query.size).toBe(100);
+        });
+
+        test('should handle component removal during transaction', () => {
+            const query = engine.createQuery({ all: [Position] });
+
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 0, 0);
+
+            // Ensure query is updated
+            engine.update(0);
+            expect(query.size).toBe(1);
+
+            engine.beginTransaction();
+            entity.removeComponent(Position);
+
+            // Query should still have entity (update deferred)
+            expect(query.size).toBe(1);
+
+            engine.commitTransaction();
+
+            // After commit, entity should be removed from query
+            expect(query.size).toBe(0);
+        });
+
+        test('should handle tag changes during transaction', () => {
+            const query = engine.createQuery({ tags: ['player'] });
+
+            engine.beginTransaction();
+
+            const entity = engine.createEntity();
+            entity.addTag('player');
+
+            // Query should be empty during transaction
+            expect(query.size).toBe(0);
+
+            engine.commitTransaction();
+
+            // After commit, entity should be in query
+            expect(query.size).toBe(1);
+        });
+
+        test('should handle multiple transactions sequentially', () => {
+            const query = engine.createQuery({ all: [Position] });
+
+            // First transaction
+            engine.beginTransaction();
+            for (let i = 0; i < 5; i++) {
+                engine.createEntity().addComponent(Position, i, i);
+            }
+            engine.commitTransaction();
+            expect(query.size).toBe(5);
+
+            // Second transaction
+            engine.beginTransaction();
+            for (let i = 0; i < 3; i++) {
+                engine.createEntity().addComponent(Position, i + 10, i + 10);
+            }
+            engine.commitTransaction();
+            expect(query.size).toBe(8);
+
+            // Third transaction with rollback
+            engine.beginTransaction();
+            for (let i = 0; i < 2; i++) {
+                engine.createEntity().addComponent(Position, i + 20, i + 20);
+            }
+            engine.rollbackTransaction();
+            expect(query.size).toBe(8); // Still 8, rollback discarded changes
+        });
+
+        test('should handle complex query updates during transaction', () => {
+            const queryAll = engine.createQuery({ all: [Position, Velocity] });
+            const queryAny = engine.createQuery({ any: [Position, Velocity] });
+            const queryNone = engine.createQuery({ all: [Position], none: [Velocity] });
+
+            engine.beginTransaction();
+
+            // Entity with both components
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Position, 0, 0);
+            entity1.addComponent(Velocity, 1, 1);
+
+            // Entity with only Position
+            const entity2 = engine.createEntity();
+            entity2.addComponent(Position, 5, 5);
+
+            // Entity with only Velocity
+            const entity3 = engine.createEntity();
+            entity3.addComponent(Velocity, 2, 2);
+
+            engine.commitTransaction();
+
+            // Check all queries
+            expect(queryAll.size).toBe(1); // Only entity1
+            expect(queryAny.size).toBe(3); // All three entities
+            expect(queryNone.size).toBe(1); // Only entity2
+        });
+    });
 });

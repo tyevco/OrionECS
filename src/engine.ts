@@ -140,6 +140,10 @@ export class Engine {
     private installedPlugins: Map<string, InstalledPlugin> = new Map();
     private extensions: Map<string, any> = new Map();
 
+    // Transaction state
+    private inTransaction: boolean = false;
+    private pendingQueryUpdates: Set<Entity> = new Set();
+
     constructor(
         private entityManager: EntityManager,
         private componentManager: ComponentManager,
@@ -154,13 +158,25 @@ export class Engine {
     ) {
         // Subscribe to entity changes to update queries
         this.eventEmitter.on('onComponentAdded', (entity: Entity) => {
-            this.queryManager.updateQueries(entity);
+            if (this.inTransaction) {
+                this.pendingQueryUpdates.add(entity);
+            } else {
+                this.queryManager.updateQueries(entity);
+            }
         });
         this.eventEmitter.on('onComponentRemoved', (entity: Entity) => {
-            this.queryManager.updateQueries(entity);
+            if (this.inTransaction) {
+                this.pendingQueryUpdates.add(entity);
+            } else {
+                this.queryManager.updateQueries(entity);
+            }
         });
         this.eventEmitter.on('onTagChanged', (entity: Entity) => {
-            this.queryManager.updateQueries(entity);
+            if (this.inTransaction) {
+                this.pendingQueryUpdates.add(entity);
+            } else {
+                this.queryManager.updateQueries(entity);
+            }
         });
     }
 
@@ -392,6 +408,77 @@ export class Engine {
         // Return stats for all queries
         const allQueries = this.queryManager.getAllQueries();
         return allQueries.map((q) => q.getStats());
+    }
+
+    // ========== Transaction Management ==========
+
+    /**
+     * Begin a transaction. All structural changes (add/remove components, create/destroy entities)
+     * will be batched and query updates will be deferred until commit.
+     * @throws Error if a transaction is already in progress
+     */
+    beginTransaction(): void {
+        if (this.inTransaction) {
+            throw new Error('Transaction already in progress');
+        }
+        this.inTransaction = true;
+        this.pendingQueryUpdates.clear();
+
+        if (this.debugMode) {
+            console.log('[ECS Debug] Transaction started');
+        }
+    }
+
+    /**
+     * Commit the current transaction. All pending changes will be applied
+     * and queries will be updated once with all changed entities.
+     * @throws Error if no transaction is in progress
+     */
+    commitTransaction(): void {
+        if (!this.inTransaction) {
+            throw new Error('No transaction in progress');
+        }
+
+        // Update all queries for entities that changed during the transaction
+        for (const entity of this.pendingQueryUpdates) {
+            this.queryManager.updateQueries(entity);
+        }
+
+        // Reset transaction state
+        this.inTransaction = false;
+        this.pendingQueryUpdates.clear();
+
+        if (this.debugMode) {
+            console.log('[ECS Debug] Transaction committed');
+        }
+    }
+
+    /**
+     * Rollback the current transaction. All pending changes will be discarded.
+     * Note: Entities created during the transaction will still exist but won't be
+     * added to queries. Components added/removed will remain but query updates are discarded.
+     * @throws Error if no transaction is in progress
+     */
+    rollbackTransaction(): void {
+        if (!this.inTransaction) {
+            throw new Error('No transaction in progress');
+        }
+
+        // Simply discard all pending changes
+        this.inTransaction = false;
+        this.pendingQueryUpdates.clear();
+
+        if (this.debugMode) {
+            console.log('[ECS Debug] Transaction rolled back');
+        }
+    }
+
+    /**
+     * Check if a transaction is currently in progress
+     * @returns true if a transaction is in progress, false otherwise
+     */
+    isInTransaction(): boolean {
+        return this.inTransaction;
     }
 
     // ========== Prefab Management ==========

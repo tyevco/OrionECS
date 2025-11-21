@@ -231,8 +231,6 @@ export class InputAPI {
   private handleMouseUp(e: MouseEvent): void {
     if (!this.mousePosition) return;
 
-    const wasDragging = this.isDragging;
-
     if (this.isDragging && this.dragStart) {
       this.emit('dragend', {
         startPosition: this.dragStart.clone(),

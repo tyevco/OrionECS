@@ -3698,4 +3698,262 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(dependentCreateCalled).toBe(true);
         });
     });
+
+    describe('TypeScript Type Inference (ROADMAP #16)', () => {
+        class Position {
+            constructor(
+                public x: number = 0,
+                public y: number = 0
+            ) {}
+        }
+
+        class Velocity {
+            constructor(
+                public dx: number = 0,
+                public dy: number = 0
+            ) {}
+        }
+
+        class Health {
+            constructor(
+                public current: number = 100,
+                public max: number = 100
+            ) {}
+        }
+
+        beforeEach(() => {
+            engine = new EngineBuilder().withDebugMode(false).build();
+        });
+
+        test('should infer component types in system act callback', () => {
+            let typedPositionX: number | undefined;
+            let typedVelocityDx: number | undefined;
+
+            engine.createSystem(
+                'TypedSystem',
+                { all: [Position, Velocity] as const },
+                {
+                    act: (entity, position, velocity) => {
+                        // These should have proper types inferred
+                        // TypeScript should provide autocomplete here
+                        typedPositionX = position.x;
+                        typedVelocityDx = velocity.dx;
+
+                        // Test that we can access component properties
+                        position.x += velocity.dx;
+                        position.y += velocity.dy;
+                    },
+                }
+            );
+
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 10, 20);
+            entity.addComponent(Velocity, 1, 2);
+
+            engine.update(16);
+
+            const pos = entity.getComponent(Position);
+            expect(pos.x).toBe(11);
+            expect(pos.y).toBe(22);
+            expect(typedPositionX).toBe(10);
+            expect(typedVelocityDx).toBe(1);
+        });
+
+        test('should work with query forEach method', () => {
+            const query = engine.createQuery({ all: [Position, Health] as const });
+
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Position, 10, 20);
+            entity1.addComponent(Health, 80, 100);
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(Position, 5, 15);
+            entity2.addComponent(Health, 50, 100);
+
+            const results: Array<{ x: number; hp: number }> = [];
+
+            query.forEach((entity, position, health) => {
+                // position and health should be properly typed
+                results.push({
+                    x: position.x,
+                    hp: health.current,
+                });
+            });
+
+            expect(results).toHaveLength(2);
+            expect(results[0]).toEqual({ x: 10, hp: 80 });
+            expect(results[1]).toEqual({ x: 5, hp: 50 });
+        });
+
+        test('should infer types with multiple components', () => {
+            let capturedTypes: {
+                posX?: number;
+                velDx?: number;
+                healthCurrent?: number;
+            } = {};
+
+            engine.createSystem(
+                'MultiComponentSystem',
+                { all: [Position, Velocity, Health] as const },
+                {
+                    act: (entity, position, velocity, health) => {
+                        // All three components should be properly typed
+                        capturedTypes = {
+                            posX: position.x,
+                            velDx: velocity.dx,
+                            healthCurrent: health.current,
+                        };
+                    },
+                }
+            );
+
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 100, 200);
+            entity.addComponent(Velocity, 5, 10);
+            entity.addComponent(Health, 75, 100);
+
+            engine.update(16);
+
+            expect(capturedTypes.posX).toBe(100);
+            expect(capturedTypes.velDx).toBe(5);
+            expect(capturedTypes.healthCurrent).toBe(75);
+        });
+
+        test('should work with single component systems', () => {
+            let healthValue: number | undefined;
+
+            engine.createSystem(
+                'SingleComponentSystem',
+                { all: [Health] as const },
+                {
+                    act: (entity, health) => {
+                        // health should be properly typed
+                        healthValue = health.current;
+                        health.current = Math.min(health.current + 10, health.max);
+                    },
+                }
+            );
+
+            const entity = engine.createEntity();
+            entity.addComponent(Health, 50, 100);
+
+            engine.update(16);
+
+            const h = entity.getComponent(Health);
+            expect(h.current).toBe(60);
+            expect(healthValue).toBe(50);
+        });
+
+        test('should preserve types through fixed update systems', () => {
+            let typedUpdate = false;
+
+            engine.createSystem(
+                'FixedUpdateSystem',
+                { all: [Position, Velocity] as const },
+                {
+                    act: (entity, position, velocity) => {
+                        // Should have proper types even in fixed update
+                        position.x += velocity.dx;
+                        position.y += velocity.dy;
+                        typedUpdate = true;
+                    },
+                },
+                true // Fixed update
+            );
+
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 0, 0);
+            entity.addComponent(Velocity, 1, 1);
+
+            engine.update(17); // 17ms > 16.67ms (60 FPS interval)
+
+            expect(typedUpdate).toBe(true);
+        });
+
+        test('should work with createQuery method', () => {
+            const query = engine.createQuery({ all: [Position, Velocity] as const });
+
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 15, 25);
+            entity.addComponent(Velocity, 2, 3);
+
+            let found = false;
+            query.forEach((e, pos, vel) => {
+                // Types should be inferred here too
+                expect(pos.x).toBe(15);
+                expect(vel.dx).toBe(2);
+                found = true;
+            });
+
+            expect(found).toBe(true);
+        });
+
+        test('should handle empty component arrays', () => {
+            // System with no components should still work
+            let called = false;
+
+            engine.createSystem(
+                'NoComponentSystem',
+                { all: [] as const },
+                {
+                    before: () => {
+                        called = true;
+                    },
+                }
+            );
+
+            engine.createEntity();
+            engine.update(16);
+
+            expect(called).toBe(true);
+        });
+
+        test('should work with complex component hierarchies', () => {
+            class Transform {
+                constructor(
+                    public x: number = 0,
+                    public y: number = 0,
+                    public rotation: number = 0
+                ) {}
+            }
+
+            class Sprite {
+                constructor(
+                    public texture: string = '',
+                    public width: number = 32,
+                    public height: number = 32
+                ) {}
+            }
+
+            let transformData: { x: number; rot: number } | undefined;
+            let spriteData: { tex: string; w: number } | undefined;
+
+            engine.createSystem(
+                'RenderSystem',
+                { all: [Transform, Sprite] as const },
+                {
+                    act: (entity, transform, sprite) => {
+                        // Both should be properly typed
+                        transformData = {
+                            x: transform.x,
+                            rot: transform.rotation,
+                        };
+                        spriteData = {
+                            tex: sprite.texture,
+                            w: sprite.width,
+                        };
+                    },
+                }
+            );
+
+            const entity = engine.createEntity();
+            entity.addComponent(Transform, 50, 100, 45);
+            entity.addComponent(Sprite, 'player.png', 64, 64);
+
+            engine.update(16);
+
+            expect(transformData).toEqual({ x: 50, rot: 45 });
+            expect(spriteData).toEqual({ tex: 'player.png', w: 64 });
+        });
+    });
 });

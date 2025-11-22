@@ -4,7 +4,7 @@ This directory contains detailed issue proposals for features and improvements t
 
 ## Overview
 
-After analyzing the existing roadmap and GitHub issues, we identified **16 new feature proposals** organized across 4 milestones. These focus on:
+After analyzing the existing roadmap and GitHub issues, we identified **22 new feature proposals** organized across multiple milestones. These focus on:
 
 1. **Developer Experience** - Tools, documentation, and testing utilities
 2. **Game Development** - Common patterns and plugins for game development
@@ -129,9 +129,78 @@ Focus: Community and Ecosystem Growth
   - Plugin registry
   - Community events and resources
 
+### v1.1.0 - Editor Foundation (NEW MILESTONE - 2 issues)
+
+Focus: Core Editor Infrastructure
+
+- **[editor-frontend-application.md](editor-frontend-application.md)** (CRITICAL PRIORITY)
+  - React-based editor UI framework
+  - Panel management and workspace system
+  - Dark/light themes and design system
+  - Command palette and keyboard shortcuts
+  - Settings and preferences
+  - Extensible plugin architecture
+
+- **[editor-backend-services.md](editor-backend-services.md)** (CRITICAL PRIORITY)
+  - Project management API
+  - User authentication and authorization
+  - File storage and management
+  - Asset hosting via CDN
+  - Build service and queue
+  - Real-time collaboration infrastructure
+  - Database and caching layer
+
+### v1.2.0 - Core Editor Features (NEW MILESTONE - 4 issues)
+
+Focus: Essential Editor Functionality
+
+- **[editor-scene-editor.md](editor-scene-editor.md)** (CRITICAL PRIORITY)
+  - Visual entity hierarchy tree
+  - Viewport with Pixi.js/Three.js rendering
+  - Transform gizmos (move, rotate, scale)
+  - Entity selection and multi-select
+  - Grid, snapping, and alignment tools
+  - Undo/redo system
+  - Drag-and-drop entity manipulation
+
+- **[editor-inspector-properties.md](editor-inspector-properties.md)** (CRITICAL PRIORITY)
+  - Entity and component inspector panel
+  - Auto-generated property editors
+  - Custom editors for complex types
+  - Property validation and error checking
+  - Multi-entity batch editing
+  - Component add/remove UI
+  - Property copy/paste
+
+- **[editor-code-editor.md](editor-code-editor.md)** (HIGH PRIORITY)
+  - Monaco Editor integration (VS Code's editor)
+  - Full TypeScript support and IntelliSense
+  - Multi-file editing with tabs
+  - Code formatting and linting
+  - Go to definition and find references
+  - Git integration and diff view
+  - OrionECS API auto-completion
+
+- **[editor-dev-environment.md](editor-dev-environment.md)** (HIGH PRIORITY)
+  - In-browser TypeScript compilation
+  - Module bundling with esbuild-wasm
+  - Sandboxed code execution (iframe/Web Worker)
+  - Hot module replacement (HMR)
+  - npm package imports from CDN
+  - Console and debugging tools
+  - Live preview and reload
+
 ## Priority Summary
 
-### High Priority (8 issues)
+### Critical Priority (4 issues) - Browser-Based Editor
+These are foundational for the editor and should be implemented together:
+
+1. **Frontend Editor Application** (v1.1.0) - Core UI framework and infrastructure
+2. **Backend Services** (v1.1.0) - API, database, and cloud services
+3. **Scene Editor** (v1.2.0) - Visual entity and hierarchy editing
+4. **Inspector & Properties** (v1.2.0) - Component editing UI
+
+### High Priority (10 issues) - Framework & Editor Features
 These should be implemented first as they have the highest impact on adoption and production readiness:
 
 1. API Documentation Generation (v0.3.0)
@@ -142,6 +211,8 @@ These should be implemented first as they have the highest impact on adoption an
 6. Multiple World/Scene Support (v0.6.0)
 7. Component Schema Evolution (v0.6.0)
 8. High-Level Save/Load System (v0.6.0)
+9. **Code Editor Integration** (v1.2.0) - Monaco with TypeScript
+10. **In-Browser Dev Environment** (v1.2.0) - Compilation and execution
 
 ### Medium Priority (8 issues)
 Important features that enhance the framework but are not critical for initial adoption:
@@ -184,6 +255,11 @@ These issues fill critical gaps in the current roadmap:
 - **Missing:** Active community, support channels, showcase platform
 - **New Issues:** Community infrastructure, events, resources
 
+### Browser-Based Editor Gap
+- **Current:** Conceptual GitHub issues (#78-86)
+- **Missing:** Detailed implementation plans and architecture
+- **New Issues:** Frontend app, backend services, scene editor, inspector, code editor, dev environment
+
 ## Implementation Recommendations
 
 ### Phase 1: Foundation (v0.3.0)
@@ -216,6 +292,26 @@ Build community as framework matures:
 1. Community Infrastructure
 2. Video Tutorial Series
 3. Events and showcases
+
+### Phase 6: Editor Foundation (v1.1.0)
+Build core editor infrastructure (can run in parallel with phases 1-4):
+1. Frontend Editor Application
+2. Backend Services & Infrastructure
+
+### Phase 7: Core Editor Features (v1.2.0)
+Implement essential editor functionality:
+1. Scene Editor (visual editing)
+2. Inspector & Properties (component editing)
+3. Code Editor Integration (Monaco)
+4. In-Browser Development Environment
+
+### Phase 8: Advanced Editor Features (v1.3.0+)
+Add advanced editor capabilities:
+1. Visual Scripting System (#79)
+2. Asset Pipeline (#80)
+3. Build & Export System (#81)
+4. Real-Time Collaboration (#82)
+5. Template Gallery & Marketplace (#83, #85, #86)
 
 ## Notes on Existing GitHub Issues
 
@@ -255,8 +351,20 @@ Each issue includes:
 
 ---
 
-**Total New Issues:** 16
-**Total Subtasks:** ~350+
-**Estimated Impact:** High - Addresses major gaps in tooling, documentation, production readiness, and community
+**Total New Issues:** 22
+- 16 framework/infrastructure issues
+- 6 browser-based editor issues
 
-These issues represent a comprehensive roadmap to make OrionECS a production-ready, well-documented, community-supported ECS framework with excellent developer experience.
+**Total Subtasks:** ~600+
+- Framework issues: ~350 subtasks
+- Editor issues: ~250 subtasks
+
+**Estimated Impact:** Very High - Addresses major gaps in:
+- Tooling & developer experience
+- Documentation & learning resources
+- Production readiness & reliability
+- Game development patterns
+- Community infrastructure
+- **Browser-based game editor** (complete implementation plan)
+
+These issues represent a comprehensive roadmap to make OrionECS a production-ready, well-documented, community-supported ECS framework with excellent developer experience **and** a powerful browser-based game editor.

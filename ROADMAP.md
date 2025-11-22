@@ -77,6 +77,9 @@ const engine = new EngineBuilder()
 - `plugins/profiling/` - Performance profiling with Chrome DevTools traces
 - `plugins/resource-manager/` - Resource loading with reference counting
 - `plugins/debug-visualizer/` - Debug visualization tools
+- `plugins/canvas2d-renderer/` - 2D canvas rendering system
+- `plugins/input-manager/` - Input handling and management
+- `plugins/interaction-system/` - Entity interaction and event handling
 
 ---
 
@@ -529,15 +532,15 @@ Comprehensive example projects and patterns.
 **✅ Implemented:**
 - `examples/games/asteroids.ts` - Asteroids game with entity spawning, collision
 - `examples/games/platformer.ts` - Platformer with physics, input handling
+- `examples/games/rts-demo.ts` - RTS game with large entity counts, spatial queries, selection
+- `examples/games/multiplayer-demo.ts` - Multiplayer demo with network synchronization concepts
 - `examples/integrations/pixi-example.ts` - Pixi.js 2D rendering integration
+- `examples/integrations/threejs-example.ts` - Three.js 3D rendering integration
+- `examples/integrations/nodejs-server.ts` - Headless server-side ECS example
+- `examples/index.html` - GitHub Pages landing page with all examples
 - `docs/COOKBOOK.md` - Common patterns and best practices
 
-**❌ Still Needed:**
-- RTS Demo - Large entity counts, spatial queries, selection
-- Multiplayer Demo - Network synchronization, client prediction
-- Three.js Integration - 3D rendering example
-- React Integration - UI with React
-- Node.js Server - Headless server-side ECS
+**✅ Complete!** All planned interactive examples have been implemented.
 
 ---
 
@@ -675,23 +678,74 @@ const engine = new EngineBuilder()
 
 ---
 
-## 🚀 Planned Features
+### ✅ Canvas2D Renderer Plugin
+**Status:** ✅ Implemented (plugins/canvas2d-renderer/)
+**Priority:** Complete
+**Impact:** 2D Rendering
 
-### Entity Archetypes
-**Status:** Planned
-**Priority:** High
-**Impact:** Performance, Memory
-
-Group entities by component composition for better cache locality and iteration performance.
+2D canvas rendering system with sprite support, layers, and camera.
 
 ```typescript
-// Entities with same component types share an archetype
+import { Canvas2DRendererPlugin } from 'orion-ecs/plugins/canvas2d-renderer';
+
+const engine = new EngineBuilder()
+  .use(new Canvas2DRendererPlugin())
+  .build();
+```
+
+---
+
+### ✅ Input Manager Plugin
+**Status:** ✅ Implemented (plugins/input-manager/)
+**Priority:** Complete
+**Impact:** Input Handling
+
+Comprehensive input management for keyboard, mouse, and touch events.
+
+```typescript
+import { InputManagerPlugin } from 'orion-ecs/plugins/input-manager';
+
+const engine = new EngineBuilder()
+  .use(new InputManagerPlugin())
+  .build();
+```
+
+---
+
+### ✅ Interaction System Plugin
+**Status:** ✅ Implemented (plugins/interaction-system/)
+**Priority:** Complete
+**Impact:** Entity Interactions
+
+Entity interaction and event handling system for click, hover, and drag operations.
+
+```typescript
+import { InteractionSystemPlugin } from 'orion-ecs/plugins/interaction-system';
+
+const engine = new EngineBuilder()
+  .use(new InteractionSystemPlugin())
+  .build();
+```
+
+---
+
+### ✅ Entity Archetypes
+**Status:** ✅ Implemented (core/src/archetype.ts)
+**Priority:** Complete
+**Impact:** Performance, Memory
+
+Groups entities by component composition for improved cache locality and iteration performance.
+
+```typescript
+// Entities with same component types share an archetype automatically
 // [Position, Velocity] -> Archetype A
 // [Position, Velocity, Health] -> Archetype B
 // [Position, Renderable] -> Archetype C
 
 // Engine automatically manages archetypes
-// Queries iterate over matching archetypes only
+// Queries iterate over matching archetypes only - significantly faster!
+const query = engine.createQuery({ all: [Position, Velocity] });
+// This query only iterates entities in matching archetypes
 ```
 
 **Benefits:**
@@ -700,13 +754,15 @@ Group entities by component composition for better cache locality and iteration 
 - Memory efficiency (component data stored contiguously)
 - Follows Unity DOTS and Bevy ECS patterns
 
-**Implementation Notes:**
+**Implementation Details:**
 - Automatic archetype management
 - Entities move between archetypes when components change
-- Structural changes (add/remove component) more expensive
-- Query iteration significantly faster
+- Structural changes (add/remove component) properly handled
+- Query iteration significantly faster with archetype optimization
 
 ---
+
+## 🚀 Planned Features
 
 ### Component Change Events
 **Status:** Planned
@@ -928,21 +984,24 @@ engine.inspector.enable({
 - ✅ Integration examples (Pixi.js)
 - ✅ Cookbook patterns guide
 
-### ✅ Available Plugins (v0.1.x)
+### ✅ Available Plugins (v0.1.x - v0.2.x)
 - ✅ Spatial Partitioning - Grid-based spatial queries
 - ✅ Enhanced Profiling - Chrome DevTools traces, memory leak detection
 - ✅ Resource Manager - Reference counting for shared resources
 - ✅ Debug Visualizer - Entity hierarchy and component visualization
 - ✅ Physics - Basic physics simulation
+- ✅ Canvas2D Renderer - 2D canvas rendering with sprites and camera (v0.2.0)
+- ✅ Input Manager - Keyboard, mouse, and touch input handling (v0.2.0)
+- ✅ Interaction System - Entity click, hover, and drag interactions (v0.2.0)
 
-### 🚧 Short Term (v0.2.x)
-1. Complete interactive examples suite:
-   - RTS demo
-   - Multiplayer demo
-   - Three.js 3D integration
-   - React UI integration
-   - Node.js headless server
-2. Entity archetypes for cache locality
+### ✅ Completed (v0.2.0)
+- ✅ Complete interactive examples suite:
+  - ✅ RTS demo with large entity counts and spatial queries
+  - ✅ Multiplayer demo with network synchronization concepts
+  - ✅ Three.js 3D integration example
+  - ✅ Node.js headless server example
+  - ✅ GitHub Pages deployment with landing page
+- ✅ Entity archetypes for cache locality and performance
 
 ### 🔮 Medium Term (v0.3.x - v0.4.x)
 3. Component change events (reactive programming)
@@ -972,7 +1031,10 @@ OrionECS/
 │   ├── profiling/             # Profiling plugin
 │   ├── resource-manager/      # Resource management plugin
 │   ├── debug-visualizer/      # Debug visualization plugin
-│   └── physics/               # Physics plugin
+│   ├── physics/               # Physics plugin
+│   ├── canvas2d-renderer/     # 2D canvas rendering (v0.2.0)
+│   ├── input-manager/         # Input handling (v0.2.0)
+│   └── interaction-system/    # Entity interactions (v0.2.0)
 ├── examples/                  # Example implementations
 │   ├── games/                 # Game examples
 │   └── integrations/          # Integration examples
@@ -996,6 +1058,6 @@ For questions or suggestions, please open an issue or discussion on GitHub.
 
 ---
 
-**Last Updated:** 2025-11-21
-**Current Version:** 0.1.1-ts
-**Test Coverage:** 192 passing tests
+**Last Updated:** 2025-11-22
+**Current Version:** 0.2.0
+**Test Coverage:** 237 passing tests

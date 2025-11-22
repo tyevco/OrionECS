@@ -264,22 +264,27 @@ export class Query<C extends readonly any[] = any[]> {
             if (this.matchingArchetypes) {
                 // Iterate over archetypes (cache-friendly iteration)
                 for (const archetype of this.matchingArchetypes) {
+                    // Get component arrays in the query's specified order (not archetype's sorted order)
+                    const componentArrays = archetype.getComponentArrays(all);
+                    const entities = archetype.getEntities();
+
                     // Check if we need to filter by tags (tags are not part of archetype matching)
                     const needsTagFiltering = tags.length > 0 || withoutTags.length > 0;
 
-                    if (needsTagFiltering) {
-                        // Fallback to entity-level filtering for tags
-                        archetype.forEach((entity: Entity, ...components: any[]) => {
+                    // Iterate through entities
+                    for (let i = 0; i < entities.length; i++) {
+                        const entity = entities[i];
+
+                        if (needsTagFiltering) {
                             // Filter by tags
                             if (tags.length > 0 && !tags.every((tag: string) => entity.hasTag(tag)))
-                                return;
-                            if (withoutTags.some((tag: string) => entity.hasTag(tag))) return;
+                                continue;
+                            if (withoutTags.some((tag: string) => entity.hasTag(tag))) continue;
+                        }
 
-                            callback(entity, ...(components as unknown as C));
-                        });
-                    } else {
-                        // Direct archetype iteration (maximum performance)
-                        archetype.forEach(callback);
+                        // Extract components in query order
+                        const components = componentArrays.map((arr: any[]) => arr[i]);
+                        callback(entity, ...(components as unknown as C));
                     }
                 }
                 return;
@@ -685,11 +690,26 @@ export class Entity implements EntityDef {
     serialize(): SerializedEntity {
         const components: { [componentName: string]: any } = {};
 
+        // Check if archetypes are enabled
+        const archetypeManager = this.componentManager.getArchetypeManager();
+
         for (const [componentType, index] of this._componentIndices) {
-            const componentArray = this.componentManager.getComponentArray(
-                componentType as ComponentIdentifier
-            );
-            const component = componentArray.get(index);
+            let component: any = null;
+
+            if (archetypeManager && index === -1) {
+                // Archetype mode: get component from archetype
+                component = archetypeManager.getComponent(
+                    this,
+                    componentType as ComponentIdentifier
+                );
+            } else {
+                // Legacy mode: get component from sparse array
+                const componentArray = this.componentManager.getComponentArray(
+                    componentType as ComponentIdentifier
+                );
+                component = componentArray.get(index);
+            }
+
             if (component) {
                 components[componentType.name] = { ...component };
             }
@@ -1160,15 +1180,15 @@ export class EntityManager {
             }
         }
 
-        // Remove from archetype if archetypes are enabled
+        // Remove all components first (this handles archetype transitions)
+        for (const componentType of entity.getComponentTypes()) {
+            entity.removeComponent(componentType as ComponentIdentifier);
+        }
+
+        // Remove from archetype if archetypes are enabled (cleanup any remaining archetype references)
         const archetypeManager = (entity as any).componentManager.getArchetypeManager();
         if (archetypeManager) {
             archetypeManager.removeEntity(entity);
-        }
-
-        // Remove all components
-        for (const componentType of entity.getComponentTypes()) {
-            entity.removeComponent(componentType as ComponentIdentifier);
         }
 
         // Clear hierarchy

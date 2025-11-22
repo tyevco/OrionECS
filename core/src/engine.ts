@@ -686,50 +686,28 @@ export class Engine {
         const processEntity = (serializedEntity: any): Entity => {
             const entity = this.createEntity(serializedEntity.name);
 
-            // Add components
+            // Add components - convert component data back to component instances
             for (const [componentName, componentData] of Object.entries(
                 serializedEntity.components
             )) {
                 const componentType = this.componentManager.getComponentByName(componentName);
                 if (componentType) {
-                    // Reconstruct component from data
-                    const component = Object.assign(new componentType(), componentData);
+                    // For each component, we need to create it with the right data
+                    // Extract constructor args from component data if they exist
+                    // Otherwise create empty and assign properties
+                    const dataObj = componentData as Record<string, any>;
+                    const keys = Object.keys(dataObj);
+                    const values = keys.map((key) => dataObj[key]);
 
-                    // Check if archetypes are enabled
-                    const archetypeManager = this.componentManager.getArchetypeManager();
-                    if (archetypeManager) {
-                        // Archetype mode
-                        const newComponentTypes = [
-                            ...(entity as any)._componentIndices.keys(),
-                            componentType,
-                        ];
-                        const components = new Map<ComponentIdentifier, any>();
-
-                        // Gather existing components
-                        if ((entity as any)._componentIndices.size > 0) {
-                            for (const compType of (entity as any)._componentIndices.keys()) {
-                                const existingComp = archetypeManager.getComponent(
-                                    entity,
-                                    compType
-                                );
-                                if (existingComp !== null) {
-                                    components.set(compType, existingComp);
-                                }
-                            }
-                        }
-
-                        components.set(componentType, component);
-                        archetypeManager.moveEntity(entity, newComponentTypes, components);
-                        (entity as any)._componentIndices.set(componentType, -1);
-                    } else {
-                        // Legacy mode
-                        const componentArray =
-                            this.componentManager.getComponentArray(componentType);
-                        const index = componentArray.add(component);
-                        (entity as any)._componentIndices.set(componentType, index);
+                    try {
+                        // Try to call addComponent with the values as constructor args
+                        entity.addComponent(componentType, ...values);
+                    } catch {
+                        // If that fails, add empty component and assign properties
+                        entity.addComponent(componentType);
+                        const component = entity.getComponent(componentType as any) as any;
+                        Object.assign(component, componentData);
                     }
-
-                    (entity as any)._dirty = true;
                 }
             }
 
@@ -870,11 +848,30 @@ export class Engine {
         const componentStats: { [name: string]: number } = {};
         let totalMemory = 0;
 
-        for (const [type, array] of componentArrays) {
-            const size = array.size;
-            const memory = array.memoryEstimate;
-            componentStats[type.name] = size;
-            totalMemory += memory;
+        // Check if archetypes are enabled
+        const archetypeManager = this.componentManager.getArchetypeManager();
+
+        if (archetypeManager) {
+            // With archetypes: get memory from archetype system
+            const archetypeMemory = archetypeManager.getMemoryStats();
+            totalMemory = archetypeMemory.estimatedBytes;
+
+            // Count components in archetypes
+            for (const archetypeInfo of archetypeMemory.archetypeBreakdown) {
+                // Archetype ID is like "Position,Velocity" - count entities for each component
+                const componentNames = archetypeInfo.id.split(',').filter((s) => s.length > 0);
+                for (const name of componentNames) {
+                    componentStats[name] = (componentStats[name] || 0) + archetypeInfo.entityCount;
+                }
+            }
+        } else {
+            // Without archetypes: get memory from sparse arrays
+            for (const [type, array] of componentArrays) {
+                const size = array.size;
+                const memory = array.memoryEstimate;
+                componentStats[type.name] = size;
+                totalMemory += memory;
+            }
         }
 
         const entities = this.entityManager.getAllEntities();

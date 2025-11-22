@@ -142,13 +142,31 @@ export class Query<C extends readonly any[] = any[]> {
     private cacheVersion: number = 0;
     private currentVersion: number = 0;
 
+    // Archetype-based iteration support
+    private archetypeManager?: any; // ArchetypeManager
+    private matchingArchetypes?: any[]; // Archetype[]
+    private archetypesCacheValid: boolean = false;
+
     // Performance tracking
     private _executionCount: number = 0;
     private _totalTimeMs: number = 0;
     private _lastMatchCount: number = 0;
     private _cacheHits: number = 0;
 
-    constructor(public options: QueryOptions<any>) {}
+    constructor(
+        public options: QueryOptions<any>,
+        archetypeManager?: any
+    ) {
+        this.archetypeManager = archetypeManager;
+    }
+
+    /**
+     * Set the archetype manager for this query (enables archetype-based iteration)
+     */
+    setArchetypeManager(manager: any): void {
+        this.archetypeManager = manager;
+        this.archetypesCacheValid = false;
+    }
 
     private test(entity: Entity): boolean {
         const { all = [], any = [], none = [], tags = [], withoutTags = [] } = this.options;
@@ -231,10 +249,49 @@ export class Query<C extends readonly any[] = any[]> {
     /**
      * Iterate over entities with direct component access
      * Reduces memory allocations by avoiding array creation
+     * Uses archetype-based iteration for significantly better performance when available
      */
     forEach(callback: (entity: Entity, ...components: C) => void): void {
-        const { all = [] } = this.options;
+        const { all = [], tags = [], withoutTags = [] } = this.options;
 
+        // Use archetype-based iteration if available (much faster!)
+        if (this.archetypeManager) {
+            if (!this.archetypesCacheValid) {
+                this.matchingArchetypes = this.archetypeManager.getMatchingArchetypes(this.options);
+                this.archetypesCacheValid = true;
+            }
+
+            if (this.matchingArchetypes) {
+                // Iterate over archetypes (cache-friendly iteration)
+                for (const archetype of this.matchingArchetypes) {
+                    // Get component arrays in the query's specified order (not archetype's sorted order)
+                    const componentArrays = archetype.getComponentArrays(all);
+                    const entities = archetype.getEntities();
+
+                    // Check if we need to filter by tags (tags are not part of archetype matching)
+                    const needsTagFiltering = tags.length > 0 || withoutTags.length > 0;
+
+                    // Iterate through entities
+                    for (let i = 0; i < entities.length; i++) {
+                        const entity = entities[i];
+
+                        if (needsTagFiltering) {
+                            // Filter by tags
+                            if (tags.length > 0 && !tags.every((tag: string) => entity.hasTag(tag)))
+                                continue;
+                            if (withoutTags.some((tag: string) => entity.hasTag(tag))) continue;
+                        }
+
+                        // Extract components in query order
+                        const components = componentArrays.map((arr: any[]) => arr[i]);
+                        callback(entity, ...(components as unknown as C));
+                    }
+                }
+                return;
+            }
+        }
+
+        // Fallback to traditional entity-based iteration
         for (const entity of this.matchingEntities) {
             const componentArgs = all.map((componentType: ComponentIdentifier) =>
                 entity.getComponent(componentType)
@@ -409,7 +466,6 @@ export class Entity implements EntityDef {
                 }
             }
 
-            const componentArray = this.componentManager.getComponentArray(type);
             // Use pool if available, otherwise create normally
             const component = this.componentManager.acquireComponent(type, ...args);
 
@@ -426,8 +482,38 @@ export class Entity implements EntityDef {
                 }
             }
 
-            const index = componentArray.add(component);
-            this._componentIndices.set(type, index);
+            // Check if archetypes are enabled
+            const archetypeManager = this.componentManager.getArchetypeManager();
+            if (archetypeManager) {
+                // Archetype mode: move entity to new archetype
+                const newComponentTypes = [...this._componentIndices.keys(), type];
+                const components = new Map<ComponentIdentifier, any>();
+
+                // Gather existing components from archetype (only if entity has components)
+                if (this._componentIndices.size > 0) {
+                    for (const compType of this._componentIndices.keys()) {
+                        const existingComp = archetypeManager.getComponent(this, compType);
+                        if (existingComp !== null) {
+                            components.set(compType, existingComp);
+                        }
+                    }
+                }
+
+                // Add new component
+                components.set(type, component);
+
+                // Move entity to new archetype
+                archetypeManager.moveEntity(this, newComponentTypes, components);
+
+                // Update component indices to reflect archetype storage
+                this._componentIndices.set(type, -1); // -1 indicates archetype storage
+            } else {
+                // Legacy mode: use sparse arrays
+                const componentArray = this.componentManager.getComponentArray(type);
+                const index = componentArray.add(component);
+                this._componentIndices.set(type, index);
+            }
+
             this._dirty = true;
             this._changeVersion++;
 
@@ -444,19 +530,58 @@ export class Entity implements EntityDef {
     removeComponent<T>(type: ComponentIdentifier<T>): this {
         const index = this._componentIndices.get(type);
         if (index !== undefined) {
-            const componentArray = this.componentManager.getComponentArray(type);
-            // Get component before removing to release it to pool
-            const component = componentArray.get(index);
-            if (component !== null) {
+            const archetypeManager = this.componentManager.getArchetypeManager();
+
+            if (archetypeManager) {
+                // Archetype mode: move entity to new archetype
+                const component = archetypeManager.getComponent(this, type);
+
                 // Call onDestroy lifecycle hook if it exists
-                if (typeof (component as any).onDestroy === 'function') {
+                if (component && typeof (component as any).onDestroy === 'function') {
                     (component as any).onDestroy(this);
                 }
 
-                this.componentManager.releaseComponent(type, component);
+                // Release component to pool
+                if (component) {
+                    this.componentManager.releaseComponent(type, component);
+                }
+
+                // Get new component types (excluding the removed one)
+                const newComponentTypes = Array.from(this._componentIndices.keys()).filter(
+                    (t) => t !== type
+                );
+
+                // Gather remaining components
+                const components = new Map<ComponentIdentifier, any>();
+                for (const compType of newComponentTypes) {
+                    const comp = archetypeManager.getComponent(this, compType);
+                    if (comp) {
+                        components.set(compType, comp);
+                    }
+                }
+
+                // Move entity to new archetype
+                archetypeManager.moveEntity(this, newComponentTypes, components);
+
+                // Remove from component indices
+                this._componentIndices.delete(type);
+            } else {
+                // Legacy mode: use sparse arrays
+                const componentArray = this.componentManager.getComponentArray(type);
+                // Get component before removing to release it to pool
+                const component = componentArray.get(index);
+                if (component !== null) {
+                    // Call onDestroy lifecycle hook if it exists
+                    if (typeof (component as any).onDestroy === 'function') {
+                        (component as any).onDestroy(this);
+                    }
+
+                    this.componentManager.releaseComponent(type, component);
+                }
+                componentArray.remove(index);
+                this._componentIndices.delete(type);
             }
-            componentArray.remove(index);
-            this._componentIndices.delete(type);
+
             this._dirty = true;
             this._changeVersion++;
             this.eventEmitter.emit('onComponentRemoved', this, type);
@@ -475,14 +600,28 @@ export class Entity implements EntityDef {
                 `Component ${type.name} not found on entity ${this._name || this._numericId}`
             );
         }
-        const componentArray = this.componentManager.getComponentArray(type);
-        const component = componentArray.get(index);
-        if (component === null) {
-            throw new Error(
-                `Component ${type.name} is null on entity ${this._name || this._numericId}`
-            );
+
+        const archetypeManager = this.componentManager.getArchetypeManager();
+        if (archetypeManager) {
+            // Archetype mode: get component from archetype
+            const component = archetypeManager.getComponent(this, type);
+            if (component === null) {
+                throw new Error(
+                    `Component ${type.name} is null on entity ${this._name || this._numericId}`
+                );
+            }
+            return component as T;
+        } else {
+            // Legacy mode: get component from sparse array
+            const componentArray = this.componentManager.getComponentArray(type);
+            const component = componentArray.get(index);
+            if (component === null) {
+                throw new Error(
+                    `Component ${type.name} is null on entity ${this._name || this._numericId}`
+                );
+            }
+            return component as T;
         }
-        return component as T;
     }
 
     addTag(tag: string): this {
@@ -551,11 +690,26 @@ export class Entity implements EntityDef {
     serialize(): SerializedEntity {
         const components: { [componentName: string]: any } = {};
 
+        // Check if archetypes are enabled
+        const archetypeManager = this.componentManager.getArchetypeManager();
+
         for (const [componentType, index] of this._componentIndices) {
-            const componentArray = this.componentManager.getComponentArray(
-                componentType as ComponentIdentifier
-            );
-            const component = componentArray.get(index);
+            let component: any = null;
+
+            if (archetypeManager && index === -1) {
+                // Archetype mode: get component from archetype
+                component = archetypeManager.getComponent(
+                    this,
+                    componentType as ComponentIdentifier
+                );
+            } else {
+                // Legacy mode: get component from sparse array
+                const componentArray = this.componentManager.getComponentArray(
+                    componentType as ComponentIdentifier
+                );
+                component = componentArray.get(index);
+            }
+
             if (component) {
                 components[componentType.name] = { ...component };
             }
@@ -988,6 +1142,16 @@ export class EntityManager {
         // Add to numeric ID index
         this.entitiesByNumericId.set(entity.numericId, entity);
 
+        // Add to empty archetype if archetypes are enabled
+        const archetypeManager = (entity as any).componentManager.getArchetypeManager();
+        if (archetypeManager) {
+            archetypeManager.addEntityToArchetype(
+                entity,
+                archetypeManager.getOrCreateArchetype([]),
+                new Map()
+            );
+        }
+
         this.updateEntityTags(entity);
         this.eventEmitter.emit('onEntityCreated', entity);
         return entity;
@@ -1016,9 +1180,15 @@ export class EntityManager {
             }
         }
 
-        // Remove all components
+        // Remove all components first (this handles archetype transitions)
         for (const componentType of entity.getComponentTypes()) {
             entity.removeComponent(componentType as ComponentIdentifier);
+        }
+
+        // Remove from archetype if archetypes are enabled (cleanup any remaining archetype references)
+        const archetypeManager = (entity as any).componentManager.getArchetypeManager();
+        if (archetypeManager) {
+            archetypeManager.removeEntity(entity);
         }
 
         // Clear hierarchy

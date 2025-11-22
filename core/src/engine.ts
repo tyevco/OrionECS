@@ -56,6 +56,7 @@ export class EngineBuilder {
     private debugMode: boolean = false;
     private maxSnapshots: number = 10;
     private plugins: EnginePlugin[] = [];
+    private enableArchetypeSystem: boolean = true; // Enable archetypes by default
 
     /**
      * Enable or disable debug mode
@@ -90,6 +91,16 @@ export class EngineBuilder {
     }
 
     /**
+     * Enable or disable the archetype system for improved performance (default: enabled)
+     * When enabled, entities are grouped by component composition for better cache locality
+     * This provides significant performance improvements for systems iterating over many entities
+     */
+    withArchetypes(enabled: boolean): this {
+        this.enableArchetypeSystem = enabled;
+        return this;
+    }
+
+    /**
      * Register a plugin to be installed when the engine is built
      */
     use(plugin: EnginePlugin): this {
@@ -101,6 +112,14 @@ export class EngineBuilder {
      * Build the Engine with all configured managers
      */
     build(): Engine {
+        // Enable archetype system if requested
+        if (this.enableArchetypeSystem) {
+            this.componentManager.enableArchetypes();
+            if (this.debugMode) {
+                console.log('[ECS Debug] Archetype system enabled for improved performance');
+            }
+        }
+
         // Create system manager with configured settings
         this.systemManager = new SystemManager(this.fixedUpdateFPS, this.maxFixedIterations);
 
@@ -109,6 +128,9 @@ export class EngineBuilder {
 
         // Create entity manager with dependencies
         this.entityManager = new EntityManager(this.componentManager, this.eventEmitter);
+
+        // Wire up query manager with component manager for archetype support
+        this.queryManager.setComponentManager(this.componentManager);
 
         const engine = new Engine(
             this.entityManager,
@@ -239,12 +261,43 @@ export class Engine {
             // Create new component instance with copied data
             const newComponent = Object.assign(new (componentType as any)(), componentData);
 
-            // Add component to clone using internal API to avoid re-instantiation
-            const componentArray = this.componentManager.getComponentArray(
-                componentType as ComponentIdentifier
-            );
-            const index = componentArray.add(newComponent);
-            (clone as any)._componentIndices.set(componentType, index);
+            // Check if archetypes are enabled
+            const archetypeManager = this.componentManager.getArchetypeManager();
+            if (archetypeManager) {
+                // Use addComponent API for archetype compatibility
+                // We need to bypass the constructor and just set the properties
+                const tempComponent = new (componentType as any)();
+                Object.assign(tempComponent, componentData);
+
+                // Manually add to archetype system
+                const newComponentTypes = [
+                    ...(clone as any)._componentIndices.keys(),
+                    componentType,
+                ];
+                const components = new Map<ComponentIdentifier, any>();
+
+                // Gather existing components
+                if ((clone as any)._componentIndices.size > 0) {
+                    for (const compType of (clone as any)._componentIndices.keys()) {
+                        const existingComp = archetypeManager.getComponent(clone, compType);
+                        if (existingComp !== null) {
+                            components.set(compType, existingComp);
+                        }
+                    }
+                }
+
+                components.set(componentType, tempComponent);
+                archetypeManager.moveEntity(clone, newComponentTypes, components);
+                (clone as any)._componentIndices.set(componentType, -1);
+            } else {
+                // Legacy mode: use sparse arrays
+                const componentArray = this.componentManager.getComponentArray(
+                    componentType as ComponentIdentifier
+                );
+                const index = componentArray.add(newComponent);
+                (clone as any)._componentIndices.set(componentType, index);
+            }
+
             (clone as any)._dirty = true;
             (clone as any)._changeVersion++;
         }
@@ -633,18 +686,28 @@ export class Engine {
         const processEntity = (serializedEntity: any): Entity => {
             const entity = this.createEntity(serializedEntity.name);
 
-            // Add components
+            // Add components - convert component data back to component instances
             for (const [componentName, componentData] of Object.entries(
                 serializedEntity.components
             )) {
                 const componentType = this.componentManager.getComponentByName(componentName);
                 if (componentType) {
-                    // Reconstruct component from data
-                    const component = Object.assign(new componentType(), componentData);
-                    const componentArray = this.componentManager.getComponentArray(componentType);
-                    const index = componentArray.add(component);
-                    (entity as any)._componentIndices.set(componentType, index);
-                    (entity as any)._dirty = true;
+                    // For each component, we need to create it with the right data
+                    // Extract constructor args from component data if they exist
+                    // Otherwise create empty and assign properties
+                    const dataObj = componentData as Record<string, any>;
+                    const keys = Object.keys(dataObj);
+                    const values = keys.map((key) => dataObj[key]);
+
+                    try {
+                        // Try to call addComponent with the values as constructor args
+                        entity.addComponent(componentType, ...values);
+                    } catch {
+                        // If that fails, add empty component and assign properties
+                        entity.addComponent(componentType);
+                        const component = entity.getComponent(componentType as any) as any;
+                        Object.assign(component, componentData);
+                    }
                 }
             }
 
@@ -785,11 +848,30 @@ export class Engine {
         const componentStats: { [name: string]: number } = {};
         let totalMemory = 0;
 
-        for (const [type, array] of componentArrays) {
-            const size = array.size;
-            const memory = array.memoryEstimate;
-            componentStats[type.name] = size;
-            totalMemory += memory;
+        // Check if archetypes are enabled
+        const archetypeManager = this.componentManager.getArchetypeManager();
+
+        if (archetypeManager) {
+            // With archetypes: get memory from archetype system
+            const archetypeMemory = archetypeManager.getMemoryStats();
+            totalMemory = archetypeMemory.estimatedBytes;
+
+            // Count components in archetypes
+            for (const archetypeInfo of archetypeMemory.archetypeBreakdown) {
+                // Archetype ID is like "Position,Velocity" - count entities for each component
+                const componentNames = archetypeInfo.id.split(',').filter((s) => s.length > 0);
+                for (const name of componentNames) {
+                    componentStats[name] = (componentStats[name] || 0) + archetypeInfo.entityCount;
+                }
+            }
+        } else {
+            // Without archetypes: get memory from sparse arrays
+            for (const [type, array] of componentArrays) {
+                const size = array.size;
+                const memory = array.memoryEstimate;
+                componentStats[type.name] = size;
+                totalMemory += memory;
+            }
         }
 
         const entities = this.entityManager.getAllEntities();
@@ -825,6 +907,38 @@ export class Engine {
             minFrameTime: this.performanceMonitor.getMin(),
             maxFrameTime: this.performanceMonitor.getMax(),
         };
+    }
+
+    /**
+     * Get archetype system statistics (if archetypes are enabled)
+     * @returns Archetype statistics or undefined if archetypes are disabled
+     */
+    getArchetypeStats(): any {
+        const archetypeManager = this.componentManager.getArchetypeManager();
+        if (!archetypeManager) {
+            return undefined;
+        }
+        return archetypeManager.getStats();
+    }
+
+    /**
+     * Get archetype memory statistics (if archetypes are enabled)
+     * @returns Memory statistics or undefined if archetypes are disabled
+     */
+    getArchetypeMemoryStats(): any {
+        const archetypeManager = this.componentManager.getArchetypeManager();
+        if (!archetypeManager) {
+            return undefined;
+        }
+        return archetypeManager.getMemoryStats();
+    }
+
+    /**
+     * Check if archetype system is enabled
+     * @returns true if archetypes are enabled, false otherwise
+     */
+    areArchetypesEnabled(): boolean {
+        return this.componentManager.areArchetypesEnabled();
     }
 
     // ========== Plugin System ==========

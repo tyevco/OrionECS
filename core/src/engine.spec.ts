@@ -3956,4 +3956,220 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(spriteData).toEqual({ tex: 'player.png', w: 64 });
         });
     });
+
+    describe('Archetype System Integration', () => {
+        test('should enable archetypes by default', () => {
+            const archetypeEngine = new EngineBuilder().build();
+            expect(archetypeEngine.areArchetypesEnabled()).toBe(true);
+        });
+
+        test('should allow disabling archetypes', () => {
+            const noArchetypeEngine = new EngineBuilder().withArchetypes(false).build();
+            expect(noArchetypeEngine.areArchetypesEnabled()).toBe(false);
+        });
+
+        test('should use archetypes for component storage and retrieval', () => {
+            const entity = engine.createEntity('ArchetypeTest');
+            entity.addComponent(Position, 10, 20);
+            entity.addComponent(Velocity, 1, 2);
+
+            const pos = entity.getComponent(Position);
+            const vel = entity.getComponent(Velocity);
+
+            expect(pos.x).toBe(10);
+            expect(pos.y).toBe(20);
+            expect(vel.x).toBe(1);
+            expect(vel.y).toBe(2);
+        });
+
+        test('should move entities between archetypes when adding components', () => {
+            const entity = engine.createEntity('MoveTest');
+            entity.addComponent(Position, 5, 10);
+
+            // Entity should be in Position archetype
+            let stats = engine.getArchetypeStats();
+            expect(stats).toBeDefined();
+
+            entity.addComponent(Velocity, 2, 3);
+
+            // Entity should now be in Position+Velocity archetype
+            stats = engine.getArchetypeStats();
+            const posVelArchetype = stats.archetypes.find((a: any) => a.id === 'Position,Velocity');
+            expect(posVelArchetype).toBeDefined();
+            expect(posVelArchetype.entityCount).toBeGreaterThan(0);
+        });
+
+        test('should move entities between archetypes when removing components', () => {
+            const entity = engine.createEntity('RemoveTest');
+            entity.addComponent(Position, 10, 20);
+            entity.addComponent(Velocity, 1, 2);
+
+            entity.removeComponent(Velocity);
+
+            const stats = engine.getArchetypeStats();
+            const posArchetype = stats.archetypes.find((a: any) => a.id === 'Position');
+            expect(posArchetype).toBeDefined();
+            expect(posArchetype.entityCount).toBeGreaterThan(0);
+        });
+
+        test('should iterate efficiently using archetypes', () => {
+            // Create multiple entities with same component composition
+            const entities = [];
+            for (let i = 0; i < 100; i++) {
+                const entity = engine.createEntity(`Entity${i}`);
+                entity.addComponent(Position, i, i * 2);
+                entity.addComponent(Velocity, 1, 1);
+                entities.push(entity);
+            }
+
+            let count = 0;
+            engine.createSystem(
+                'ArchetypeIterationSystem',
+                { all: [Position, Velocity] },
+                {
+                    act: (entity, pos, vel) => {
+                        count++;
+                        expect(pos).toBeDefined();
+                        expect(vel).toBeDefined();
+                    },
+                }
+            );
+
+            engine.update(16);
+
+            expect(count).toBe(100);
+        });
+
+        test('should provide archetype statistics', () => {
+            const entity1 = engine.createEntity();
+            entity1.addComponent(Position, 1, 2);
+
+            const entity2 = engine.createEntity();
+            entity2.addComponent(Position, 3, 4);
+            entity2.addComponent(Velocity, 1, 1);
+
+            const stats = engine.getArchetypeStats();
+
+            expect(stats).toBeDefined();
+            expect(stats.archetypeCount).toBeGreaterThan(0);
+            expect(stats.archetypes).toBeInstanceOf(Array);
+            expect(stats.archetypes.length).toBeGreaterThan(0);
+        });
+
+        test('should provide archetype memory statistics', () => {
+            for (let i = 0; i < 10; i++) {
+                const entity = engine.createEntity();
+                entity.addComponent(Position, i, i);
+                entity.addComponent(Velocity, 1, 1);
+            }
+
+            const memStats = engine.getArchetypeMemoryStats();
+
+            expect(memStats).toBeDefined();
+            expect(memStats.totalEntities).toBeGreaterThan(0);
+            expect(memStats.totalArchetypes).toBeGreaterThan(0);
+            expect(memStats.estimatedBytes).toBeGreaterThan(0);
+            expect(memStats.archetypeBreakdown).toBeInstanceOf(Array);
+        });
+
+        test('should work with queries when archetypes are enabled', () => {
+            const query = engine.createQuery({ all: [Position, Velocity] });
+
+            for (let i = 0; i < 50; i++) {
+                const entity = engine.createEntity();
+                entity.addComponent(Position, i, i);
+                entity.addComponent(Velocity, 1, 1);
+            }
+
+            let count = 0;
+            query.forEach(() => {
+                count++;
+            });
+
+            expect(count).toBe(50);
+        });
+
+        test('should handle complex queries with archetypes', () => {
+            class Health {
+                constructor(public value: number = 100) {}
+            }
+
+            // Create entities with different component compositions
+            const e1 = engine.createEntity();
+            e1.addComponent(Position, 1, 1);
+            e1.addComponent(Health, 100);
+
+            const e2 = engine.createEntity();
+            e2.addComponent(Position, 2, 2);
+            e2.addComponent(Velocity, 1, 1);
+
+            const e3 = engine.createEntity();
+            e3.addComponent(Position, 3, 3);
+            e3.addComponent(Velocity, 1, 1);
+            e3.addComponent(Health, 50);
+
+            // Query: entities with Position, optionally Velocity, but not Health
+            const query = engine.createQuery({
+                all: [Position],
+                none: [Health],
+            });
+
+            let count = 0;
+            query.forEach(() => {
+                count++;
+            });
+
+            // Should match e2 (Position+Velocity but no Health)
+            expect(count).toBe(1);
+        });
+
+        test('should handle entity deletion with archetypes', () => {
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 10, 20);
+            entity.addComponent(Velocity, 1, 2);
+
+            entity.queueFree();
+            engine.update(16); // Trigger cleanup
+
+            const allEntities = engine.getAllEntities();
+            expect(allEntities.find((e) => e === entity)).toBeUndefined();
+        });
+
+        test('should maintain performance with many archetype transitions', () => {
+            const entity = engine.createEntity();
+
+            // Add and remove components multiple times
+            for (let i = 0; i < 10; i++) {
+                entity.addComponent(Position, i, i);
+                entity.addComponent(Velocity, 1, 1);
+                entity.removeComponent(Velocity);
+                entity.removeComponent(Position);
+            }
+
+            // Entity should be in empty archetype
+            const stats = engine.getArchetypeStats();
+            expect(stats.entityMovementCount).toBeGreaterThan(0);
+        });
+
+        test('should work correctly with component pools and archetypes', () => {
+            class Particle {
+                constructor(
+                    public x: number = 0,
+                    public y: number = 0
+                ) {}
+            }
+
+            engine.registerComponentPool(Particle, { initialSize: 10, maxSize: 100 });
+
+            const entity = engine.createEntity();
+            entity.addComponent(Particle, 5, 10);
+
+            const particle = entity.getComponent(Particle);
+            expect(particle.x).toBe(5);
+            expect(particle.y).toBe(10);
+
+            const poolStats = engine.getComponentPoolStats(Particle);
+            expect(poolStats).toBeDefined();
+        });
+    });
 });

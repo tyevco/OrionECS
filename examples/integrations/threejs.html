@@ -1,0 +1,265 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Three.js Integration - OrionECS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #0f172a;
+            color: white;
+            overflow: hidden;
+        }
+
+        #game-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            position: relative;
+        }
+
+        #game-canvas {
+            display: none;
+        }
+
+        .placeholder {
+            text-align: center;
+            max-width: 600px;
+            padding: 3rem;
+        }
+
+        .placeholder h2 {
+            font-size: 2rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .placeholder p {
+            color: #94a3b8;
+            line-height: 1.8;
+            margin-bottom: 1rem;
+        }
+
+        .code-block {
+            background: #1e293b;
+            padding: 1rem;
+            border-radius: 8px;
+            font-family: monospace;
+            color: #22d3ee;
+            margin: 1rem 0;
+            border: 1px solid #334155;
+        }
+
+        #sidebar {
+            width: 350px;
+            background: #1e293b;
+            padding: 20px;
+            overflow-y: auto;
+            border-left: 1px solid #334155;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+        }
+
+        .section {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: #0f172a;
+            border-radius: 8px;
+            border: 1px solid #334155;
+        }
+
+        .section h2 {
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            color: #94a3b8;
+        }
+
+        .section div {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #cbd5e1;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1rem;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        .feature-list {
+            list-style: none;
+            font-size: 0.85rem;
+            line-height: 2;
+        }
+
+        .feature-list li:before {
+            content: "→ ";
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        code {
+            background: #0f172a;
+            padding: 0.2rem 0.4rem;
+            border-radius: 3px;
+            font-family: monospace;
+            font-size: 0.85em;
+            color: #22d3ee;
+        }
+
+        .info-box {
+            padding: 1rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+            font-size: 0.85em;
+        }
+
+        .info-box.warning {
+            background: #422006;
+            border: 1px solid #ea580c;
+            color: #fed7aa;
+        }
+
+        .info-box.success {
+            background: #022c22;
+            border: 1px solid #059669;
+            color: #a7f3d0;
+        }
+
+        .info-box strong {
+            display: block;
+            margin-bottom: 0.5rem;
+            color: #fbbf24;
+        }
+
+        .info-box.success strong {
+            color: #34d399;
+        }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="canvas-container">
+            <canvas id="game-canvas"></canvas>
+
+            <div class="placeholder">
+                <h2>🎨 Three.js + OrionECS Integration</h2>
+                <p>This example demonstrates a complete integration between OrionECS and Three.js for 3D rendering.</p>
+
+                <div class="info-box warning">
+                    <strong>⚠️ Installation Required</strong>
+                    To see this example in action, install Three.js:
+                    <div class="code-block">npm install three @types/three</div>
+                    Then uncomment the Three.js imports in the source code.
+                </div>
+
+                <div class="info-box success">
+                    <strong>💡 Production Ready</strong>
+                    The source code includes a complete, working implementation with:
+                    <ul style="margin-top: 0.5rem; text-align: left; margin-left: 2rem;">
+                        <li>3D transform synchronization</li>
+                        <li>Mesh and light management</li>
+                        <li>Material property updates</li>
+                        <li>Scene lifecycle handling</li>
+                    </ul>
+                </div>
+
+                <p style="margin-top: 1.5rem; font-size: 0.9rem;">
+                    View the complete source code at:<br>
+                    <code style="font-size: 0.8em;">examples/integrations/threejs-example.ts</code>
+                </p>
+            </div>
+        </div>
+
+        <div id="sidebar">
+            <a href="../index.html" class="back-link">← Back to Examples</a>
+
+            <h1>🎨 Three.js Integration</h1>
+
+            <div class="section">
+                <h2>📊 Status</h2>
+                <div id="stats">Loading...</div>
+            </div>
+
+            <div class="section">
+                <h2>ℹ️ About</h2>
+                <div id="instructions">
+                    This example shows how to integrate OrionECS with Three.js for 3D rendering.
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>✨ Features</h2>
+                <ul class="feature-list">
+                    <li>Transform3D components</li>
+                    <li>Mesh synchronization</li>
+                    <li>Camera management</li>
+                    <li>Dynamic lighting</li>
+                    <li>Material properties</li>
+                    <li>Scene graph integration</li>
+                    <li>Advanced patterns</li>
+                </ul>
+            </div>
+
+            <div class="section">
+                <h2>🎯 Components</h2>
+                <div style="font-size: 0.85rem; line-height: 1.8;">
+                    <div><code>Transform3D</code> - 3D position, rotation, scale</div>
+                    <div><code>Velocity3D</code> - 3D movement</div>
+                    <div><code>AngularVelocity</code> - Rotation speed</div>
+                    <div><code>ThreeMesh</code> - Mesh objects</div>
+                    <div><code>ThreeLight</code> - Lighting</div>
+                    <div><code>ThreeCamera</code> - Camera control</div>
+                    <div><code>MaterialProperties</code> - Visual properties</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🚀 Advanced Patterns</h2>
+                <div style="font-size: 0.85rem; line-height: 1.8;">
+                    The source code includes examples of:
+                    <ul style="margin-top: 0.5rem; margin-left: 1.5rem;">
+                        <li>Level of Detail (LOD)</li>
+                        <li>Instanced rendering</li>
+                        <li>Raycasting for interaction</li>
+                        <li>Post-processing effects</li>
+                        <li>Camera following</li>
+                    </ul>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./threejs-browser.ts"></script>
+</body>
+</html>

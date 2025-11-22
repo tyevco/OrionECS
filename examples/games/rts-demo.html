@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>RTS Demo - OrionECS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: #1a1a1a;
+            color: white;
+            overflow: hidden;
+        }
+
+        #game-container {
+            display: flex;
+            height: 100vh;
+        }
+
+        #canvas-container {
+            flex: 1;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background: #0a0a0a;
+        }
+
+        #game-canvas {
+            border: 2px solid #667eea;
+            box-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+            cursor: crosshair;
+        }
+
+        #sidebar {
+            width: 300px;
+            background: #2a2a2a;
+            padding: 20px;
+            overflow-y: auto;
+        }
+
+        h1 {
+            font-size: 1.5rem;
+            margin-bottom: 1rem;
+            color: #667eea;
+        }
+
+        .section {
+            margin-bottom: 1.5rem;
+            padding: 1rem;
+            background: #333;
+            border-radius: 8px;
+        }
+
+        .section h2 {
+            font-size: 1rem;
+            margin-bottom: 0.75rem;
+            color: #a0aec0;
+        }
+
+        .section div {
+            font-size: 0.9rem;
+            line-height: 1.6;
+            color: #e2e8f0;
+        }
+
+        #help {
+            font-size: 0.85rem;
+            line-height: 1.8;
+        }
+
+        #help strong {
+            color: #667eea;
+            display: inline-block;
+            width: 140px;
+        }
+
+        .back-link {
+            display: inline-block;
+            margin-bottom: 1rem;
+            color: #667eea;
+            text-decoration: none;
+            font-size: 0.9rem;
+        }
+
+        .back-link:hover {
+            text-decoration: underline;
+        }
+
+        #stats {
+            font-family: monospace;
+            font-size: 0.85rem;
+        }
+
+        #selection-info {
+            font-family: monospace;
+            font-size: 0.85rem;
+            max-height: 200px;
+            overflow-y: auto;
+        }
+
+        .legend {
+            margin-top: 1rem;
+            padding-top: 1rem;
+            border-top: 1px solid #444;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            margin-bottom: 0.5rem;
+            font-size: 0.85rem;
+        }
+
+        .legend-color {
+            width: 20px;
+            height: 20px;
+            border-radius: 50%;
+            margin-right: 10px;
+        }
+
+        .player1 { background: #4aff4a; }
+        .player2 { background: #ff4a4a; }
+        .minerals { background: #4a9eff; }
+        .gas { background: #ff4a9e; }
+    </style>
+</head>
+<body>
+    <div id="game-container">
+        <div id="canvas-container">
+            <canvas id="game-canvas"></canvas>
+        </div>
+
+        <div id="sidebar">
+            <a href="../index.html" class="back-link">← Back to Examples</a>
+
+            <h1>🎮 RTS Demo</h1>
+
+            <div class="section">
+                <h2>📊 Statistics</h2>
+                <div id="stats">Loading...</div>
+            </div>
+
+            <div class="section">
+                <h2>📋 Selection</h2>
+                <div id="selection-info">No units selected</div>
+            </div>
+
+            <div class="section">
+                <h2>🎯 Controls</h2>
+                <div id="help">
+                    <div><strong>Left Click:</strong> Select unit</div>
+                    <div><strong>Left Drag:</strong> Box select</div>
+                    <div><strong>Right Click:</strong> Move command</div>
+                    <div><strong>Shift + Click:</strong> Add to selection</div>
+                    <div><strong>WASD/Arrows:</strong> Pan camera</div>
+                    <div><strong>Mouse Wheel:</strong> Zoom in/out</div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>🎨 Legend</h2>
+                <div class="legend">
+                    <div class="legend-item">
+                        <div class="legend-color player1"></div>
+                        <span>Player 1 (You)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color player2"></div>
+                        <span>Player 2 (AI)</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color minerals"></div>
+                        <span>Minerals</span>
+                    </div>
+                    <div class="legend-item">
+                        <div class="legend-color gas"></div>
+                        <span>Gas</span>
+                    </div>
+                </div>
+            </div>
+
+            <div class="section">
+                <h2>ℹ️ Features</h2>
+                <div style="font-size: 0.85rem; line-height: 1.8;">
+                    <div>• Spatial partitioning grid</div>
+                    <div>• Command queue system</div>
+                    <div>• A* pathfinding</div>
+                    <div>• Resource gathering</div>
+                    <div>• Fog of war vision</div>
+                    <div>• Handles 200+ entities</div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="module" src="./rts-demo-browser.ts"></script>
+</body>
+</html>

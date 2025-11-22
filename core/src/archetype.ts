@@ -32,7 +32,8 @@ export class Archetype {
 
     constructor(componentTypes: ComponentIdentifier[]) {
         // Sort component types for consistent archetype IDs
-        this.componentTypes = [...componentTypes].toSorted((a, b) => a.name.localeCompare(b.name));
+        // Using sort on spread array is safe (doesn't mutate original)
+        this.componentTypes = [...componentTypes].sort((a, b) => a.name.localeCompare(b.name));
 
         // Generate unique ID from sorted component names
         this.id = this.componentTypes.map((type) => type.name).join(',');
@@ -323,8 +324,9 @@ export class ArchetypeManager {
             return '';
         }
         // Sort by name for consistent ID
+        // Using sort on spread array is safe (doesn't mutate original)
         return [...componentTypes]
-            .toSorted((a, b) => a.name.localeCompare(b.name))
+            .sort((a, b) => a.name.localeCompare(b.name))
             .map((type) => type.name)
             .join(',');
     }

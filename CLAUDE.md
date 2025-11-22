@@ -135,9 +135,11 @@ The repository uses a monorepo structure with npm workspaces:
     - `engine.ts` - Engine facade and EngineBuilder
     - `core.ts` - Core ECS components (Entity, Query, System, etc.)
     - `managers.ts` - Specialized manager classes
+    - `archetype.ts` - Archetype and ArchetypeManager for performance optimization
     - `definitions.ts` - TypeScript interfaces and type definitions
     - `index.ts` - Public API exports
     - `engine.spec.ts` - Comprehensive test suite
+    - `archetype.spec.ts` - Archetype system tests
 
 - `plugins/` - Official OrionECS plugins (each can be a separate package)
   - `physics/src/PhysicsPlugin.ts` - Rigid body dynamics
@@ -242,6 +244,127 @@ const profiles = engine.getSystemProfiles();
 const memoryStats = engine.getMemoryStats();
 const debugInfo = engine.getDebugInfo();
 ```
+
+### Entity Archetype System
+
+Orion ECS implements an advanced archetype system inspired by Unity DOTS and Bevy ECS for significant performance improvements through better cache locality.
+
+**What are Archetypes?**
+
+Archetypes group entities with the same component composition together in contiguous memory. When you iterate over entities with specific components, all data is stored together, dramatically improving cache performance.
+
+**Key Benefits:**
+- **Cache Locality**: Components for entities with same composition stored contiguously
+- **Faster Iteration**: Systems iterate over dense arrays instead of sparse lookups
+- **Automatic Management**: Entities automatically move between archetypes when components change
+- **Query Optimization**: Queries match entire archetypes instead of testing individual entities
+
+**Enable/Disable Archetypes:**
+
+Archetypes are **enabled by default**. You can disable them if needed:
+
+```typescript
+// Archetypes enabled (default, recommended)
+const engine = new EngineBuilder().build();
+
+// Explicitly enable archetypes
+const engineWithArchetypes = new EngineBuilder()
+  .withArchetypes(true)
+  .build();
+
+// Disable archetypes (legacy mode)
+const engineWithoutArchetypes = new EngineBuilder()
+  .withArchetypes(false)
+  .build();
+```
+
+**How Archetypes Work:**
+
+When you add or remove components, entities automatically move to the appropriate archetype:
+
+```typescript
+const entity = engine.createEntity();
+// Entity is in empty archetype: ""
+
+entity.addComponent(Position, 0, 0);
+// Entity moved to archetype: "Position"
+
+entity.addComponent(Velocity, 1, 1);
+// Entity moved to archetype: "Position,Velocity"
+
+entity.removeComponent(Position);
+// Entity moved to archetype: "Velocity"
+```
+
+**Performance Impact:**
+
+Systems that iterate over many entities with the same components see significant performance improvements:
+
+```typescript
+// Create 10,000 entities with same composition
+for (let i = 0; i < 10000; i++) {
+  const entity = engine.createEntity();
+  entity.addComponent(Position, i, i);
+  entity.addComponent(Velocity, 1, 1);
+}
+// All 10,000 entities are in the same archetype "Position,Velocity"
+
+// This system iteration is highly cache-friendly
+engine.createSystem('MovementSystem', {
+  all: [Position, Velocity]
+}, {
+  act: (entity, position, velocity) => {
+    // Components are accessed sequentially in memory
+    position.x += velocity.x;
+    position.y += velocity.y;
+  }
+});
+```
+
+**Monitoring Archetypes:**
+
+You can inspect archetype statistics for debugging and optimization:
+
+```typescript
+// Check if archetypes are enabled
+const enabled = engine.areArchetypesEnabled();
+
+// Get archetype statistics
+const stats = engine.getArchetypeStats();
+console.log(stats);
+// {
+//   archetypeCount: 5,
+//   archetypeCreationCount: 5,
+//   entityMovementCount: 10,
+//   archetypes: [
+//     { id: "Position,Velocity", entityCount: 5000, componentTypeCount: 2 },
+//     { id: "Position", entityCount: 1000, componentTypeCount: 1 },
+//     ...
+//   ]
+// }
+
+// Get memory statistics
+const memStats = engine.getArchetypeMemoryStats();
+console.log(memStats);
+// {
+//   totalEntities: 6000,
+//   totalArchetypes: 5,
+//   estimatedBytes: 384000,
+//   archetypeBreakdown: [...]
+// }
+```
+
+**When to Use Archetypes:**
+
+- ✅ **Recommended**: Games and simulations with many entities
+- ✅ **Ideal**: Systems that iterate over large numbers of entities
+- ✅ **Best**: Entities that share common component compositions
+- ⚠️ **Consider disabling**: Prototyping with frequently changing component structures
+- ⚠️ **Less beneficial**: Very few entities (< 100) or highly diverse component compositions
+
+**Performance Benchmarks:**
+
+See `benchmarks/archetype-benchmark.ts` for comprehensive performance comparisons showing 2-5x iteration speed improvements with archetypes enabled.
 
 ### Plugin System
 

@@ -3,6 +3,7 @@
  * Each manager handles a single responsibility
  */
 
+import { ArchetypeManager } from './archetype';
 import {
     ComponentArray,
     type Entity,
@@ -36,6 +37,8 @@ export class ComponentManager {
     private validators: Map<ComponentIdentifier, ComponentValidator> = new Map();
     private registry: Map<string, ComponentIdentifier> = new Map();
     private componentPools: Map<ComponentIdentifier, Pool<any>> = new Map();
+    private archetypeManager?: ArchetypeManager;
+    private archetypesEnabled: boolean = false;
 
     getComponentArray<T>(type: ComponentIdentifier): ComponentArray<T> {
         if (!this.componentArrays.has(type)) {
@@ -144,6 +147,31 @@ export class ComponentManager {
      */
     hasComponentPool<T extends object>(type: ComponentIdentifier<T>): boolean {
         return this.componentPools.has(type);
+    }
+
+    /**
+     * Enable archetype-based storage for improved performance
+     * When enabled, entities are grouped by component composition for better cache locality
+     */
+    enableArchetypes(): void {
+        if (!this.archetypesEnabled) {
+            this.archetypeManager = new ArchetypeManager();
+            this.archetypesEnabled = true;
+        }
+    }
+
+    /**
+     * Check if archetypes are enabled
+     */
+    areArchetypesEnabled(): boolean {
+        return this.archetypesEnabled;
+    }
+
+    /**
+     * Get the archetype manager (if archetypes are enabled)
+     */
+    getArchetypeManager(): ArchetypeManager | undefined {
+        return this.archetypeManager;
     }
 }
 
@@ -455,9 +483,18 @@ export class SystemManager {
  */
 export class QueryManager {
     private queries: Query<any>[] = [];
+    private componentManager?: any; // ComponentManager reference for archetype support
+
+    /**
+     * Set component manager reference (for archetype support)
+     */
+    setComponentManager(componentManager: any): void {
+        this.componentManager = componentManager;
+    }
 
     createQuery<C extends readonly any[] = any[]>(options: QueryOptions<any>): Query<C> {
-        const query = new Query<C>(options);
+        const archetypeManager = this.componentManager?.getArchetypeManager();
+        const query = new Query<C>(options, archetypeManager);
         this.queries.push(query);
         return query;
     }

@@ -3,6 +3,8 @@
  * Main entry point
  */
 
+// Export archetype system
+export { Archetype, ArchetypeManager } from './archetype';
 // Export core building blocks
 export {
     ComponentArray,
@@ -46,7 +48,6 @@ export type {
 } from './definitions';
 // Export the new Engine and Builder
 export { Engine, EngineBuilder } from './engine';
-
 // Export managers
 export {
     ComponentManager,
@@ -56,5 +57,6 @@ export {
     SnapshotManager,
     SystemManager,
 } from './managers';
+
 // Export utility functions
 export { createTagComponent } from './utils';

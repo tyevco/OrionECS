@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrionECS Examples</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 2rem;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+
+        header {
+            text-align: center;
+            color: white;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 3rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+
+        .subtitle {
+            font-size: 1.2rem;
+            opacity: 0.9;
+        }
+
+        .examples-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 2rem;
+            margin-bottom: 3rem;
+        }
+
+        .example-card {
+            background: white;
+            border-radius: 12px;
+            padding: 2rem;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.3);
+            transition: transform 0.3s ease, box-shadow 0.3s ease;
+            text-decoration: none;
+            color: inherit;
+            display: block;
+        }
+
+        .example-card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 15px 40px rgba(0,0,0,0.4);
+        }
+
+        .example-card h2 {
+            color: #667eea;
+            margin-bottom: 1rem;
+            font-size: 1.8rem;
+        }
+
+        .example-card p {
+            color: #666;
+            line-height: 1.6;
+            margin-bottom: 1rem;
+        }
+
+        .example-card .features {
+            list-style: none;
+            margin-top: 1rem;
+        }
+
+        .example-card .features li {
+            padding: 0.3rem 0;
+            color: #555;
+            font-size: 0.9rem;
+        }
+
+        .example-card .features li:before {
+            content: "→ ";
+            color: #667eea;
+            font-weight: bold;
+        }
+
+        .example-card .btn {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.75rem 1.5rem;
+            border-radius: 6px;
+            margin-top: 1rem;
+            font-weight: 600;
+            transition: opacity 0.3s ease;
+        }
+
+        .example-card .btn:hover {
+            opacity: 0.9;
+        }
+
+        footer {
+            text-align: center;
+            color: white;
+            padding: 2rem;
+            opacity: 0.9;
+        }
+
+        footer a {
+            color: white;
+            text-decoration: underline;
+        }
+
+        .badge {
+            display: inline-block;
+            background: #667eea;
+            color: white;
+            padding: 0.25rem 0.75rem;
+            border-radius: 12px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <header>
+            <h1>🚀 OrionECS Examples</h1>
+            <p class="subtitle">Interactive demonstrations of the OrionECS framework</p>
+        </header>
+
+        <div class="examples-grid">
+            <a href="./games/asteroids.html" class="example-card">
+                <h2>🎮 Asteroids <span class="badge">GAME</span></h2>
+                <p>Classic arcade game demonstrating physics, collision detection, and object pooling.</p>
+                <ul class="features">
+                    <li>Component pooling for bullets and particles</li>
+                    <li>Prefab system for entity templates</li>
+                    <li>Fixed-rate physics at 60 FPS</li>
+                    <li>Inter-system messaging</li>
+                    <li>Circular collision detection</li>
+                </ul>
+                <span class="btn">Play Game →</span>
+            </a>
+
+            <a href="./games/platformer.html" class="example-card">
+                <h2>🏃 Platformer <span class="badge">GAME</span></h2>
+                <p>Advanced physics-based platformer with enemy AI, collectibles, and state machines.</p>
+                <ul class="features">
+                    <li>Gravity and physics systems</li>
+                    <li>AABB collision with platforms</li>
+                    <li>State machines for character behavior</li>
+                    <li>Camera following system</li>
+                    <li>Enemy AI with patrol behavior</li>
+                </ul>
+                <span class="btn">Play Game →</span>
+            </a>
+
+            <a href="./integrations/pixi.html" class="example-card">
+                <h2>🎨 Pixi.js Integration <span class="badge">INTEGRATION</span></h2>
+                <p>Integration with Pixi.js rendering engine for 2D graphics and sprites.</p>
+                <ul class="features">
+                    <li>Component lifecycle hooks</li>
+                    <li>Sprite and graphics object management</li>
+                    <li>Display object synchronization</li>
+                    <li>Z-indexing and render layers</li>
+                    <li>Texture loading and caching</li>
+                </ul>
+                <span class="btn">View Demo →</span>
+            </a>
+        </div>
+
+        <footer>
+            <p>
+                Built with <strong>OrionECS</strong> - A comprehensive Entity Component System framework
+                <br>
+                <a href="https://github.com/tyevco/OrionECS" target="_blank">View on GitHub</a>
+            </p>
+        </footer>
+    </div>
+</body>
+</html>

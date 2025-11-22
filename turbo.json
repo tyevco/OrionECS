@@ -5,7 +5,16 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": ["dist/**", ".next/**", "!.next/cache/**"],
-      "inputs": ["src/**", "tsconfig.json", "tsup.config.ts", "package.json"]
+      "inputs": [
+        "src/**",
+        "games/**",
+        "integrations/**",
+        "*.html",
+        "tsconfig.json",
+        "tsup.config.ts",
+        "vite.config.ts",
+        "package.json"
+      ]
     },
     "test": {
       "dependsOn": ["build"],
@@ -56,11 +65,6 @@
       "outputs": []
     }
   },
-  "globalDependencies": [
-    "package-lock.json",
-    "tsconfig.json"
-  ],
-  "globalEnv": [
-    "NODE_ENV"
-  ]
+  "globalDependencies": ["package-lock.json", "tsconfig.json"],
+  "globalEnv": ["NODE_ENV"]
 }

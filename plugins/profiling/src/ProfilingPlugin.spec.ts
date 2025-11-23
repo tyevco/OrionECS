@@ -11,7 +11,8 @@
  * - Statistics and reporting
  */
 
-import { EngineBuilder, Engine } from '../../../core/src/index';
+import { Engine } from 'orion-ecs';
+import { TestEngineBuilder } from '@orion-ecs/testing';
 import { ProfilingPlugin, ProfilerAPI } from './ProfilingPlugin';
 
 // Test components
@@ -29,8 +30,7 @@ describe('ProfilingPlugin', () => {
 
     beforeEach(() => {
         plugin = new ProfilingPlugin();
-        engine = new EngineBuilder()
-            .withDebugMode(true)
+        engine = new TestEngineBuilder()
             .use(plugin)
             .build();
 

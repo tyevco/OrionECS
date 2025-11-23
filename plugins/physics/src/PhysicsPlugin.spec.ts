@@ -9,7 +9,8 @@
  * - Edge cases and error scenarios
  */
 
-import { EngineBuilder, Engine } from '../../../core/src/index';
+import { Engine } from 'orion-ecs';
+import { TestEngineBuilder } from '@orion-ecs/testing';
 import { PhysicsPlugin, RigidBody, Collider, Position, PhysicsAPI } from './PhysicsPlugin';
 
 describe('PhysicsPlugin', () => {
@@ -18,9 +19,7 @@ describe('PhysicsPlugin', () => {
 
     beforeEach(() => {
         plugin = new PhysicsPlugin();
-        engine = new EngineBuilder()
-            .withDebugMode(true)
-            .withFixedUpdateFPS(60)
+        engine = new TestEngineBuilder()
             .use(plugin)
             .build();
     });
@@ -353,10 +352,8 @@ describe('PhysicsPlugin', () => {
             // Reset and test with normal time scale
             engine.stop();
 
-            const engine2 = new EngineBuilder()
-                .withDebugMode(true)
-                .withFixedUpdateFPS(60)
-                .use(new PhysicsPlugin())
+            const engine2 = new TestEngineBuilder()
+            .use(new PhysicsPlugin())
                 .build();
 
             const entity2 = engine2.createEntity('Ball2');

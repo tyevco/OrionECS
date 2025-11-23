@@ -10,7 +10,8 @@
  * - Screen-to-world coordinate conversion
  */
 
-import { EngineBuilder, Engine } from '../../../core/src/index';
+import { Engine } from 'orion-ecs';
+import { TestEngineBuilder } from '@orion-ecs/testing';
 import {
     Canvas2DRendererPlugin,
     Canvas2DAPI,
@@ -63,8 +64,7 @@ describe('Canvas2DRendererPlugin', () => {
 
     beforeEach(() => {
         plugin = new Canvas2DRendererPlugin();
-        engine = new EngineBuilder()
-            .withDebugMode(true)
+        engine = new TestEngineBuilder()
             .use(plugin)
             .build();
 

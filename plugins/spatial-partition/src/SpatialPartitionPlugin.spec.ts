@@ -10,7 +10,8 @@
  * - Performance characteristics
  */
 
-import { EngineBuilder, Engine } from '../../../core/src/index';
+import { Engine } from 'orion-ecs';
+import { TestEngineBuilder } from '@orion-ecs/testing';
 import {
     SpatialPartitionPlugin,
     SpatialAPI,
@@ -25,8 +26,7 @@ describe('SpatialPartitionPlugin', () => {
 
     beforeEach(() => {
         plugin = new SpatialPartitionPlugin();
-        engine = new EngineBuilder()
-            .withDebugMode(true)
+        engine = new TestEngineBuilder()
             .use(plugin)
             .build();
     });

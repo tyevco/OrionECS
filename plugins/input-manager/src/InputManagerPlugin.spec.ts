@@ -9,7 +9,8 @@
  * - Event subscriptions and cleanup
  */
 
-import { EngineBuilder, Engine } from '../../../core/src/index';
+import { Engine } from 'orion-ecs';
+import { TestEngineBuilder } from '@orion-ecs/testing';
 import {
     InputManagerPlugin,
     InputAPI,
@@ -20,7 +21,7 @@ import {
 } from './InputManagerPlugin';
 
 // Mock Vector2 utility
-jest.mock('../../../utils/src/index', () => ({
+jest.mock('@orion-ecs/math', () => ({
     Vector2: class Vector2 {
         constructor(public x: number = 0, public y: number = 0) {}
 
@@ -98,8 +99,7 @@ describe('InputManagerPlugin', () => {
         };
 
         plugin = new InputManagerPlugin();
-        engine = new EngineBuilder()
-            .withDebugMode(true)
+        engine = new TestEngineBuilder()
             .use(plugin)
             .build();
 

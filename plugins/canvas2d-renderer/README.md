@@ -30,7 +30,7 @@ const engine = new EngineBuilder()
 ```typescript
 import { EngineBuilder } from 'orion-ecs';
 import { Canvas2DRendererPlugin, Transform, Camera, Sprite, ScreenElement, Unit } from '@orion-ecs/canvas2d-renderer';
-import { Mesh, Color } from '@orion-ecs/utils';
+import { Mesh, Color } from '@orion-ecs/graphics';
 
 // Create engine with plugin
 const engine = new EngineBuilder()
@@ -169,7 +169,7 @@ class Sprite {
 
 **Example:**
 ```typescript
-import { Mesh, Color } from '@orion-ecs/utils';
+import { Mesh, Color } from '@orion-ecs/graphics';
 
 const mesh = Mesh.rectangle(-50, -50, 100, 100, Color.Blue);
 entity.addComponent(Sprite, mesh, true, 0);

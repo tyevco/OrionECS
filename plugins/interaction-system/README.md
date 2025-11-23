@@ -44,7 +44,8 @@ import {
   Draggable,
   InteractionBounds
 } from '@orion-ecs/interaction-system';
-import { Mesh, Color, Bounds } from '@orion-ecs/utils';
+import { Mesh, Color } from '@orion-ecs/graphics';
+import { Bounds } from '@orion-ecs/math';
 
 // Create engine with required plugins
 const engine = new EngineBuilder()
@@ -254,7 +255,7 @@ class InteractionBounds {
 
 **Example:**
 ```typescript
-import { Bounds } from '@orion-ecs/utils';
+import { Bounds } from '@orion-ecs/math';
 
 // Manual bounds (won't update when entity moves)
 const bounds = new Bounds(350, 275, 100, 50);

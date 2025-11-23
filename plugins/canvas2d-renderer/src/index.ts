@@ -7,6 +7,14 @@
  * - Types and enums
  */
 
-export { Canvas2DRendererPlugin, Canvas2DAPI } from './Canvas2DRendererPlugin';
-export { Transform, Camera, Sprite, ScreenElement, Unit } from './Canvas2DRendererPlugin';
-export type { Vector2, Bounds, Mesh, Color } from './Canvas2DRendererPlugin';
+export type { Vector2 } from '@orion-ecs/math';
+export type { Bounds, Color, Mesh } from './Canvas2DRendererPlugin';
+export {
+    Camera,
+    Canvas2DAPI,
+    Canvas2DRendererPlugin,
+    ScreenElement,
+    Sprite,
+    Transform,
+    Unit,
+} from './Canvas2DRendererPlugin';

@@ -292,7 +292,7 @@ export class Canvas2DRendererPlugin implements EnginePlugin {
                     const worldTop = transform.y - camera.height / 2;
 
                     // Store bounds on entity for sprite rendering to use
-                    (entity as any)._renderBounds = {
+                    (_entity as any)._renderBounds = {
                         worldLeft,
                         worldTop,
                         worldRight: worldLeft + camera.width,

@@ -18,7 +18,7 @@
   ],
   "scripts": {
     "build": "tsup",
-    "test": "npx jest",
+    "test": "echo \"No tests yet\" && exit 0",
     "docs:generate": "typedoc",
     "docs:watch": "typedoc --watch",
     "docs:serve": "npx http-server docs -p 8081 -o"
@@ -35,6 +35,9 @@
   ],
   "author": "",
   "license": "MIT",
+  "dependencies": {
+    "@orion-ecs/math": "file:../math"
+  },
   "devDependencies": {
     "@types/jest": "^30.0.0",
     "jest": "30.2.0",

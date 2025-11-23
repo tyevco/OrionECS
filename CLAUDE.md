@@ -459,3 +459,273 @@ To use Orion ECS in your project:
 5. Use component validators for robust development
 6. Leverage advanced features like tags, hierarchies, and prefabs
 7. Enable debug mode during development for enhanced error messages
+
+## GitHub Issue Management & Progress Tracking
+
+**IMPORTANT:** This project uses GitHub Issues and Milestones for ALL tracking, planning, and analysis. DO NOT create markdown files in the repository for tracking purposes.
+
+### Core Principles
+
+1. **Use GitHub Issues for Everything**
+   - Feature requests, bugs, enhancements, documentation tasks
+   - Analysis results and findings
+   - Progress tracking and status updates
+   - Technical discussions and decisions
+
+2. **Never Create Tracking Documents in Repo**
+   - ❌ NO analysis documents (e.g., ANALYSIS.md, FINDINGS.md)
+   - ❌ NO action item documents (e.g., TODO.md, TASKS.md)
+   - ❌ NO tracking spreadsheets or status files
+   - ✅ USE GitHub Issues and comments instead
+   - ✅ USE GitHub Milestones for organization
+   - ✅ USE GitHub Projects for kanban boards (if needed)
+
+3. **Keep Repo Clean**
+   - Only production code, tests, examples, and configuration
+   - README.md and CLAUDE.md for documentation
+   - No temporary tracking files
+
+### Working with GitHub Issues
+
+#### Using `gh` CLI Commands
+
+**List Issues:**
+```bash
+# List all open issues
+gh issue list
+
+# List all issues (open and closed) with details
+gh issue list --state all --json number,title,state,labels,milestone
+
+# Filter by milestone
+gh issue list --milestone "v0.3.0"
+
+# Filter by label
+gh issue list --label "documentation"
+```
+
+**Create Issues:**
+```bash
+# Create new issue
+gh issue create --title "Issue Title" --label "enhancement,documentation" --body "Issue description"
+
+# Create with milestone
+gh issue create --title "API Documentation" --milestone "v0.3.0" --label "documentation" --body "$(cat issue-description.md)"
+
+# Create from file
+gh issue create --title "Feature Request" --body-file feature-description.md
+```
+
+**Update Issues:**
+```bash
+# Add comment with findings
+gh issue comment 88 --body "**Analysis Finding:** This is HIGH PRIORITY..."
+
+# Edit issue details
+gh issue edit 88 --add-label "high-priority"
+gh issue edit 88 --milestone "v0.3.0"
+
+# Close issue
+gh issue close 88 --reason "completed"
+gh issue close 88 --reason "not planned" --comment "Closing as duplicate of #92"
+```
+
+**View Issues:**
+```bash
+# View issue in terminal
+gh issue view 88
+
+# Open in browser
+gh issue view 88 --web
+```
+
+#### Creating Tracking Issues
+
+When you complete major analysis or planning work, create a **tracking issue** to document findings:
+
+**Example:**
+```bash
+gh issue create --title "📊 Comprehensive Codebase Analysis - Findings & Recommendations" \
+  --label "documentation" \
+  --body "Full analysis results with metrics, findings, and recommendations..."
+```
+
+**Tracking Issue Should Include:**
+- Executive summary of findings
+- Key metrics and statistics
+- Coverage analysis
+- Priority recommendations
+- Links to related issues
+- Action items with issue numbers
+
+**See Example:** Issue #110 in this repository
+
+#### Adding Analysis Comments to Issues
+
+When analyzing features or code, add detailed comments to relevant issues:
+
+```bash
+gh issue comment 88 --body "**Analysis Finding:** This is a HIGH PRIORITY issue.
+
+**Current State:**
+- Core engine has comprehensive inline comments
+- Missing: TypeDoc-generated API reference
+
+**Impact:** High - Developers need searchable API documentation
+
+**Recommendation:**
+1. Install TypeDoc
+2. Add TSDoc comments to all public APIs
+3. Set up GitHub Pages deployment
+
+**Estimated Effort:** Medium (2-3 weeks)
+**Dependencies:** None
+**Blocking:** #90 (Tutorial Series needs API reference)"
+```
+
+**Comment Template:**
+- **Analysis Finding:** Priority level
+- **Current State:** What exists now
+- **Impact:** Why this matters
+- **Recommendation:** Specific action steps
+- **Estimated Effort:** Time estimate
+- **Dependencies:** Blocking or blocked by
+- **Blocking:** What this blocks
+
+### Working with Milestones
+
+**List Milestones:**
+```bash
+gh api repos/:owner/:repo/milestones --jq '.[] | {number, title, open_issues, closed_issues}'
+```
+
+**Create Milestone:**
+```bash
+gh api repos/:owner/:repo/milestones -X POST \
+  -f title="v0.6.0 - Production Hardening" \
+  -f description="Production-critical features..." \
+  -f state="open"
+```
+
+**Assign Issues to Milestone:**
+```bash
+gh issue edit 99 --milestone "v0.6.0 - Production Hardening"
+```
+
+### Current Milestone Organization
+
+**v0.3.0 - Component Change Events & Reactive Programming**
+- Focus: Documentation, testing, and reactive features
+- Key issues: #88 (API docs), #89 (testing utilities), #90 (tutorials)
+
+**v0.4.0 - Component Composition & Plugins**
+- Focus: Game development patterns and plugin ecosystem
+- Key issues: #91 (FSM), #92 (behavior trees), #93 (animation)
+
+**v0.5.0 - Developer Tools & Performance**
+- Focus: Developer experience and tooling
+- Key issues: #94 (CLI), #96 (regression testing), #97 (error recovery)
+
+**v0.6.0 - Production Hardening**
+- Focus: Production-ready features
+- Key issues: #99 (multi-world), #100 (schema evolution), #101 (save/load)
+
+**v1.0.0+ - Browser-Based Game Editor**
+- Focus: Future vision for browser-based development
+- Key issues: #104-#109 (editor components)
+
+### Issue Labels
+
+**Use these labels for categorization:**
+- `enhancement` - New features or improvements
+- `documentation` - Documentation tasks
+- `bug` - Bug reports and fixes
+- `tests` - Testing-related tasks
+- `performance` - Performance improvements
+- `plugin` - Plugin development
+- `core` - Core engine changes
+- `build` - Build system and tooling
+- `dependencies` - Dependency updates
+
+### Best Practices
+
+#### When Conducting Analysis
+
+1. **Explore the codebase** using appropriate tools
+2. **Document findings** in a tracking issue (#110 is example)
+3. **Add detailed comments** to related issues with findings
+4. **Update milestone progress** as needed
+5. **Close duplicate issues** with references
+6. **Close implemented features** with documentation links
+
+#### When Planning Features
+
+1. **Create issues** for each discrete feature/task
+2. **Organize by milestone** for timeline clarity
+3. **Add labels** for categorization
+4. **Link related issues** in descriptions
+5. **Break down large features** into subtasks using task lists
+6. **Estimate effort** in issue comments
+
+#### When Tracking Progress
+
+1. **Use issue comments** for status updates
+2. **Close issues** when complete with summary
+3. **Reference issues** in commit messages
+4. **Update milestones** as priorities change
+5. **Create tracking issues** for major initiatives
+
+#### Example Workflow
+
+```bash
+# 1. Analyze codebase
+# (Use Task tool with Explore agent)
+
+# 2. Create tracking issue for findings
+gh issue create --title "📊 Analysis Results" --body "..."
+
+# 3. Add comments to priority issues
+gh issue comment 88 --body "**Analysis Finding:** ..."
+gh issue comment 89 --body "**Analysis Finding:** ..."
+
+# 4. Close duplicates
+gh issue close 70 --reason "not planned" --comment "Duplicate of #92"
+
+# 5. Close already-implemented features
+gh issue close 73 --reason "completed" --comment "Already implemented in InteractionSystemPlugin"
+
+# 6. Create new milestone if needed
+gh api repos/:owner/:repo/milestones -X POST -f title="v0.6.0" -f description="..."
+
+# 7. Organize issues into milestones
+gh issue edit 99 --milestone "v0.6.0"
+```
+
+### Quick Reference
+
+**Most Common Commands:**
+```bash
+# Create issue
+gh issue create --title "Title" --label "label" --body "Description"
+
+# Add comment
+gh issue comment 88 --body "Comment text"
+
+# Close issue
+gh issue close 88 --reason "completed"
+
+# List issues
+gh issue list --state all
+
+# View issue
+gh issue view 88 --web
+```
+
+**When in Doubt:**
+- Use GitHub Issues, not files
+- Create tracking issues for major work
+- Add comments for detailed findings
+- Keep the repository clean
+- Track everything in one place (GitHub)
+
+**See Example:** Issue #110 demonstrates best practices for analysis tracking

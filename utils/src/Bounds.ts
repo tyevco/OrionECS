@@ -105,6 +105,27 @@ export class Bounds {
   }
 
   /**
+   * Gets the size as a Vector2.
+   */
+  public get size(): Vector2 {
+    return new Vector2(this._width, this._height);
+  }
+
+  /**
+   * Gets the minimum corner (top-left) as a Vector2.
+   */
+  public get min(): Vector2 {
+    return new Vector2(this._left, this._top);
+  }
+
+  /**
+   * Gets the maximum corner (bottom-right) as a Vector2.
+   */
+  public get max(): Vector2 {
+    return new Vector2(this.right, this.bottom);
+  }
+
+  /**
    * Gets the top-left corner as a Vector2.
    */
   public get topLeft(): Vector2 {
@@ -175,6 +196,23 @@ export class Bounds {
   }
 
   /**
+   * Checks if this bounds intersects with a circle.
+   * @param center The center of the circle
+   * @param radius The radius of the circle
+   * @returns True if the circle and bounds overlap
+   */
+  public intersectsCircle(center: Vector2, radius: number): boolean {
+    // Find the closest point on the bounds to the circle center
+    const closest = this.closestPoint(center);
+
+    // Calculate the distance from the circle center to this closest point
+    const distance = center.distanceTo(closest);
+
+    // If the distance is less than or equal to the radius, they intersect
+    return distance <= radius;
+  }
+
+  /**
    * Calculates the intersection area with another bounds.
    * @param other The bounds to intersect with
    * @returns A new Bounds representing the intersection, or null if no intersection
@@ -207,6 +245,38 @@ export class Bounds {
   }
 
   /**
+   * Expands this bounds to include the specified point.
+   * If the point is already inside, the bounds remain unchanged.
+   * @param point The point to encapsulate
+   * @returns This bounds for chaining
+   */
+  public encapsulate(point: Vector2): this {
+    const right = Math.max(this.right, point.x);
+    const bottom = Math.max(this.bottom, point.y);
+    this._left = Math.min(this._left, point.x);
+    this._top = Math.min(this._top, point.y);
+    this._width = right - this._left;
+    this._height = bottom - this._top;
+    return this;
+  }
+
+  /**
+   * Expands this bounds to include another bounds.
+   * This modifies the current bounds in place (unlike union which returns a new Bounds).
+   * @param other The bounds to encapsulate
+   * @returns This bounds for chaining
+   */
+  public encapsulateBounds(other: Bounds): this {
+    const right = Math.max(this.right, other.right);
+    const bottom = Math.max(this.bottom, other.bottom);
+    this._left = Math.min(this._left, other.left);
+    this._top = Math.min(this._top, other.top);
+    this._width = right - this._left;
+    this._height = bottom - this._top;
+    return this;
+  }
+
+  /**
    * Expands this bounds by the specified amount in all directions.
    * @param amount The amount to expand by
    * @returns This bounds for chaining
@@ -226,6 +296,42 @@ export class Bounds {
    */
   public shrink(amount: number): this {
     return this.expand(-amount);
+  }
+
+  /**
+   * Scales this bounds by the specified factors.
+   * @param sx The x scale factor
+   * @param sy The y scale factor (defaults to sx if not provided)
+   * @param fromCenter Whether to scale from center (true) or from top-left corner (false)
+   * @returns This bounds for chaining
+   */
+  public scale(sx: number, sy: number = sx, fromCenter: boolean = true): this {
+    if (fromCenter) {
+      const centerX = this._left + this._width / 2;
+      const centerY = this._top + this._height / 2;
+      this._width *= sx;
+      this._height *= sy;
+      this._left = centerX - this._width / 2;
+      this._top = centerY - this._height / 2;
+    } else {
+      this._width *= sx;
+      this._height *= sy;
+    }
+    return this;
+  }
+
+  /**
+   * Translates (moves) this bounds by the specified amount.
+   * This is an alias for offset() for API consistency.
+   * @param x The x translation (or Vector2 if only parameter provided)
+   * @param y The y translation (optional if x is Vector2)
+   * @returns This bounds for chaining
+   */
+  public translate(x: number | Vector2, y?: number): this {
+    if (x instanceof Vector2) {
+      return this.offset(x.x, x.y);
+    }
+    return this.offset(x, y ?? 0);
   }
 
   /**
@@ -283,6 +389,27 @@ export class Bounds {
       Math.max(this._left, Math.min(this.right, position.x)),
       Math.max(this._top, Math.min(this.bottom, position.y))
     );
+  }
+
+  /**
+   * Finds the closest point on or within this bounds to the given position.
+   * This is an alias for clamp() for API consistency.
+   * @param position The point to find the closest point to
+   * @returns The closest point on the bounds
+   */
+  public closestPoint(position: Vector2): Vector2 {
+    return this.clamp(position);
+  }
+
+  /**
+   * Calculates the distance from this bounds to a point.
+   * Returns 0 if the point is inside the bounds.
+   * @param position The point to measure distance to
+   * @returns The distance to the point
+   */
+  public distanceToPoint(position: Vector2): number {
+    const closest = this.closestPoint(position);
+    return position.distanceTo(closest);
   }
 
   /**

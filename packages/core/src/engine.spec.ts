@@ -4027,7 +4027,7 @@ describe('Engine v2 - Composition Architecture', () => {
                 'ArchetypeIterationSystem',
                 { all: [Position, Velocity] },
                 {
-                    act: (entity, pos, vel) => {
+                    act: (_entity, pos, vel) => {
                         count++;
                         expect(pos).toBeDefined();
                         expect(vel).toBeDefined();

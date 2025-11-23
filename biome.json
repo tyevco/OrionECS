@@ -8,7 +8,7 @@
   "files": {
     "ignoreUnknown": false,
     "includes": [
-      "core/src/**/*",
+      "packages/*/src/**/*",
       "plugins/*/src/**/*",
       "benchmarks/**/*",
       "examples/**/*",

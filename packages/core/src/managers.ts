@@ -719,7 +719,6 @@ export class MessageManager {
  */
 export class ChangeTrackingManager {
     private componentManager: ComponentManager;
-    private entityManager: any; // EntityManager
     private eventEmitter: any; // EventEmitter
     private batchMode: boolean = false;
     private proxyTrackingEnabled: boolean = false;
@@ -729,14 +728,8 @@ export class ChangeTrackingManager {
     // Track dirty components per entity (for archetype mode)
     private dirtyComponentsMap: Map<number, Set<ComponentIdentifier>> = new Map();
 
-    constructor(
-        componentManager: ComponentManager,
-        entityManager: any,
-        eventEmitter: any,
-        options: any = {}
-    ) {
+    constructor(componentManager: ComponentManager, eventEmitter: any, options: any = {}) {
         this.componentManager = componentManager;
-        this.entityManager = entityManager;
         this.eventEmitter = eventEmitter;
         this.proxyTrackingEnabled = options.enableProxyTracking || false;
         this.batchMode = options.batchMode || false;

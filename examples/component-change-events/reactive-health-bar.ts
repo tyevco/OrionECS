@@ -8,7 +8,7 @@
  * updates over polling-based approaches.
  */
 
-import { EngineBuilder } from '../../core/src/index';
+import { EngineBuilder } from '../../packages/core/src/index';
 
 // ============================================================================
 // COMPONENTS

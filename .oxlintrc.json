@@ -3,7 +3,9 @@
   "rules": {
     "correctness": "error",
     "suspicious": "warn",
-    "perf": "warn"
+    "perf": "warn",
+    "typescript/no-explicit-any": "warn",
+    "no-unused-vars": "warn"
   },
   "categories": {
     "correctness": "error",
@@ -23,9 +25,10 @@
     {
       "files": ["*.spec.ts", "*.test.ts", "*.bench.ts", "benchmarks/**/*.ts"],
       "rules": {
-        "typescript/no-explicit-any": "off",
+        "typescript/no-explicit-any": "warn",
         "typescript/no-extraneous-class": "off",
-        "no-console": "off"
+        "no-console": "off",
+        "no-unused-vars": "warn"
       }
     },
     {

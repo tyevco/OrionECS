@@ -91,7 +91,7 @@ describe('DebugVisualizerPlugin', () => {
         });
 
         test('should print hierarchy with single entity', () => {
-            const entity = engine.createEntity('Player');
+            const _entity = engine.createEntity('Player');
 
             const output = api.printHierarchy();
 
@@ -206,7 +206,7 @@ describe('DebugVisualizerPlugin', () => {
                 'TestSystem',
                 { all: [Position] },
                 {
-                    act: (entity, position: Position) => {
+                    act: (_entity, position: Position) => {
                         position.x += 1;
                     },
                 },
@@ -226,7 +226,7 @@ describe('DebugVisualizerPlugin', () => {
                 'MovementSystem',
                 { all: [Position, Velocity] },
                 {
-                    act: (entity, position: Position, velocity: Velocity) => {
+                    act: (_entity, position: Position, velocity: Velocity) => {
                         position.x += velocity.x;
                     },
                 },
@@ -435,7 +435,7 @@ describe('DebugVisualizerPlugin', () => {
         });
 
         test('should handle entities with no name', () => {
-            const entity = engine.createEntity();
+            const _entity = engine.createEntity();
 
             const output = api.printHierarchy();
 

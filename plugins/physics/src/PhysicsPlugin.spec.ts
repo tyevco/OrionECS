@@ -333,7 +333,7 @@ describe('PhysicsPlugin', () => {
             const pos = entity.getComponent(Position);
 
             // Should have moved down due to gravity
-            expect(pos!.y).toBeGreaterThan(0);
+            expect(pos?.y).toBeGreaterThan(0);
         });
 
         test('should respect time scale', () => {
@@ -367,7 +367,7 @@ describe('PhysicsPlugin', () => {
             const pos2 = entity2.getComponent(Position);
 
             // With 0.5 time scale, movement should be half
-            expect(pos1!.y).toBeLessThan(pos2!.y);
+            expect(pos1?.y).toBeLessThan(pos2?.y);
 
             engine2.stop();
         });
@@ -465,7 +465,7 @@ describe('PhysicsPlugin', () => {
             const entities = engine.getAllEntities();
             entities.forEach((entity) => {
                 const pos = entity.getComponent(Position);
-                expect(pos!.y).toBeGreaterThan(0);
+                expect(pos?.y).toBeGreaterThan(0);
             });
         });
 
@@ -487,8 +487,8 @@ describe('PhysicsPlugin', () => {
             engine.update(1 / 60);
 
             // Light object should move faster
-            const lightVel = light.getComponent(RigidBody)!.velocity.x;
-            const heavyVel = heavy.getComponent(RigidBody)!.velocity.x;
+            const lightVel = light.getComponent(RigidBody)?.velocity.x;
+            const heavyVel = heavy.getComponent(RigidBody)?.velocity.x;
 
             expect(lightVel).toBeGreaterThan(heavyVel);
         });
@@ -499,7 +499,7 @@ describe('PhysicsPlugin', () => {
             staticObj.addComponent(RigidBody, 0);
 
             const initialPos = staticObj.getComponent(Position);
-            const initialY = initialPos!.y;
+            const initialY = initialPos?.y;
 
             engine.start();
             engine.update(1 / 60);
@@ -507,7 +507,7 @@ describe('PhysicsPlugin', () => {
             const finalPos = staticObj.getComponent(Position);
 
             // Static object should not move
-            expect(finalPos!.y).toBe(initialY);
+            expect(finalPos?.y).toBe(initialY);
         });
     });
 
@@ -555,7 +555,7 @@ describe('PhysicsPlugin', () => {
             entity.addComponent(RigidBody, 1);
 
             const initialPos = entity.getComponent(Position);
-            const initialY = initialPos!.y;
+            const initialY = initialPos?.y;
 
             engine.start();
             engine.update(1 / 60);
@@ -563,7 +563,7 @@ describe('PhysicsPlugin', () => {
             const finalPos = entity.getComponent(Position);
 
             // Should not move with zero time scale
-            expect(finalPos!.y).toBe(initialY);
+            expect(finalPos?.y).toBe(initialY);
         });
     });
 

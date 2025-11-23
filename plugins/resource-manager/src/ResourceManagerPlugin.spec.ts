@@ -176,26 +176,26 @@ describe('ResourceManagerPlugin', () => {
         });
 
         test('should increment reference count on get', async () => {
-            const texture1 = await api.get(TextureResource, 'player.png');
-            const texture2 = await api.get(TextureResource, 'player.png');
+            const _texture1 = await api.get(TextureResource, 'player.png');
+            const _texture2 = await api.get(TextureResource, 'player.png');
 
             const stats = api.getStats();
             const textureStats = stats.byType.find((t) => t.type === 'Texture');
 
             expect(textureStats).toBeDefined();
-            expect(textureStats!.totalRefs).toBeGreaterThanOrEqual(2);
+            expect(textureStats?.totalRefs).toBeGreaterThanOrEqual(2);
         });
 
         test('should decrement reference count on release', async () => {
             const texture1 = await api.get(TextureResource, 'player.png');
-            const texture2 = await api.get(TextureResource, 'player.png');
+            const _texture2 = await api.get(TextureResource, 'player.png');
 
             await api.release(texture1);
 
             const stats = api.getStats();
             const textureStats = stats.byType.find((t) => t.type === 'Texture');
 
-            expect(textureStats!.totalRefs).toBeGreaterThanOrEqual(1);
+            expect(textureStats?.totalRefs).toBeGreaterThanOrEqual(1);
         });
 
         test('should unload resource when reference count reaches 0', async () => {
@@ -214,7 +214,7 @@ describe('ResourceManagerPlugin', () => {
             const stats = api.getStats();
             const textureStats = stats.byType.find((t) => t.type === 'Texture');
 
-            expect(textureStats!.count).toBe(0);
+            expect(textureStats?.count).toBe(0);
         });
 
         test('should not decrement below 0', async () => {
@@ -240,7 +240,7 @@ describe('ResourceManagerPlugin', () => {
             const texture = api.getSync(TextureResource, 'player.png');
 
             expect(texture).not.toBeNull();
-            expect(texture!.key).toBe('player.png');
+            expect(texture?.key).toBe('player.png');
         });
 
         test('should return null for unloaded resource', () => {
@@ -253,12 +253,12 @@ describe('ResourceManagerPlugin', () => {
             await api.get(TextureResource, 'player.png');
 
             const statsBefore = api.getStats();
-            const beforeRefs = statsBefore.byType.find((t) => t.type === 'Texture')!.totalRefs;
+            const beforeRefs = statsBefore.byType.find((t) => t.type === 'Texture')?.totalRefs;
 
             api.getSync(TextureResource, 'player.png');
 
             const statsAfter = api.getStats();
-            const afterRefs = statsAfter.byType.find((t) => t.type === 'Texture')!.totalRefs;
+            const afterRefs = statsAfter.byType.find((t) => t.type === 'Texture')?.totalRefs;
 
             expect(afterRefs).toBeGreaterThan(beforeRefs);
         });
@@ -277,7 +277,7 @@ describe('ResourceManagerPlugin', () => {
             const stats = api.getStats();
             const textureStats = stats.byType.find((t) => t.type === 'Texture');
 
-            expect(textureStats!.count).toBe(3);
+            expect(textureStats?.count).toBe(3);
         });
 
         test('should keep preloaded resources in cache', async () => {
@@ -286,7 +286,7 @@ describe('ResourceManagerPlugin', () => {
             const texture = api.getSync(TextureResource, 'player.png');
 
             expect(texture).not.toBeNull();
-            expect(texture!.isLoaded).toBe(true);
+            expect(texture?.isLoaded).toBe(true);
         });
     });
 
@@ -330,8 +330,8 @@ describe('ResourceManagerPlugin', () => {
             const textureStats = stats.byType.find((t) => t.type === 'Texture');
             const audioStats = stats.byType.find((t) => t.type === 'Audio');
 
-            expect(textureStats!.count).toBe(2);
-            expect(audioStats!.count).toBe(1);
+            expect(textureStats?.count).toBe(2);
+            expect(audioStats?.count).toBe(1);
         });
 
         test('should calculate average references', async () => {
@@ -341,7 +341,7 @@ describe('ResourceManagerPlugin', () => {
             const stats = api.getStats();
             const textureStats = stats.byType.find((t) => t.type === 'Texture');
 
-            expect(textureStats!.averageRefs).toBeGreaterThan(0);
+            expect(textureStats?.averageRefs).toBeGreaterThan(0);
         });
 
         test('should print statistics', () => {
@@ -383,7 +383,7 @@ describe('ResourceManagerPlugin', () => {
 
         test('should cleanup unused resources', async () => {
             const texture1 = await api.get(TextureResource, 'player.png');
-            const texture2 = await api.get(TextureResource, 'enemy.png');
+            const _texture2 = await api.get(TextureResource, 'enemy.png');
 
             // Release one resource
             await api.release(texture1);
@@ -397,7 +397,7 @@ describe('ResourceManagerPlugin', () => {
         });
 
         test('should not cleanup resources with references', async () => {
-            const texture = await api.get(TextureResource, 'player.png');
+            const _texture = await api.get(TextureResource, 'player.png');
 
             const cleaned = await api.cleanupUnused();
 
@@ -439,10 +439,10 @@ describe('ResourceManagerPlugin', () => {
         });
 
         test('should manage multiple resource types', async () => {
-            const texture1 = await api.get(TextureResource, 'player.png');
-            const texture2 = await api.get(TextureResource, 'enemy.png');
-            const audio1 = await api.get(AudioResource, 'music.mp3');
-            const audio2 = await api.get(AudioResource, 'sfx.mp3');
+            const _texture1 = await api.get(TextureResource, 'player.png');
+            const _texture2 = await api.get(TextureResource, 'enemy.png');
+            const _audio1 = await api.get(AudioResource, 'music.mp3');
+            const _audio2 = await api.get(AudioResource, 'sfx.mp3');
 
             const stats = api.getStats();
 

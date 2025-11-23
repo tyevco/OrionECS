@@ -85,6 +85,13 @@ The implementation uses focused managers for separation of concerns:
 - Entity hierarchy with parent/child relationships
 - Component pooling for frequently used components
 
+**Global State Management:**
+- Singleton components for engine-wide global state
+- Type-safe singleton access with full event support
+- Singleton serialization in world snapshots
+- System callbacks for singleton changes
+- Plugin support for singleton management
+
 **Validation & Safety:**
 - Component dependencies and conflict checking
 - Runtime component validation with custom validators
@@ -244,6 +251,72 @@ const profiles = engine.getSystemProfiles();
 const memoryStats = engine.getMemoryStats();
 const debugInfo = engine.getDebugInfo();
 ```
+
+**Singleton Components (Global State Management):**
+
+Singleton components exist once per engine instance and are independent of entities. They're perfect for managing global state like game time, settings, or score managers.
+
+```typescript
+// Define singleton components
+class GameTime {
+  constructor(public elapsed: number = 0, public deltaTime: number = 0) {}
+}
+
+class GameSettings {
+  constructor(public volume: number = 1.0, public difficulty: string = 'normal') {}
+}
+
+// Set singletons
+engine.setSingleton(GameTime, 0, 0);
+engine.setSingleton(GameSettings, 1.0, 'normal');
+
+// Get and modify singletons
+const time = engine.getSingleton(GameTime);
+if (time) {
+  time.elapsed += deltaTime;
+  engine.markSingletonDirty(GameTime); // Emit change event
+}
+
+// Check if singleton exists
+if (engine.hasSingleton(GameSettings)) {
+  const settings = engine.getSingleton(GameSettings);
+  console.log(`Volume: ${settings?.volume}`);
+}
+
+// Remove singleton
+engine.removeSingleton(GameSettings);
+
+// Systems can listen for singleton changes
+engine.createSystem('SettingsWatcher', { all: [] }, {
+  watchSingletons: [GameSettings],
+  onSingletonSet: (event) => {
+    console.log('Settings updated:', event.newValue);
+  },
+  onSingletonRemoved: (event) => {
+    console.log('Settings removed');
+  }
+});
+
+// Singletons are included in snapshots
+engine.createSnapshot(); // Saves singleton state
+engine.restoreSnapshot(); // Restores singleton state
+```
+
+**Key Features:**
+- **Global State**: One instance per engine, not tied to entities
+- **Type-Safe**: Full TypeScript support with generics
+- **Event System**: Emit events when singletons are set, updated, or removed
+- **Serialization**: Automatically included in world snapshots
+- **System Integration**: Systems can listen for singleton changes
+- **Plugin Support**: Plugins can manage singletons via PluginContext
+
+**Common Use Cases:**
+- `GameTime` - Track elapsed time and delta time
+- `GameSettings` - Volume, difficulty, graphics settings
+- `ScoreManager` - Current score, high score, combo multiplier
+- `InputState` - Global input state (keyboard, mouse, gamepad)
+- `PhysicsConfig` - Global physics parameters (gravity, timestep)
+- `ResourceManager` - Asset loading and caching state
 
 ### Entity Archetype System
 

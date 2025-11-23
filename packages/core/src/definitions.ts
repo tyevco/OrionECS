@@ -192,6 +192,60 @@ export type ComponentAddedListener<T = any> = (event: ComponentAddedEvent<T>) =>
  */
 export type ComponentRemovedListener<T = any> = (event: ComponentRemovedEvent<T>) => void;
 
+/**
+ * Event emitted when a singleton component is set or updated.
+ *
+ * Singleton components represent global state that exists once per engine instance,
+ * independent of any specific entity. Examples include game time, global settings,
+ * or score managers.
+ *
+ * @typeParam T - The component type
+ * @public
+ */
+export interface SingletonSetEvent<T = any> {
+    /** The type/class of the singleton component */
+    componentType: ComponentIdentifier<T>;
+    /** The previous value of the singleton (undefined if newly set) */
+    oldValue?: T;
+    /** The current value of the singleton */
+    newValue: T;
+    /** Unix timestamp (milliseconds) when the singleton was set */
+    timestamp: number;
+}
+
+/**
+ * Event emitted when a singleton component is removed.
+ *
+ * @typeParam T - The component type
+ * @public
+ */
+export interface SingletonRemovedEvent<T = any> {
+    /** The type/class of the singleton component that was removed */
+    componentType: ComponentIdentifier<T>;
+    /** The component instance that was removed */
+    component: T;
+    /** Unix timestamp (milliseconds) when the singleton was removed */
+    timestamp: number;
+}
+
+/**
+ * Callback function invoked when a singleton component is set or updated.
+ *
+ * @typeParam T - The component type
+ * @param event - The singleton set event details
+ * @public
+ */
+export type SingletonSetListener<T = any> = (event: SingletonSetEvent<T>) => void;
+
+/**
+ * Callback function invoked when a singleton component is removed.
+ *
+ * @typeParam T - The component type
+ * @param event - The singleton removed event details
+ * @public
+ */
+export type SingletonRemovedListener<T = any> = (event: SingletonRemovedEvent<T>) => void;
+
 // Enhanced system options with profiling and lifecycle hooks
 export interface SystemOptions<C extends readonly any[] = any[]> {
     act?: (entity: EntityDef, ...components: C) => void;
@@ -235,6 +289,29 @@ export interface SystemOptions<C extends readonly any[] = any[]> {
      * If omitted, all component changes will trigger the callbacks.
      */
     watchComponents?: ComponentIdentifier[];
+
+    /**
+     * Callback invoked when a singleton component is set or updated.
+     *
+     * Can be filtered to specific component types using the `watchSingletons` option.
+     */
+    onSingletonSet?: SingletonSetListener;
+
+    /**
+     * Callback invoked when a singleton component is removed.
+     *
+     * Can be filtered to specific component types using the `watchSingletons` option.
+     */
+    onSingletonRemoved?: SingletonRemovedListener;
+
+    /**
+     * Filter singleton change events to only these component types.
+     *
+     * When specified, `onSingletonSet` and `onSingletonRemoved` callbacks will only be
+     * invoked for singleton components matching these types.
+     * If omitted, all singleton changes will trigger the callbacks.
+     */
+    watchSingletons?: ComponentIdentifier[];
 }
 
 export type SystemType<T extends readonly any[] = any[]> = SystemOptions<T> & Partial<EngineEvents>;
@@ -256,7 +333,9 @@ export type EngineEventNames =
     | 'onEntityReleased'
     | 'onComponentAdded'
     | 'onComponentRemoved'
-    | 'onEntityHierarchyChanged';
+    | 'onEntityHierarchyChanged'
+    | 'onSingletonSet'
+    | 'onSingletonRemoved';
 
 // Enhanced entity interface
 export interface EntityDef {
@@ -329,6 +408,7 @@ export interface SerializedEntity {
 
 export interface SerializedWorld {
     entities: SerializedEntity[];
+    singletons?: { [componentName: string]: any };
     timestamp: number;
 }
 
@@ -493,6 +573,12 @@ export interface PluginContext {
         type: ComponentIdentifier<T>,
         validator: ComponentValidator<T>
     ): void;
+
+    // Singleton component management
+    setSingleton<T>(type: ComponentIdentifier<T>, ...args: any[]): T;
+    getSingleton<T>(type: ComponentIdentifier<T>): T | undefined;
+    hasSingleton<T>(type: ComponentIdentifier<T>): boolean;
+    removeSingleton<T>(type: ComponentIdentifier<T>): T | undefined;
 
     // System creation
     createSystem<All extends readonly ComponentIdentifier[]>(

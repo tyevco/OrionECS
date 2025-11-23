@@ -33,6 +33,8 @@ OrionECS uses **npm Trusted Publishers** with OpenID Connect (OIDC) for secure, 
 
 ### Setting Up Trusted Publishers
 
+**Note:** npm allows only **one workflow** per package for trusted publishing. Configure the automated release workflow as the primary publishing mechanism.
+
 For each package you want to publish, configure it as a trusted publisher on npmjs.com:
 
 1. **Go to package settings** on [npmjs.com](https://www.npmjs.com)
@@ -41,13 +43,13 @@ For each package you want to publish, configure it as a trusted publisher on npm
 4. Select **"GitHub Actions"** as the provider
 5. Configure the publisher:
    - **Repository**: `tyevco/OrionECS`
-   - **Workflow**: `release.yml` (for automated releases)
+   - **Workflow**: `release.yml`
    - **Environment**: (leave empty)
 
-6. **For manual publishing**, also add:
-   - **Repository**: `tyevco/OrionECS`
-   - **Workflow**: `publish.yml`
-   - **Environment**: (leave empty)
+**Important:** Configure this for all 10 packages:
+- `orion-ecs`
+- `@orion-ecs/utils`
+- All 8 plugin packages (`@orion-ecs/*`)
 
 ### How It Works
 
@@ -157,17 +159,42 @@ This will:
 
 ### Manual Publishing
 
-If you need to manually publish a specific package (emergency releases, etc.):
+**Note:** The Manual Publish workflow is available but has limitations with npm Trusted Publishers (only one workflow can be configured per package).
 
+#### Recommended Approach
+
+For manual releases, use the automated workflow by creating and merging a changeset:
+
+```bash
+# Create a changeset for the package you want to release
+npm run changeset:add
+
+# Commit and push
+git add .changeset/*.md
+git commit -m "chore: prepare release for package-name"
+git push
+
+# Create PR and merge to main
+# The automated release workflow will handle publishing
+```
+
+#### Alternative: Manual Publish Workflow
+
+If you need emergency publishing outside the normal workflow:
+
+**Setup Required:** Add `NPM_TOKEN` to GitHub Secrets (since OIDC is already configured for `release.yml`)
+
+1. Generate an npm automation token on npmjs.com
+2. Add it as `NPM_TOKEN` in GitHub repository secrets
+3. Uncomment the `NODE_AUTH_TOKEN` lines in `.github/workflows/publish.yml`
+
+Then use the workflow:
 1. Go to **Actions** → **Manual Publish** in GitHub
 2. Select the package to publish
 3. Choose whether to do a dry run (recommended first)
 4. Click "Run workflow"
 
-The workflow will:
-- Build and test everything
-- Publish the selected package
-- Provide a summary of what was published
+**Note:** This approach uses a long-lived token instead of OIDC. The automated release workflow is preferred for security.
 
 ### Validating Packages
 
@@ -243,14 +270,25 @@ If the release workflow fails during build:
 
 ### Publish failures
 
-If publishing fails:
-1. Verify the package is configured as a trusted publisher on npmjs.com:
+If publishing from the automated `release.yml` workflow fails:
+
+1. **Verify trusted publisher configuration** on npmjs.com:
    - Repository: `tyevco/OrionECS`
-   - Workflow: `release.yml` (or `publish.yml` for manual publishes)
+   - Workflow: `release.yml`
    - Environment: (leave empty)
-2. Check if the version already exists on npm
-3. Verify the workflow has `id-token: write` permission
-4. Use the Manual Publish workflow with dry-run to test authentication
+   - Confirm this is configured for the specific package that failed
+
+2. **Check version conflicts:**
+   - The version may already exist on npm
+   - Run `npm view package-name versions` to check
+
+3. **Verify workflow permissions:**
+   - Ensure `release.yml` has `id-token: write` permission
+   - Check GitHub Actions permissions are enabled for the repository
+
+4. **Test locally:**
+   - Run `npm run release:dry-run` to test the build and changeset process
+   - This won't test OIDC auth, but validates the package builds correctly
 
 ### Version conflicts
 

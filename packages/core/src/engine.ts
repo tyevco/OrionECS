@@ -695,6 +695,190 @@ export class Engine {
         return this.componentManager.getComponentPoolStats(type);
     }
 
+    // ========== Singleton Component Management ==========
+
+    /**
+     * Set a singleton component for global state management.
+     *
+     * Singleton components exist once per engine instance and are independent of entities.
+     * Perfect for managing global state like game time, settings, or score managers.
+     *
+     * @typeParam T - The component type
+     * @param type - The component class/type
+     * @param args - Constructor arguments for creating the component
+     * @returns The component instance that was set
+     *
+     * @example
+     * ```typescript
+     * class GameTime {
+     *   constructor(public elapsed: number = 0, public deltaTime: number = 0) {}
+     * }
+     *
+     * // Set the singleton
+     * engine.setSingleton(GameTime, 0, 0.016);
+     *
+     * // Later, update it
+     * const time = engine.getSingleton(GameTime);
+     * if (time) {
+     *   time.elapsed += deltaTime;
+     *   time.deltaTime = deltaTime;
+     *   engine.markSingletonDirty(GameTime); // Emit change event
+     * }
+     * ```
+     *
+     * @public
+     */
+    setSingleton<T>(type: ComponentIdentifier<T>, ...args: any[]): T {
+        const oldValue = this.componentManager.getSingleton(type);
+
+        // Create new component instance
+        const component = new type(...args);
+
+        // Set the singleton
+        this.componentManager.setSingleton(type, component);
+
+        // Emit event
+        this.eventEmitter.emit('onSingletonSet', {
+            componentType: type,
+            oldValue,
+            newValue: component,
+            timestamp: Date.now(),
+        });
+
+        if (this.debugMode) {
+            console.log(`[ECS Debug] Singleton component ${type.name} set`);
+        }
+
+        return component;
+    }
+
+    /**
+     * Get a singleton component.
+     *
+     * @typeParam T - The component type
+     * @param type - The component class/type
+     * @returns The singleton component instance, or undefined if not set
+     *
+     * @example
+     * ```typescript
+     * const gameTime = engine.getSingleton(GameTime);
+     * if (gameTime) {
+     *   console.log(`Game has been running for ${gameTime.elapsed}s`);
+     * }
+     * ```
+     *
+     * @public
+     */
+    getSingleton<T>(type: ComponentIdentifier<T>): T | undefined {
+        return this.componentManager.getSingleton(type);
+    }
+
+    /**
+     * Check if a singleton component is set.
+     *
+     * @typeParam T - The component type
+     * @param type - The component class/type
+     * @returns True if the singleton exists, false otherwise
+     *
+     * @example
+     * ```typescript
+     * if (!engine.hasSingleton(GameTime)) {
+     *   engine.setSingleton(GameTime, 0, 0);
+     * }
+     * ```
+     *
+     * @public
+     */
+    hasSingleton<T>(type: ComponentIdentifier<T>): boolean {
+        return this.componentManager.hasSingleton(type);
+    }
+
+    /**
+     * Remove a singleton component.
+     *
+     * @typeParam T - The component type
+     * @param type - The component class/type
+     * @returns The removed singleton instance, or undefined if it didn't exist
+     *
+     * @example
+     * ```typescript
+     * const oldSettings = engine.removeSingleton(GameSettings);
+     * console.log('Settings removed:', oldSettings);
+     * ```
+     *
+     * @public
+     */
+    removeSingleton<T>(type: ComponentIdentifier<T>): T | undefined {
+        const component = this.componentManager.removeSingleton(type);
+
+        if (component) {
+            // Emit event
+            this.eventEmitter.emit('onSingletonRemoved', {
+                componentType: type,
+                component,
+                timestamp: Date.now(),
+            });
+
+            if (this.debugMode) {
+                console.log(`[ECS Debug] Singleton component ${type.name} removed`);
+            }
+        }
+
+        return component;
+    }
+
+    /**
+     * Get all singleton components.
+     *
+     * @returns Map of all singleton components
+     *
+     * @example
+     * ```typescript
+     * const singletons = engine.getAllSingletons();
+     * for (const [type, component] of singletons) {
+     *   console.log(`Singleton: ${type.name}`, component);
+     * }
+     * ```
+     *
+     * @public
+     */
+    getAllSingletons(): Map<ComponentIdentifier, any> {
+        return this.componentManager.getAllSingletons();
+    }
+
+    /**
+     * Mark a singleton component as dirty (changed) to emit change events.
+     *
+     * Similar to `markComponentDirty()` but for singleton components. Use this when
+     * you modify a singleton component's properties directly and want to notify listeners.
+     *
+     * @typeParam T - The component type
+     * @param type - The component class/type
+     *
+     * @example
+     * ```typescript
+     * const time = engine.getSingleton(GameTime);
+     * if (time) {
+     *   time.elapsed += deltaTime;
+     *   engine.markSingletonDirty(GameTime); // Notify listeners
+     * }
+     * ```
+     *
+     * @public
+     */
+    markSingletonDirty<T>(type: ComponentIdentifier<T>): void {
+        const component = this.componentManager.getSingleton(type);
+        if (component) {
+            // Emit change event
+            this.eventEmitter.emit('onSingletonSet', {
+                componentType: type,
+                oldValue: component,
+                newValue: component,
+                timestamp: Date.now(),
+            });
+        }
+    }
+
     // ========== System Management ==========
 
     createSystemGroup(name: string, options: { priority: number }): any {
@@ -1040,13 +1224,45 @@ export class Engine {
             processEntity(serializedEntity);
         }
 
+        // Restore singleton components
+        if (snapshot.singletons) {
+            // Clear existing singletons
+            this.componentManager.clearAllSingletons();
+
+            // Restore each singleton
+            for (const [componentName, componentData] of Object.entries(snapshot.singletons)) {
+                const componentType = this.componentManager.getComponentByName(componentName);
+                if (componentType) {
+                    const dataObj = componentData as Record<string, any>;
+                    const keys = Object.keys(dataObj);
+                    const values = keys.map((key) => dataObj[key]);
+
+                    try {
+                        // Try to call constructor with values as args
+                        const component = new componentType(...values);
+                        this.componentManager.setSingleton(componentType, component);
+                    } catch {
+                        // If that fails, create empty and assign properties
+                        const component = new componentType();
+                        Object.assign(component, componentData);
+                        this.componentManager.setSingleton(componentType, component);
+                    }
+                }
+            }
+        }
+
         // Update all queries with restored entities
         for (const entity of entityMap.values()) {
             this.queryManager.updateQueries(entity);
         }
 
         if (this.debugMode) {
-            console.log(`[ECS Debug] Snapshot restored (${entityMap.size} entities)`);
+            const singletonCount = snapshot.singletons
+                ? Object.keys(snapshot.singletons).length
+                : 0;
+            console.log(
+                `[ECS Debug] Snapshot restored (${entityMap.size} entities, ${singletonCount} singletons)`
+            );
         }
 
         return true;
@@ -1399,8 +1615,17 @@ export class Engine {
             .filter((entity) => !entity.parent) // Only serialize root entities
             .map((entity) => entity.serialize());
 
+        // Serialize singleton components
+        const singletons: { [componentName: string]: any } = {};
+        const allSingletons = this.componentManager.getAllSingletons();
+
+        for (const [componentType, component] of allSingletons) {
+            singletons[componentType.name] = { ...component };
+        }
+
         return {
             entities,
+            singletons,
             timestamp: Date.now(),
         };
     }
@@ -1520,6 +1745,18 @@ export class Engine {
                 validator: ComponentValidator<T>
             ): void => {
                 this.registerComponentValidator(type, validator);
+            },
+            setSingleton: <T>(type: ComponentIdentifier<T>, ...args: any[]): T => {
+                return this.setSingleton(type, ...args);
+            },
+            getSingleton: <T>(type: ComponentIdentifier<T>): T | undefined => {
+                return this.getSingleton(type);
+            },
+            hasSingleton: <T>(type: ComponentIdentifier<T>): boolean => {
+                return this.hasSingleton(type);
+            },
+            removeSingleton: <T>(type: ComponentIdentifier<T>): T | undefined => {
+                return this.removeSingleton(type);
             },
             createSystem: <All extends readonly ComponentIdentifier[]>(
                 name: string,

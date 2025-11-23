@@ -39,6 +39,7 @@ export class ComponentManager {
     private componentPools: Map<ComponentIdentifier, Pool<any>> = new Map();
     private archetypeManager?: ArchetypeManager;
     private archetypesEnabled: boolean = false;
+    private singletonComponents: Map<ComponentIdentifier, any> = new Map();
 
     getComponentArray<T>(type: ComponentIdentifier): ComponentArray<T> {
         if (!this.componentArrays.has(type)) {
@@ -172,6 +173,70 @@ export class ComponentManager {
      */
     getArchetypeManager(): ArchetypeManager | undefined {
         return this.archetypeManager;
+    }
+
+    // ========== Singleton Component Management ==========
+
+    /**
+     * Set a singleton component (global state that exists once per engine)
+     * @param type - Component type
+     * @param component - Component instance
+     * @returns The previous singleton instance if it existed
+     */
+    setSingleton<T>(type: ComponentIdentifier<T>, component: T): T | undefined {
+        const oldValue = this.singletonComponents.get(type);
+        this.singletonComponents.set(type, component);
+
+        // Auto-register component type by name
+        if (!this.registry.has(type.name)) {
+            this.registry.set(type.name, type);
+        }
+
+        return oldValue;
+    }
+
+    /**
+     * Get a singleton component
+     * @param type - Component type
+     * @returns The singleton instance or undefined if not set
+     */
+    getSingleton<T>(type: ComponentIdentifier<T>): T | undefined {
+        return this.singletonComponents.get(type);
+    }
+
+    /**
+     * Check if a singleton component exists
+     * @param type - Component type
+     * @returns True if the singleton exists
+     */
+    hasSingleton<T>(type: ComponentIdentifier<T>): boolean {
+        return this.singletonComponents.has(type);
+    }
+
+    /**
+     * Remove a singleton component
+     * @param type - Component type
+     * @returns The removed singleton instance or undefined if it didn't exist
+     */
+    removeSingleton<T>(type: ComponentIdentifier<T>): T | undefined {
+        const component = this.singletonComponents.get(type);
+        this.singletonComponents.delete(type);
+        return component;
+    }
+
+    /**
+     * Get all singleton components
+     * @returns Map of all singleton components
+     */
+    getAllSingletons(): Map<ComponentIdentifier, any> {
+        return new Map(this.singletonComponents);
+    }
+
+    /**
+     * Clear all singleton components
+     */
+    clearAllSingletons(): void {
+        this.singletonComponents.clear();
     }
 }
 

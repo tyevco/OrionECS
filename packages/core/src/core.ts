@@ -1069,6 +1069,7 @@ export class System<C extends readonly any[] = any[]> {
         if (!this.eventEmitter) return;
 
         const watchComponents = this.options.watchComponents;
+        const watchSingletons = this.options.watchSingletons;
 
         // Subscribe to component added events
         if (this.options.onComponentAdded) {
@@ -1122,6 +1123,30 @@ export class System<C extends readonly any[] = any[]> {
                 }
 
                 this.options.onComponentChanged?.(event);
+            });
+        }
+
+        // Subscribe to singleton set events
+        if (this.options.onSingletonSet) {
+            this.eventEmitter.on('onSingletonSet', (event: any) => {
+                // Filter by watchSingletons if specified
+                if (watchSingletons && !watchSingletons.includes(event.componentType)) {
+                    return;
+                }
+
+                this.options.onSingletonSet?.(event);
+            });
+        }
+
+        // Subscribe to singleton removed events
+        if (this.options.onSingletonRemoved) {
+            this.eventEmitter.on('onSingletonRemoved', (event: any) => {
+                // Filter by watchSingletons if specified
+                if (watchSingletons && !watchSingletons.includes(event.componentType)) {
+                    return;
+                }
+
+                this.options.onSingletonRemoved?.(event);
             });
         }
     }

@@ -1,7 +1,7 @@
 {
-  "name": "@orion-ecs/input-manager",
+  "name": "@orion-ecs/resource-manager",
   "version": "1.0.0",
-  "description": "Input handling plugin for OrionECS with mouse and keyboard support",
+  "description": "Asset and resource management plugin for OrionECS with loading, caching, and lifecycle management",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -24,16 +24,14 @@
     "ecs",
     "orion-ecs",
     "plugin",
-    "input",
-    "mouse",
-    "keyboard",
-    "events"
+    "resource",
+    "assets",
+    "loading"
   ],
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "orion-ecs": "*",
-    "@orion-ecs/math": "*"
+    "orion-ecs": "*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

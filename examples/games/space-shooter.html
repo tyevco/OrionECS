@@ -1,0 +1,223 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Space Shooter - OrionECS Example</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: radial-gradient(ellipse at bottom, #1b2735 0%, #090a0f 100%);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        canvas {
+            border: 2px solid #667eea;
+            box-shadow: 0 0 30px rgba(102, 126, 234, 0.5);
+            background: #000;
+        }
+
+        #ui {
+            display: flex;
+            gap: 1.5rem;
+            font-size: 1.1rem;
+            font-weight: bold;
+            color: #fff;
+            flex-wrap: wrap;
+            justify-content: center;
+        }
+
+        #ui > div {
+            padding: 0.5rem 1rem;
+            background: linear-gradient(135deg, rgba(102, 126, 234, 0.2) 0%, rgba(118, 75, 162, 0.2) 100%);
+            border: 1px solid rgba(102, 126, 234, 0.4);
+            border-radius: 6px;
+            min-width: 120px;
+            text-align: center;
+        }
+
+        #ui span {
+            color: #667eea;
+            font-size: 1.3rem;
+        }
+
+        #controls {
+            margin-top: 1rem;
+            text-align: center;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        #controls p {
+            margin: 0.3rem 0;
+        }
+
+        #controls strong {
+            color: #667eea;
+        }
+
+        #game-over {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 3rem;
+            border-radius: 16px;
+            border: 3px solid #667eea;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(102, 126, 234, 0.8);
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+            min-width: 350px;
+        }
+
+        #game-over h2 {
+            color: #667eea;
+            font-size: 2.5rem;
+            margin-bottom: 0.5rem;
+            text-shadow: 0 0 10px rgba(102, 126, 234, 0.8);
+        }
+
+        #game-over p {
+            font-size: 1.2rem;
+            color: #fff;
+        }
+
+        #game-over #final-score {
+            color: #ffd700;
+            font-size: 2rem;
+            font-weight: bold;
+        }
+
+        #game-over button {
+            margin-top: 1rem;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            box-shadow: 0 4px 15px rgba(102, 126, 234, 0.4);
+        }
+
+        #game-over button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 20px rgba(102, 126, 234, 0.6);
+        }
+
+        #game-over button:active {
+            transform: translateY(0);
+        }
+
+        .back-link {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            color: #667eea;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            background: rgba(102, 126, 234, 0.2);
+            border: 1px solid rgba(102, 126, 234, 0.4);
+            border-radius: 6px;
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(102, 126, 234, 0.3);
+            border-color: rgba(102, 126, 234, 0.6);
+        }
+
+        .title {
+            font-size: 2rem;
+            font-weight: bold;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            background-clip: text;
+            margin-bottom: 1rem;
+            text-shadow: 0 0 20px rgba(102, 126, 234, 0.5);
+        }
+
+        .pulse {
+            animation: pulse 2s ease-in-out infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { opacity: 1; }
+            50% { opacity: 0.7; }
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-link">← Back to Examples</a>
+
+    <div id="game-container">
+        <h1 class="title">🚀 SPACE SHOOTER</h1>
+        <div id="ui">
+            <div>
+                Score<br>
+                <span id="score">0</span>
+            </div>
+            <div>
+                Wave<br>
+                <span id="wave">1</span>
+            </div>
+            <div>
+                Lives<br>
+                <span id="lives">3</span>
+            </div>
+            <div>
+                Health<br>
+                <span id="health">100/100</span>
+            </div>
+            <div>
+                Power<br>
+                <span id="power-level">1</span>
+            </div>
+        </div>
+        <canvas id="game-canvas" width="800" height="600"></canvas>
+        <div id="controls">
+            <p><strong>Controls:</strong></p>
+            <p>Arrow Keys / WASD: Move</p>
+            <p>Space: Shoot</p>
+            <p class="pulse" style="margin-top: 1rem; color: #667eea;">
+                Collect power-ups • Defeat waves of enemies • Survive boss battles!
+            </p>
+        </div>
+    </div>
+
+    <div id="game-over">
+        <h2>GAME OVER!</h2>
+        <p>Final Score:</p>
+        <p><span id="final-score">0</span></p>
+        <button id="restart">🔄 Play Again</button>
+    </div>
+
+    <script type="module" src="./space-shooter-browser.ts"></script>
+</body>
+</html>

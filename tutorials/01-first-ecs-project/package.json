@@ -1,0 +1,26 @@
+{
+  "name": "orionecs-tutorial-01-first-ecs-project",
+  "version": "1.0.0",
+  "description": "Tutorial 1: Your First ECS Project",
+  "private": true,
+  "scripts": {
+    "start": "ts-node src/index.ts",
+    "build": "tsc",
+    "dev": "ts-node --watch src/index.ts",
+    "test": "echo \"No tests for tutorial example\" && exit 0",
+    "lint": "echo \"Tutorial code - linting skipped\" && exit 0",
+    "format": "echo \"Tutorial code - formatting skipped\" && exit 0",
+    "format:check": "echo \"Tutorial code - format check skipped\" && exit 0"
+  },
+  "keywords": ["orionecs", "ecs", "tutorial", "beginner"],
+  "author": "",
+  "license": "MIT",
+  "dependencies": {
+    "orion-ecs": "*"
+  },
+  "devDependencies": {
+    "@types/node": "^20.0.0",
+    "ts-node": "^10.9.0",
+    "typescript": "^5.0.0"
+  }
+}

@@ -37,7 +37,8 @@
     "plugins/spatial-partition",
     "plugins/debug-visualizer",
     "plugins/profiling",
-    "plugins/resource-manager"
+    "plugins/resource-manager",
+    "tutorials/*"
   ],
   "devDependencies": {
     "@babel/core": "^7.25.2",

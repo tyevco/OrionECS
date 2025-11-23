@@ -46,6 +46,7 @@ npm install orion-ecs
 
 ## Documentation
 
+- **[🎓 Tutorial Series](./docs/tutorials/README.md)** - Step-by-step tutorials from beginner to advanced
 - **[📚 API Reference](https://tyevco.github.io/OrionECS/api/)** - Complete TypeDoc-generated API documentation
 - **[📖 Cookbook](./docs/COOKBOOK.md)** - Recipes and patterns for common use cases
 - **[🔄 Migration Guides](./docs/migrations/)** - Guides for migrating from other ECS frameworks

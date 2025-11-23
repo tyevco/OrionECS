@@ -2,8 +2,16 @@
   "name": "orion-ecs",
   "version": "0.2.0",
   "description": "A lightweight and flexible Entity Component System (ECS) framework written in TypeScript",
-  "main": "dist/orion.js",
-  "types": "dist/orion.d.ts",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
   "scripts": {
     "build": "tsup",
     "test": "jest",

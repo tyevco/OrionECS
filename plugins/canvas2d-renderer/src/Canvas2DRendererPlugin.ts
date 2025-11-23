@@ -418,7 +418,7 @@ export class Canvas2DRendererPlugin implements EnginePlugin {
 /**
  * Usage example:
  *
- * import { EngineBuilder } from 'orion-ecs';
+ * import { EngineBuilder } from '../../../packages/core/src/index';
  * import { Canvas2DRendererPlugin, Transform, Camera, Sprite, ScreenElement, Unit } from './Canvas2DRendererPlugin';
  * import { Mesh, Color } from '@orion-ecs/graphics';
  *

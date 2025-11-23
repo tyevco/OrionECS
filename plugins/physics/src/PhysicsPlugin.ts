@@ -7,7 +7,7 @@
  * - Extends the engine with custom APIs
  */
 
-import type { EnginePlugin, PluginContext, QueryOptions } from '../../../core/src/index';
+import type { EnginePlugin, PluginContext, QueryOptions } from '../../../packages/core/src/index';
 
 // Physics components
 export class RigidBody {
@@ -180,7 +180,7 @@ export class PhysicsPlugin implements EnginePlugin {
 /**
  * Usage example:
  *
- * import { EngineBuilder } from 'orion-ecs';
+ * import { EngineBuilder } from '../../../packages/core/src/index';
  * import { PhysicsPlugin } from './examples/PhysicsPlugin';
  *
  * const engine = new EngineBuilder()

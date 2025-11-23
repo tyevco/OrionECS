@@ -9,7 +9,7 @@
  * - Resource usage statistics and monitoring
  */
 
-import type { EnginePlugin, PluginContext } from '../../../core/src/index';
+import type { EnginePlugin, PluginContext } from '../../../packages/core/src/index';
 
 /**
  * Base resource interface
@@ -388,7 +388,7 @@ export class ResourceManagerPlugin implements EnginePlugin {
 /**
  * Usage example:
  *
- * import { EngineBuilder } from 'orion-ecs';
+ * import { EngineBuilder } from '../../../packages/core/src/index';
  * import { ResourceManagerPlugin, TextureResource, AudioResource } from './examples/ResourceManagerPlugin';
  *
  * const engine = new EngineBuilder()

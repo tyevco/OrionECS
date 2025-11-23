@@ -11,7 +11,7 @@
  */
 
 import { TestEngineBuilder } from '@orion-ecs/testing';
-import type { Engine } from 'orion-ecs';
+import type { Engine } from '../../../packages/core/src/index';
 import {
     Camera,
     Canvas2DAPI,

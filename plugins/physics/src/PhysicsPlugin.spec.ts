@@ -10,7 +10,7 @@
  */
 
 import { TestEngineBuilder } from '@orion-ecs/testing';
-import type { Engine } from 'orion-ecs';
+import type { Engine } from '../../../packages/core/src/index';
 import { Collider, PhysicsAPI, PhysicsPlugin, Position, RigidBody } from './PhysicsPlugin';
 
 // Type extensions for testing

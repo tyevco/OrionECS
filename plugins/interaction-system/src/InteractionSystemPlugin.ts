@@ -424,7 +424,7 @@ export class InteractionSystemPlugin implements EnginePlugin {
 /**
  * Usage example:
  *
- * import { EngineBuilder } from 'orion-ecs';
+ * import { EngineBuilder } from '../../../packages/core/src/index';
  * import { Canvas2DRendererPlugin, Transform, Sprite } from './Canvas2DRendererPlugin';
  * import { InputManagerPlugin } from './InputManagerPlugin';
  * import { InteractionSystemPlugin, Clickable, Draggable, Selectable, InteractionBounds } from './InteractionSystemPlugin';

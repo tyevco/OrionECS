@@ -8,5 +8,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   outDir: 'dist',
-  external: ['orion-ecs', '@orion-ecs/utils', '@orion-ecs/input-manager', '@orion-ecs/canvas2d-renderer']
+  external: ['orion-ecs', '@orion-ecs/math', '@orion-ecs/input-manager', '@orion-ecs/canvas2d-renderer']
 });

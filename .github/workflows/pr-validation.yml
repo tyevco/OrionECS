@@ -51,12 +51,20 @@ jobs:
       - name: Verify build artifacts
         run: |
           echo "Checking core package..."
-          test -f core/dist/index.js || (echo "❌ core/dist/index.js not found" && exit 1)
-          test -f core/dist/index.d.ts || (echo "❌ core/dist/index.d.ts not found" && exit 1)
+          test -f packages/core/dist/index.js || (echo "❌ packages/core/dist/index.js not found" && exit 1)
+          test -f packages/core/dist/index.d.ts || (echo "❌ packages/core/dist/index.d.ts not found" && exit 1)
 
-          echo "Checking utils package..."
-          test -f utils/dist/index.js || (echo "❌ utils/dist/index.js not found" && exit 1)
-          test -f utils/dist/index.d.ts || (echo "❌ utils/dist/index.d.ts not found" && exit 1)
+          echo "Checking math package..."
+          test -f packages/math/dist/index.js || (echo "❌ packages/math/dist/index.js not found" && exit 1)
+          test -f packages/math/dist/index.d.ts || (echo "❌ packages/math/dist/index.d.ts not found" && exit 1)
+
+          echo "Checking graphics package..."
+          test -f packages/graphics/dist/index.js || (echo "❌ packages/graphics/dist/index.js not found" && exit 1)
+          test -f packages/graphics/dist/index.d.ts || (echo "❌ packages/graphics/dist/index.d.ts not found" && exit 1)
+
+          echo "Checking testing package..."
+          test -f packages/testing/dist/index.js || (echo "❌ packages/testing/dist/index.js not found" && exit 1)
+          test -f packages/testing/dist/index.d.ts || (echo "❌ packages/testing/dist/index.d.ts not found" && exit 1)
 
           echo "✅ All build artifacts verified"
 

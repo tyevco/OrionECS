@@ -48,46 +48,148 @@ export type EventTypes<T = any> = string | symbol | keyof T;
 /** @public */
 export type EventCallback<T = void> = (...args: any[]) => T;
 
-// Component lifecycle hooks
+/**
+ * Optional lifecycle hooks that components can implement.
+ *
+ * @public
+ */
 export interface ComponentLifecycle {
+    /** Called immediately after component is added to an entity */
     onCreate?(entity: EntityDef): void;
+    /** Called before component is removed from an entity */
     onDestroy?(entity: EntityDef): void;
+    /** Called when component data changes (when using reactive components) */
     onChanged?(): void;
 }
 
-// Component change events
+/**
+ * Event emitted when a component's data is modified.
+ *
+ * This event is triggered when a component is marked as dirty, either manually
+ * via `markComponentDirty()` or automatically via Proxy-based change detection.
+ *
+ * @typeParam T - The component type
+ * @public
+ */
 export interface ComponentChangeEvent<T = any> {
+    /** The entity that owns the modified component */
     entity: EntityDef;
+    /** The type/class of the component that changed */
     componentType: ComponentIdentifier<T>;
+    /** The previous value of the component (may be undefined for manual dirty marking) */
     oldValue?: T;
+    /** The current value of the component */
     newValue: T;
+    /** Unix timestamp (milliseconds) when the change occurred */
     timestamp: number;
 }
 
+/**
+ * Event emitted when a component is added to an entity.
+ *
+ * This event is triggered immediately after a component is successfully added to an entity,
+ * including validation and archetype movement (if applicable).
+ *
+ * @typeParam T - The component type
+ * @public
+ */
 export interface ComponentAddedEvent<T = any> {
+    /** The entity that received the component */
     entity: EntityDef;
+    /** The type/class of the component that was added */
     componentType: ComponentIdentifier<T>;
+    /** The component instance that was added */
     component: T;
+    /** Unix timestamp (milliseconds) when the component was added */
     timestamp: number;
 }
 
+/**
+ * Event emitted when a component is removed from an entity.
+ *
+ * This event is triggered before the component is destroyed, allowing listeners
+ * to access the component data one last time before cleanup.
+ *
+ * @typeParam T - The component type
+ * @public
+ */
 export interface ComponentRemovedEvent<T = any> {
+    /** The entity that the component was removed from */
     entity: EntityDef;
+    /** The type/class of the component that was removed */
     componentType: ComponentIdentifier<T>;
+    /** The component instance that was removed */
     component: T;
+    /** Unix timestamp (milliseconds) when the component was removed */
     timestamp: number;
 }
 
-// Change tracking options
+/**
+ * Configuration options for the component change tracking system.
+ *
+ * These options control how component changes are detected and reported,
+ * enabling reactive programming patterns and performance optimizations.
+ *
+ * @public
+ */
 export interface ChangeTrackingOptions {
-    enableProxyTracking?: boolean; // Enable automatic Proxy-based change detection
-    batchMode?: boolean; // Disable events during batch operations
-    debounceMs?: number; // Debounce change events (0 = disabled)
+    /**
+     * Enable automatic Proxy-based change detection.
+     *
+     * When enabled, components wrapped with `createReactiveComponent()` will
+     * automatically emit change events when their properties are modified.
+     *
+     * @defaultValue false
+     */
+    enableProxyTracking?: boolean;
+
+    /**
+     * Start the engine in batch mode (change events suspended).
+     *
+     * Useful for bulk initialization where you want to defer change events
+     * until after setup is complete. Can be toggled at runtime via `setBatchMode()`.
+     *
+     * @defaultValue false
+     */
+    batchMode?: boolean;
+
+    /**
+     * Debounce change events by this many milliseconds.
+     *
+     * When set to a non-zero value, rapid successive changes to the same component
+     * will be coalesced into a single event emission after the specified delay.
+     * Set to 0 to disable debouncing.
+     *
+     * @defaultValue 0
+     */
+    debounceMs?: number;
 }
 
-// Component change listener
+/**
+ * Callback function invoked when a component is modified.
+ *
+ * @typeParam T - The component type
+ * @param event - The component change event details
+ * @public
+ */
 export type ComponentChangeListener<T = any> = (event: ComponentChangeEvent<T>) => void;
+
+/**
+ * Callback function invoked when a component is added to an entity.
+ *
+ * @typeParam T - The component type
+ * @param event - The component added event details
+ * @public
+ */
 export type ComponentAddedListener<T = any> = (event: ComponentAddedEvent<T>) => void;
+
+/**
+ * Callback function invoked when a component is removed from an entity.
+ *
+ * @typeParam T - The component type
+ * @param event - The component removed event details
+ * @public
+ */
 export type ComponentRemovedListener<T = any> = (event: ComponentRemovedEvent<T>) => void;
 
 // Enhanced system options with profiling and lifecycle hooks
@@ -101,11 +203,38 @@ export interface SystemOptions<C extends readonly any[] = any[]> {
     group?: string;
     runAfter?: string[];
     runBefore?: string[];
-    // Component change event listeners
+
+    /**
+     * Callback invoked when a component is added to any entity.
+     *
+     * Can be filtered to specific component types using the `watchComponents` option.
+     */
     onComponentAdded?: ComponentAddedListener;
+
+    /**
+     * Callback invoked when a component is removed from any entity.
+     *
+     * Can be filtered to specific component types using the `watchComponents` option.
+     */
     onComponentRemoved?: ComponentRemovedListener;
+
+    /**
+     * Callback invoked when a component's data is modified.
+     *
+     * Can be filtered to specific component types using the `watchComponents` option.
+     * Only triggered when components are marked dirty via `markComponentDirty()` or
+     * when using reactive components with Proxy-based tracking.
+     */
     onComponentChanged?: ComponentChangeListener;
-    watchComponents?: ComponentIdentifier[]; // Only listen to changes for these components
+
+    /**
+     * Filter component change events to only these component types.
+     *
+     * When specified, `onComponentAdded`, `onComponentRemoved`, and `onComponentChanged`
+     * callbacks will only be invoked for components matching these types.
+     * If omitted, all component changes will trigger the callbacks.
+     */
+    watchComponents?: ComponentIdentifier[];
 }
 
 export type SystemType<T extends readonly any[] = any[]> = SystemOptions<T> & Partial<EngineEvents>;

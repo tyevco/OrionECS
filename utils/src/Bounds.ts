@@ -198,10 +198,15 @@ export class Bounds {
   /**
    * Checks if this bounds intersects with a circle.
    * @param center The center of the circle
-   * @param radius The radius of the circle
+   * @param radius The radius of the circle (must be non-negative)
    * @returns True if the circle and bounds overlap
+   * @throws Error if radius is negative
    */
   public intersectsCircle(center: Vector2, radius: number): boolean {
+    if (radius < 0) {
+      throw new Error(`Circle radius must be non-negative, got ${radius}`);
+    }
+
     // Find the closest point on the bounds to the circle center
     const closest = this.closestPoint(center);
 
@@ -300,10 +305,12 @@ export class Bounds {
 
   /**
    * Scales this bounds by the specified factors.
-   * @param sx The x scale factor
-   * @param sy The y scale factor (defaults to sx if not provided)
+   * @param sx The x scale factor (negative values will flip horizontally)
+   * @param sy The y scale factor (defaults to sx if not provided, negative values will flip vertically)
    * @param fromCenter Whether to scale from center (true) or from top-left corner (false)
    * @returns This bounds for chaining
+   * @remarks Negative scale factors will flip the bounds. For example, scale(-1, 1) flips horizontally.
+   * This may result in negative width/height, which represents an inverted/flipped bounds.
    */
   public scale(sx: number, sy: number = sx, fromCenter: boolean = true): this {
     if (fromCenter) {

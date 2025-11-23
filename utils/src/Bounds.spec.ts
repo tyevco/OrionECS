@@ -205,6 +205,16 @@ describe('Bounds', () => {
       const radius = 15; // sqrt(10^2 + 10^2) ≈ 14.14
       expect(bounds.intersectsCircle(center, radius)).toBe(true);
     });
+
+    it('should throw error for negative radius', () => {
+      const center = new Vector2(50, 50);
+      expect(() => bounds.intersectsCircle(center, -10)).toThrow('Circle radius must be non-negative');
+    });
+
+    it('should accept zero radius', () => {
+      const center = new Vector2(50, 50);
+      expect(bounds.intersectsCircle(center, 0)).toBe(true);
+    });
   });
 
   describe('Spatial Queries', () => {
@@ -279,6 +289,25 @@ describe('Bounds', () => {
         expect(bounds.top).toBe(20);
         expect(bounds.width).toBe(200);
         expect(bounds.height).toBe(200);
+      });
+
+      it('should handle negative scale factors (flip)', () => {
+        const bounds = new Bounds(0, 0, 100, 100);
+        const centerBefore = bounds.center;
+        bounds.scale(-1, -1);
+        // Center should remain the same
+        expect(bounds.center.x).toBeCloseTo(centerBefore.x, 5);
+        expect(bounds.center.y).toBeCloseTo(centerBefore.y, 5);
+        // Width and height become negative (flipped)
+        expect(bounds.width).toBe(-100);
+        expect(bounds.height).toBe(-100);
+      });
+
+      it('should flip horizontally with negative x scale', () => {
+        const bounds = new Bounds(0, 0, 100, 100);
+        bounds.scale(-1, 1);
+        expect(bounds.width).toBe(-100);
+        expect(bounds.height).toBe(100);
       });
     });
 

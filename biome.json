@@ -33,7 +33,8 @@
         "noUselessConstructor": "off"
       },
       "correctness": {
-        "noUnusedVariables": "error"
+        "noUnusedVariables": "error",
+        "noUnusedImports": "error"
       },
       "style": {
         "noNonNullAssertion": "warn",

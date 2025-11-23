@@ -1077,37 +1077,118 @@ export class Engine {
     // ========== Change Tracking ==========
 
     /**
-     * Mark a component on an entity as dirty (changed)
-     * This will emit a component changed event if not in batch mode
+     * Mark a component on an entity as dirty (changed).
+     *
+     * This manually flags a component as modified, which will emit a `onComponentChanged` event
+     * if not in batch mode. Useful for notifying systems when component data changes externally.
+     *
+     * @param entity - The entity whose component was modified
+     * @param componentType - The type of component that changed
+     *
+     * @example
+     * ```typescript
+     * const entity = engine.createEntity();
+     * entity.addComponent(Position, 0, 0);
+     *
+     * const position = entity.getComponent(Position);
+     * position.x = 100; // Modify directly
+     * engine.markComponentDirty(entity, Position); // Notify listeners
+     * ```
+     *
+     * @public
      */
     markComponentDirty(entity: Entity, componentType: ComponentIdentifier): void {
         this.changeTrackingManager.markComponentDirty(entity, componentType);
     }
 
     /**
-     * Get all dirty components for an entity
+     * Get all components that have been marked as dirty on an entity.
+     *
+     * Returns an array of component types that have been modified since the last
+     * call to `clearDirtyComponents()` or `clearAllDirtyComponents()`.
+     *
+     * @param entity - The entity to check for dirty components
+     * @returns Array of component types that are marked as dirty
+     *
+     * @example
+     * ```typescript
+     * engine.markComponentDirty(entity, Position);
+     * engine.markComponentDirty(entity, Velocity);
+     *
+     * const dirty = engine.getDirtyComponents(entity);
+     * // dirty = [Position, Velocity]
+     * ```
+     *
+     * @public
      */
     getDirtyComponents(entity: Entity): ComponentIdentifier[] {
         return this.changeTrackingManager.getDirtyComponents(entity);
     }
 
     /**
-     * Clear dirty flags for all components on an entity
+     * Clear all dirty flags for components on a specific entity.
+     *
+     * Removes the dirty state from all components on the entity, indicating
+     * that changes have been processed. Typically called after handling component changes.
+     *
+     * @param entity - The entity whose dirty flags should be cleared
+     *
+     * @example
+     * ```typescript
+     * // After processing changes
+     * const dirty = engine.getDirtyComponents(entity);
+     * for (const componentType of dirty) {
+     *   // Process the change...
+     * }
+     * engine.clearDirtyComponents(entity);
+     * ```
+     *
+     * @public
      */
     clearDirtyComponents(entity: Entity): void {
         this.changeTrackingManager.clearDirtyComponents(entity);
     }
 
     /**
-     * Clear all dirty flags across all components
+     * Clear all dirty flags across all entities and components.
+     *
+     * Resets the dirty state for the entire world. Useful after bulk processing
+     * or at the end of a frame to prepare for the next update cycle.
+     *
+     * @example
+     * ```typescript
+     * // At end of frame
+     * engine.update(deltaTime);
+     * engine.clearAllDirtyComponents();
+     * ```
+     *
+     * @public
      */
     clearAllDirtyComponents(): void {
         this.changeTrackingManager.clearAllDirty();
     }
 
     /**
-     * Enable or disable batch mode (suspends component change events)
-     * Useful for bulk operations to avoid excessive event emission
+     * Enable or disable batch mode for component change events.
+     *
+     * When batch mode is enabled, component change events are suspended, preventing
+     * excessive event emissions during bulk operations. Useful for initialization
+     * or large-scale entity manipulation.
+     *
+     * @param enabled - Whether to enable (true) or disable (false) batch mode
+     *
+     * @example
+     * ```typescript
+     * // Disable events during initialization
+     * engine.setBatchMode(true);
+     * for (let i = 0; i < 1000; i++) {
+     *   const entity = engine.createEntity();
+     *   entity.addComponent(Position, i, i);
+     * }
+     * engine.setBatchMode(false); // Re-enable events
+     * ```
+     *
+     * @public
      */
     setBatchMode(enabled: boolean): void {
         this.changeTrackingManager.setBatchMode(enabled);
@@ -1117,24 +1198,67 @@ export class Engine {
     }
 
     /**
-     * Check if batch mode is enabled
+     * Check if batch mode is currently enabled.
+     *
+     * @returns `true` if batch mode is enabled, `false` otherwise
+     *
+     * @public
      */
     isBatchMode(): boolean {
         return this.changeTrackingManager.isBatchMode();
     }
 
     /**
-     * Execute a function in batch mode (events suspended during execution)
-     * Automatically restores previous batch mode state after execution
+     * Execute a function in batch mode (events suspended during execution).
+     *
+     * Automatically enables batch mode before executing the function and restores
+     * the previous batch mode state afterward. Provides a clean way to perform
+     * bulk operations without event overhead.
+     *
+     * @typeParam T - The return type of the function
+     * @param fn - The function to execute in batch mode
+     * @returns The return value of the function
+     *
+     * @example
+     * ```typescript
+     * const result = engine.batch(() => {
+     *   // These changes won't emit events
+     *   for (let i = 0; i < 1000; i++) {
+     *     const entity = engine.createEntity();
+     *     entity.addComponent(Position, i, i);
+     *   }
+     *   return entities.length;
+     * });
+     * // Batch mode automatically restored, events resume
+     * ```
+     *
+     * @public
      */
     batch<T>(fn: () => T): T {
         return this.changeTrackingManager.batch(fn);
     }
 
     /**
-     * Enable Proxy-based change tracking for automatic change detection
-     * When enabled, components are wrapped in Proxy objects that automatically
-     * detect property changes and emit change events
+     * Enable Proxy-based automatic change tracking.
+     *
+     * When enabled, components wrapped with `createReactiveComponent()` will
+     * automatically detect property changes and emit `onComponentChanged` events.
+     * Provides a reactive programming pattern for component updates.
+     *
+     * @example
+     * ```typescript
+     * engine.enableProxyTracking();
+     *
+     * const entity = engine.createEntity();
+     * entity.addComponent(Position, 0, 0);
+     *
+     * const position = entity.getComponent(Position);
+     * const reactive = engine.createReactiveComponent(position, entity, Position);
+     *
+     * reactive.x = 100; // Automatically emits onComponentChanged event
+     * ```
+     *
+     * @public
      */
     enableProxyTracking(): void {
         this.changeTrackingManager.enableProxyTracking();
@@ -1144,7 +1268,13 @@ export class Engine {
     }
 
     /**
-     * Disable Proxy-based change tracking
+     * Disable Proxy-based automatic change tracking.
+     *
+     * After calling this, `createReactiveComponent()` will return the original
+     * component without wrapping it in a Proxy. Existing reactive components
+     * will continue to function.
+     *
+     * @public
      */
     disableProxyTracking(): void {
         this.changeTrackingManager.disableProxyTracking();
@@ -1154,15 +1284,45 @@ export class Engine {
     }
 
     /**
-     * Check if Proxy-based change tracking is enabled
+     * Check if Proxy-based change tracking is currently enabled.
+     *
+     * @returns `true` if Proxy tracking is enabled, `false` otherwise
+     *
+     * @public
      */
     isProxyTrackingEnabled(): boolean {
         return this.changeTrackingManager.isProxyTrackingEnabled();
     }
 
     /**
-     * Create a reactive (Proxy-wrapped) component that automatically tracks changes
-     * Only works if Proxy tracking is enabled
+     * Create a reactive (Proxy-wrapped) component that automatically tracks changes.
+     *
+     * Wraps a component in a Proxy that intercepts property assignments and automatically
+     * marks the component as dirty, emitting change events. Only works if Proxy tracking
+     * is enabled via `enableProxyTracking()`.
+     *
+     * @typeParam T - The component type (must be an object)
+     * @param component - The component instance to make reactive
+     * @param entity - The entity that owns the component
+     * @param componentType - The component type identifier
+     * @returns The reactive component (or original if Proxy tracking is disabled)
+     *
+     * @example
+     * ```typescript
+     * engine.enableProxyTracking();
+     *
+     * const entity = engine.createEntity();
+     * entity.addComponent(Position, 0, 0);
+     *
+     * const position = entity.getComponent(Position);
+     * const reactive = engine.createReactiveComponent(position, entity, Position);
+     *
+     * // Automatically emits onComponentChanged event
+     * reactive.x = 100;
+     * reactive.y = 200;
+     * ```
+     *
+     * @public
      */
     createReactiveComponent<T extends object>(
         component: T,

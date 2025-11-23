@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Tower Defense - OrionECS Example</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        canvas {
+            border: 3px solid #4a5568;
+            box-shadow: 0 0 30px rgba(66, 153, 225, 0.4);
+            background: #1a1a1a;
+        }
+
+        #ui {
+            display: flex;
+            gap: 2rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        #ui > div {
+            padding: 0.75rem 1.5rem;
+            background: rgba(74, 85, 104, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(66, 153, 225, 0.3);
+        }
+
+        #controls {
+            margin-top: 1rem;
+            text-align: center;
+            color: #cbd5e0;
+            font-size: 0.9rem;
+            max-width: 800px;
+        }
+
+        #controls p {
+            margin: 0.5rem 0;
+        }
+
+        #controls strong {
+            color: #4299e1;
+        }
+
+        #game-over {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(26, 26, 46, 0.95);
+            padding: 3rem;
+            border-radius: 16px;
+            border: 3px solid #e53e3e;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(229, 62, 62, 0.5);
+        }
+
+        #game-over h2 {
+            color: #e53e3e;
+            margin-bottom: 1rem;
+            font-size: 2.5rem;
+        }
+
+        #game-over .final-score {
+            font-size: 1.3rem;
+            margin: 1rem 0;
+            color: #cbd5e0;
+        }
+
+        #game-over button {
+            margin-top: 1.5rem;
+            padding: 1rem 2rem;
+            background: linear-gradient(135deg, #4299e1 0%, #667eea 100%);
+            color: white;
+            border: none;
+            border-radius: 8px;
+            font-size: 1.1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        #game-over button:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(66, 153, 225, 0.4);
+        }
+
+        .back-link {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            color: #4299e1;
+            text-decoration: none;
+            padding: 0.75rem 1.5rem;
+            background: rgba(74, 85, 104, 0.3);
+            border-radius: 8px;
+            border: 1px solid rgba(66, 153, 225, 0.3);
+            transition: all 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(66, 153, 225, 0.2);
+            border-color: rgba(66, 153, 225, 0.5);
+        }
+
+        .info-panel {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(74, 85, 104, 0.3);
+            border: 1px solid rgba(66, 153, 225, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            max-width: 250px;
+        }
+
+        .info-panel h3 {
+            color: #4299e1;
+            margin-bottom: 0.5rem;
+            font-size: 1rem;
+        }
+
+        .info-panel ul {
+            list-style: none;
+            font-size: 0.85rem;
+            color: #cbd5e0;
+        }
+
+        .info-panel li {
+            margin: 0.3rem 0;
+            padding-left: 1rem;
+            position: relative;
+        }
+
+        .info-panel li:before {
+            content: "→";
+            position: absolute;
+            left: 0;
+            color: #4299e1;
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-link">← Back to Examples</a>
+
+    <div class="info-panel">
+        <h3>🏰 Tower Defense</h3>
+        <ul>
+            <li>Blue towers auto-fire</li>
+            <li>Red enemies move right</li>
+            <li>Black projectiles track</li>
+            <li>Don't let 10 escape!</li>
+        </ul>
+    </div>
+
+    <div id="game-container">
+        <div id="ui">
+            <div><span id="score">Enemies Killed: 0</span></div>
+            <div><span id="wave">Enemies Spawned: 0 | Escaped: 0</span></div>
+        </div>
+        <canvas id="game-canvas"></canvas>
+        <div id="controls">
+            <p><strong>Game Features:</strong></p>
+            <p>Two towers automatically target and fire at passing enemies</p>
+            <p>Enemies spawn every 2 seconds and move across the screen</p>
+            <p>Game over if 10 enemies escape!</p>
+        </div>
+    </div>
+
+    <div id="game-over">
+        <h2>⚔️ Game Over!</h2>
+        <p class="final-score">Final Score: 0</p>
+        <button id="restart">Play Again</button>
+    </div>
+
+    <script type="module" src="./tower-defense-browser.ts"></script>
+</body>
+</html>

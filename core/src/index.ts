@@ -66,23 +66,6 @@ export {
     SnapshotManager,
     SystemManager,
 } from './managers';
-export type { CustomMatchers, TestEntityOptions } from './testing';
 
-// Export testing utilities
-export {
-    assertEngineClean,
-    createMockComponent,
-    createTestEntities,
-    createTestEntity,
-    createTestEntityFromPrefab,
-    getEntitySummary,
-    setupTestMatchers,
-    TestClock,
-    TestEngineBuilder,
-    TestSnapshot,
-    TestSystemRunner,
-    waitFrames,
-    waitUntil,
-} from './testing';
 // Export utility functions
 export { createTagComponent } from './utils';

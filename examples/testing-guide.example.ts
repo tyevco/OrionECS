@@ -13,7 +13,7 @@ import {
     TestEngineBuilder,
     TestSnapshot,
     TestSystemRunner,
-} from 'orion-ecs';
+} from '@orion-ecs/testing';
 
 // =============================================================================
 // Example 1: Basic Test Setup with TestEngineBuilder

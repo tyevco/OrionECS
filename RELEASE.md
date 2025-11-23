@@ -16,7 +16,10 @@ OrionECS uses [Changesets](https://github.com/changesets/changesets) to manage v
 The following packages can be published to npm:
 
 - **Core Package**: `orion-ecs` - The main ECS framework
-- **Utils Package**: `@orion-ecs/utils` - Shared utilities (Vector2, Bounds, etc.)
+- **Utility Packages**:
+  - `@orion-ecs/math` - Mathematical utilities (Vector2, Bounds)
+  - `@orion-ecs/graphics` - Graphics primitives (Color, Mesh, Vertex)
+  - `@orion-ecs/testing` - Testing utilities for ECS systems
 - **Plugin Packages**:
   - `@orion-ecs/canvas2d-renderer` - Canvas2D rendering
   - `@orion-ecs/input-manager` - Input handling
@@ -46,9 +49,11 @@ For each package you want to publish, configure it as a trusted publisher on npm
    - **Workflow**: `release.yml`
    - **Environment**: (leave empty)
 
-**Important:** Configure this for all 10 packages:
+**Important:** Configure this for all 12 packages:
 - `orion-ecs`
-- `@orion-ecs/utils`
+- `@orion-ecs/math`
+- `@orion-ecs/graphics`
+- `@orion-ecs/testing`
 - All 8 plugin packages (`@orion-ecs/*`)
 
 ### How It Works

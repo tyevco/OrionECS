@@ -8,5 +8,5 @@ export default defineConfig({
   sourcemap: true,
   clean: true,
   outDir: 'dist',
-  external: ['orion-ecs', '@orion-ecs/math']
+  external: ['orion-ecs']
 });

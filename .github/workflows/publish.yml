@@ -13,12 +13,14 @@ on:
   workflow_dispatch:
     inputs:
       package:
-        description: 'Package to publish (e.g., core, utils, or plugin name)'
+        description: 'Package to publish (core, math, graphics, testing, or plugin name)'
         required: true
         type: choice
         options:
           - core
-          - utils
+          - math
+          - graphics
+          - testing
           - canvas2d-renderer
           - input-manager
           - interaction-system
@@ -73,8 +75,8 @@ jobs:
         id: workspace
         run: |
           case "${{ github.event.inputs.package }}" in
-            core|utils)
-              echo "path=${{ github.event.inputs.package }}" >> $GITHUB_OUTPUT
+            core|math|graphics|testing)
+              echo "path=packages/${{ github.event.inputs.package }}" >> $GITHUB_OUTPUT
               ;;
             *)
               echo "path=plugins/${{ github.event.inputs.package }}" >> $GITHUB_OUTPUT

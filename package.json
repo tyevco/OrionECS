@@ -19,6 +19,7 @@
   "workspaces": [
     "core",
     "utils",
+    "testing",
     "examples",
     "plugins/canvas2d-renderer",
     "plugins/input-manager",

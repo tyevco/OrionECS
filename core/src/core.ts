@@ -118,6 +118,8 @@ export class ComponentArray<T> {
     private freeIndices: number[] = [];
     private _version: number = 0;
     private _lastChanged: number = 0;
+    private _dirtyIndices: Set<number> = new Set();
+    private _batchMode: boolean = false;
 
     add(component: T): number {
         this._version++;
@@ -126,10 +128,13 @@ export class ComponentArray<T> {
             const index = this.freeIndices.pop();
             if (index !== undefined) {
                 this.components[index] = component;
+                this._dirtyIndices.add(index);
                 return index;
             }
         }
-        return this.components.push(component) - 1;
+        const index = this.components.push(component) - 1;
+        this._dirtyIndices.add(index);
+        return index;
     }
 
     remove(index: number): void {
@@ -138,6 +143,7 @@ export class ComponentArray<T> {
         if (index >= 0 && index < this.components.length) {
             this.components[index] = null;
             this.freeIndices.push(index);
+            this._dirtyIndices.delete(index);
         }
     }
 
@@ -154,7 +160,61 @@ export class ComponentArray<T> {
         this._lastChanged = performance.now();
         if (index >= 0 && index < this.components.length) {
             this.components[index] = component;
+            this._dirtyIndices.add(index);
         }
+    }
+
+    /**
+     * Mark a component at the given index as dirty (changed)
+     */
+    markDirty(index: number): void {
+        if (index >= 0 && index < this.components.length && this.components[index] !== null) {
+            this._dirtyIndices.add(index);
+            this._version++;
+            this._lastChanged = performance.now();
+        }
+    }
+
+    /**
+     * Check if a component at the given index is dirty
+     */
+    isDirty(index: number): boolean {
+        return this._dirtyIndices.has(index);
+    }
+
+    /**
+     * Clear dirty flag for a component at the given index
+     */
+    clearDirty(index: number): void {
+        this._dirtyIndices.delete(index);
+    }
+
+    /**
+     * Get all dirty indices
+     */
+    getDirtyIndices(): number[] {
+        return Array.from(this._dirtyIndices);
+    }
+
+    /**
+     * Clear all dirty flags
+     */
+    clearAllDirty(): void {
+        this._dirtyIndices.clear();
+    }
+
+    /**
+     * Enable/disable batch mode (suspends change events)
+     */
+    setBatchMode(enabled: boolean): void {
+        this._batchMode = enabled;
+    }
+
+    /**
+     * Check if batch mode is enabled
+     */
+    get isBatchMode(): boolean {
+        return this._batchMode;
     }
 
     get version(): number {
@@ -661,10 +721,12 @@ export class Entity implements EntityDef {
         const index = this._componentIndices.get(type);
         if (index !== undefined) {
             const archetypeManager = this.componentManager.getArchetypeManager();
+            let removedComponent: any = null;
 
             if (archetypeManager) {
                 // Archetype mode: move entity to new archetype
                 const component = archetypeManager.getComponent(this, type);
+                removedComponent = component;
 
                 // Call onDestroy lifecycle hook if it exists
                 if (component && typeof (component as any).onDestroy === 'function') {
@@ -700,6 +762,7 @@ export class Entity implements EntityDef {
                 const componentArray = this.componentManager.getComponentArray(type);
                 // Get component before removing to release it to pool
                 const component = componentArray.get(index);
+                removedComponent = component;
                 if (component !== null) {
                     // Call onDestroy lifecycle hook if it exists
                     if (typeof (component as any).onDestroy === 'function') {
@@ -714,7 +777,10 @@ export class Entity implements EntityDef {
 
             this._dirty = true;
             this._changeVersion++;
-            this.eventEmitter.emit('onComponentRemoved', this, type);
+            // Emit with component data for listeners to access
+            const emittedComponent =
+                removedComponent || this.componentManager.acquireComponent(type);
+            this.eventEmitter.emit('onComponentRemoved', this, type, emittedComponent);
         }
         return this;
     }
@@ -966,7 +1032,8 @@ export class System<C extends readonly any[] = any[]> {
     constructor(
         public name: string,
         query: Query<C>,
-        private options: SystemType<C>
+        private options: SystemType<C>,
+        private eventEmitter?: any // EventEmitter
     ) {
         this.query = query;
         this._priority = options.priority || 0;
@@ -988,6 +1055,75 @@ export class System<C extends readonly any[] = any[]> {
             callCount: 0,
             averageTime: 0,
         };
+
+        // Set up component change event listeners if provided
+        if (this.eventEmitter) {
+            this.setupComponentChangeListeners();
+        }
+    }
+
+    /**
+     * Set up component change event listeners based on system options
+     */
+    private setupComponentChangeListeners(): void {
+        if (!this.eventEmitter) return;
+
+        const watchComponents = this.options.watchComponents;
+
+        // Subscribe to component added events
+        if (this.options.onComponentAdded) {
+            this.eventEmitter.on('onComponentAdded', (entity: any, componentType: any) => {
+                // Filter by watchComponents if specified
+                if (watchComponents && !watchComponents.includes(componentType)) {
+                    return;
+                }
+
+                // Get the component
+                const component = entity.getComponent(componentType);
+                const event = {
+                    entity,
+                    componentType,
+                    component,
+                    timestamp: Date.now(),
+                };
+
+                this.options.onComponentAdded?.(event);
+            });
+        }
+
+        // Subscribe to component removed events
+        if (this.options.onComponentRemoved) {
+            this.eventEmitter.on(
+                'onComponentRemoved',
+                (entity: any, componentType: any, component: any) => {
+                    // Filter by watchComponents if specified
+                    if (watchComponents && !watchComponents.includes(componentType)) {
+                        return;
+                    }
+
+                    const event = {
+                        entity,
+                        componentType,
+                        component,
+                        timestamp: Date.now(),
+                    };
+
+                    this.options.onComponentRemoved?.(event);
+                }
+            );
+        }
+
+        // Subscribe to component changed events
+        if (this.options.onComponentChanged) {
+            this.eventEmitter.on('onComponentChanged', (event: any) => {
+                // Filter by watchComponents if specified
+                if (watchComponents && !watchComponents.includes(event.componentType)) {
+                    return;
+                }
+
+                this.options.onComponentChanged?.(event);
+            });
+        }
     }
 
     get enabled(): boolean {

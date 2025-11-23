@@ -55,6 +55,41 @@ export interface ComponentLifecycle {
     onChanged?(): void;
 }
 
+// Component change events
+export interface ComponentChangeEvent<T = any> {
+    entity: EntityDef;
+    componentType: ComponentIdentifier<T>;
+    oldValue?: T;
+    newValue: T;
+    timestamp: number;
+}
+
+export interface ComponentAddedEvent<T = any> {
+    entity: EntityDef;
+    componentType: ComponentIdentifier<T>;
+    component: T;
+    timestamp: number;
+}
+
+export interface ComponentRemovedEvent<T = any> {
+    entity: EntityDef;
+    componentType: ComponentIdentifier<T>;
+    component: T;
+    timestamp: number;
+}
+
+// Change tracking options
+export interface ChangeTrackingOptions {
+    enableProxyTracking?: boolean; // Enable automatic Proxy-based change detection
+    batchMode?: boolean; // Disable events during batch operations
+    debounceMs?: number; // Debounce change events (0 = disabled)
+}
+
+// Component change listener
+export type ComponentChangeListener<T = any> = (event: ComponentChangeEvent<T>) => void;
+export type ComponentAddedListener<T = any> = (event: ComponentAddedEvent<T>) => void;
+export type ComponentRemovedListener<T = any> = (event: ComponentRemovedEvent<T>) => void;
+
 // Enhanced system options with profiling and lifecycle hooks
 export interface SystemOptions<C extends readonly any[] = any[]> {
     act?: (entity: EntityDef, ...components: C) => void;
@@ -66,6 +101,11 @@ export interface SystemOptions<C extends readonly any[] = any[]> {
     group?: string;
     runAfter?: string[];
     runBefore?: string[];
+    // Component change event listeners
+    onComponentAdded?: ComponentAddedListener;
+    onComponentRemoved?: ComponentRemovedListener;
+    onComponentChanged?: ComponentChangeListener;
+    watchComponents?: ComponentIdentifier[]; // Only listen to changes for these components
 }
 
 export type SystemType<T extends readonly any[] = any[]> = SystemOptions<T> & Partial<EngineEvents>;

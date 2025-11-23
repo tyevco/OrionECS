@@ -1,5 +1,14 @@
 name: Manual Publish
 
+# NOTE: This workflow requires additional setup to work with npm authentication.
+# npm Trusted Publishers allows only ONE workflow per package.
+# Since release.yml is configured as the trusted publisher, this workflow would need:
+#   1. NPM_TOKEN added to GitHub Secrets
+#   2. Uncomment NODE_AUTH_TOKEN env vars in the publish steps below
+#
+# For most cases, use the automated release.yml workflow instead by creating changesets.
+# See RELEASE.md for details.
+
 on:
   workflow_dispatch:
     inputs:
@@ -95,12 +104,18 @@ jobs:
           WORKSPACE_PATH="${{ steps.workspace.outputs.path }}"
           echo "🔍 Dry run - would publish: ${{ steps.package_info.outputs.name }}@${{ steps.package_info.outputs.version }}"
           npm publish --workspace="$WORKSPACE_PATH" --dry-run --provenance --access public
+        # Uncomment if using NPM_TOKEN instead of OIDC:
+        # env:
+        #   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to npm
         if: github.event.inputs.dry_run == 'false'
         run: |
           WORKSPACE_PATH="${{ steps.workspace.outputs.path }}"
           npm publish --workspace="$WORKSPACE_PATH" --provenance --access public
+        # Uncomment if using NPM_TOKEN instead of OIDC:
+        # env:
+        #   NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub release summary
         run: |

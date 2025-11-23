@@ -27,6 +27,42 @@ The following packages can be published to npm:
   - `@orion-ecs/profiling` - Performance profiling
   - `@orion-ecs/resource-manager` - Resource management
 
+## Authentication
+
+OrionECS uses **npm Trusted Publishers** with OpenID Connect (OIDC) for secure, automated publishing. This eliminates the need for long-lived npm tokens.
+
+### Setting Up Trusted Publishers
+
+For each package you want to publish, configure it as a trusted publisher on npmjs.com:
+
+1. **Go to package settings** on [npmjs.com](https://www.npmjs.com)
+2. Navigate to **"Publishing access"** tab
+3. Click **"Add trusted publisher"**
+4. Select **"GitHub Actions"** as the provider
+5. Configure the publisher:
+   - **Repository**: `tyevco/OrionECS`
+   - **Workflow**: `release.yml` (for automated releases)
+   - **Environment**: (leave empty)
+
+6. **For manual publishing**, also add:
+   - **Repository**: `tyevco/OrionECS`
+   - **Workflow**: `publish.yml`
+   - **Environment**: (leave empty)
+
+### How It Works
+
+- GitHub Actions generates a short-lived OIDC token during workflow execution
+- npm validates the token against your trusted publisher configuration
+- Authentication happens automatically - no secrets needed
+- Provenance information is automatically attached to published packages
+
+### Benefits
+
+✅ **No long-lived secrets** - tokens expire after the workflow completes
+✅ **Automatic provenance** - npm knows exactly which workflow published each version
+✅ **Better security** - reduced attack surface
+✅ **Audit trail** - clear link between GitHub workflow and npm package
+
 ## Release Workflow
 
 ### 1. Making Changes
@@ -94,7 +130,7 @@ When the "Version Packages" PR is merged to `main`:
    - Publish changed packages to npm
    - Create GitHub releases with changelogs
 
-**Note:** You need to have `NPM_TOKEN` configured in GitHub Secrets for publishing to work.
+**Note:** Publishing uses npm Trusted Publishers with OIDC authentication. Each package must be configured as a trusted publisher on npmjs.com with the repository `tyevco/OrionECS` and workflow `release.yml`.
 
 ## Manual Operations
 
@@ -208,10 +244,13 @@ If the release workflow fails during build:
 ### Publish failures
 
 If publishing fails:
-1. Check if `NPM_TOKEN` is correctly configured in GitHub Secrets
-2. Verify npm authentication: `npm whoami --registry=https://registry.npmjs.org`
-3. Check if the version already exists on npm
-4. Use the Manual Publish workflow to retry
+1. Verify the package is configured as a trusted publisher on npmjs.com:
+   - Repository: `tyevco/OrionECS`
+   - Workflow: `release.yml` (or `publish.yml` for manual publishes)
+   - Environment: (leave empty)
+2. Check if the version already exists on npm
+3. Verify the workflow has `id-token: write` permission
+4. Use the Manual Publish workflow with dry-run to test authentication
 
 ### Version conflicts
 

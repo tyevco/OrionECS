@@ -95,16 +95,12 @@ jobs:
           WORKSPACE_PATH="${{ steps.workspace.outputs.path }}"
           echo "🔍 Dry run - would publish: ${{ steps.package_info.outputs.name }}@${{ steps.package_info.outputs.version }}"
           npm publish --workspace="$WORKSPACE_PATH" --dry-run --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to npm
         if: github.event.inputs.dry_run == 'false'
         run: |
           WORKSPACE_PATH="${{ steps.workspace.outputs.path }}"
           npm publish --workspace="$WORKSPACE_PATH" --provenance --access public
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub release summary
         run: |

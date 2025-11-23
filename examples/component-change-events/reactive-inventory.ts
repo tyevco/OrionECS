@@ -8,7 +8,7 @@
  * and animate UI updates accordingly.
  */
 
-import { EngineBuilder } from '../../core/src/index';
+import { EngineBuilder } from '../../packages/core/src/index';
 
 // ============================================================================
 // COMPONENTS

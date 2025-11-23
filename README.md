@@ -425,7 +425,7 @@ const plugins = game.getInstalledPlugins();
 await game.uninstallPlugin('PhysicsPlugin');
 ```
 
-See `examples/PhysicsPlugin.ts` for a complete working example.
+See `plugins/physics/src/PhysicsPlugin.ts` for a complete working example.
 
 ## API Reference
 

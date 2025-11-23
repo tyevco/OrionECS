@@ -5,7 +5,7 @@
  * across different entity counts and change frequencies.
  */
 
-import { EngineBuilder } from '../core/src/index';
+import { EngineBuilder } from '../packages/core/src/index';
 
 // ============================================================================
 // COMPONENTS

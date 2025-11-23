@@ -17,6 +17,13 @@
       "headers": {
         "Accept": "text/html"
       }
+    },
+    {
+      "urls": ["https://www.npmjs.com", "https://npmjs.com"],
+      "headers": {
+        "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8",
+        "User-Agent": "Mozilla/5.0 (compatible; LinkChecker/1.0)"
+      }
     }
   ],
   "timeout": "20s",

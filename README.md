@@ -162,6 +162,164 @@ game.createSystem('ComplexSystem', {
 });
 ```
 
+### Component Change Events
+
+Orion ECS provides a powerful reactive programming system that notifies you when components are added, removed, or modified. This enables event-driven architectures and reduces the need for polling.
+
+#### Basic Change Detection
+
+```typescript
+// Listen for component additions
+game.on('onComponentAdded', (entity, componentType) => {
+  console.log(`${componentType.name} added to ${entity.name}`);
+});
+
+// Listen for component removals
+game.on('onComponentRemoved', (entity, componentType, component) => {
+  console.log(`${componentType.name} removed from ${entity.name}`);
+});
+
+// Listen for component changes (requires manual marking or reactive components)
+game.on('onComponentChanged', (event) => {
+  console.log(`${event.componentType.name} changed on ${event.entity.name}`);
+});
+```
+
+#### Manual Change Tracking
+
+Mark components as modified to trigger change events:
+
+```typescript
+const player = game.createEntity('Player');
+player.addComponent(Health, 100, 100);
+
+// Modify component
+const health = player.getComponent(Health);
+health.current -= 10;
+
+// Notify listeners of the change
+game.markComponentDirty(player, Health);
+
+// Check which components are dirty
+const dirtyComponents = game.getDirtyComponents(player);
+
+// Clear dirty flags when done
+game.clearDirtyComponents(player);
+```
+
+#### Reactive Components (Proxy-based Tracking)
+
+Automatically detect changes using JavaScript Proxies:
+
+```typescript
+// Enable proxy-based tracking
+const game = new EngineBuilder()
+  .withChangeTracking({ enableProxyTracking: true })
+  .build();
+
+const player = game.createEntity('Player');
+player.addComponent(Position, 0, 0);
+
+// Get component and wrap it in a reactive proxy
+const position = player.getComponent(Position);
+const reactivePosition = game.createReactiveComponent(position, player, Position);
+
+// Changes are automatically detected and emitted
+reactivePosition.x = 100; // Triggers 'onComponentChanged' event
+```
+
+#### System Integration
+
+Systems can subscribe to component change events with optional filtering:
+
+```typescript
+// React to health changes only
+game.createSystem('HealthBarSystem', {
+  all: [Health, HealthBar]
+}, {
+  // Watch specific components
+  watchComponents: [Health],
+
+  // Called when Health component is added
+  onComponentAdded: (event) => {
+    const healthBar = event.entity.getComponent(HealthBar);
+    healthBar.show();
+  },
+
+  // Called when Health component is removed
+  onComponentRemoved: (event) => {
+    const healthBar = event.entity.getComponent(HealthBar);
+    healthBar.hide();
+  },
+
+  // Called when Health component changes
+  onComponentChanged: (event) => {
+    const health = event.newValue;
+    const healthBar = event.entity.getComponent(HealthBar);
+    healthBar.updateDisplay(health.current / health.max);
+  },
+
+  act: (entity, health, healthBar) => {
+    // Regular system logic
+  }
+});
+```
+
+#### Batch Operations
+
+Suspend events during bulk operations to improve performance:
+
+```typescript
+// Manually control batch mode
+game.setBatchMode(true);
+
+// These changes won't emit events
+for (let i = 0; i < 1000; i++) {
+  const entity = game.createEntity();
+  entity.addComponent(Position, i, i);
+  entity.addComponent(Velocity, 1, 1);
+}
+
+game.setBatchMode(false); // Re-enable events
+
+// Or use the batch() helper
+game.batch(() => {
+  // All changes in this callback happen in batch mode
+  for (let i = 0; i < 1000; i++) {
+    game.markComponentDirty(entities[i], Position);
+  }
+}); // Events automatically re-enabled after callback
+```
+
+#### Debouncing
+
+Reduce event frequency for rapidly changing components:
+
+```typescript
+// Configure 50ms debounce
+const game = new EngineBuilder()
+  .withChangeTracking({ debounceMs: 50 })
+  .build();
+
+// Rapid changes are coalesced into a single event
+for (let i = 0; i < 100; i++) {
+  position.x = i;
+  game.markComponentDirty(entity, Position);
+}
+// Only one event emitted after 50ms delay
+```
+
+**Use Cases:**
+- UI updates (health bars, inventory displays)
+- Animation triggers
+- Sound effects
+- Visual effects (damage numbers, hit indicators)
+- Achievement tracking
+- Analytics and logging
+- Network synchronization
+
+For more patterns and examples, see the [Reactive Programming section](./docs/COOKBOOK.md#reactive-programming-patterns) in the Cookbook.
+
 ### Inter-System Communication
 
 ```typescript

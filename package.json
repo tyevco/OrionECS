@@ -17,9 +17,9 @@
     "clean": "turbo run clean && rm -rf node_modules/.cache"
   },
   "workspaces": [
-    "core",
-    "utils",
-    "testing",
+    "packages/core",
+    "packages/utils",
+    "packages/testing",
     "examples",
     "plugins/canvas2d-renderer",
     "plugins/input-manager",

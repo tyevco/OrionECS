@@ -1,0 +1,227 @@
+name: Plugin Proposal
+description: Propose a new official plugin for Orion ECS
+title: "[Plugin]: "
+labels: ["plugin", "enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for proposing a new plugin! Official plugins extend Orion ECS with focused, reusable functionality.
+
+        Before submitting, consider:
+        - Is this functionality general enough to benefit many users?
+        - Could this be implemented as a third-party plugin instead?
+        - Does it align with Orion ECS's goals and architecture?
+
+  - type: input
+    id: plugin-name
+    attributes:
+      label: Plugin Name
+      description: What should this plugin be called?
+      placeholder: e.g., PhysicsPlugin, NetworkingPlugin
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Plugin Description
+      description: What does this plugin do? What functionality does it provide?
+      placeholder: This plugin provides...
+    validations:
+      required: true
+
+  - type: textarea
+    id: use-cases
+    attributes:
+      label: Use Cases
+      description: What are the primary use cases for this plugin?
+      placeholder: |
+        - Use case 1: Game developers who need...
+        - Use case 2: Applications that require...
+    validations:
+      required: true
+
+  - type: textarea
+    id: components
+    attributes:
+      label: Components
+      description: What components would this plugin provide?
+      placeholder: |
+        ```typescript
+        class RigidBody {
+          constructor(
+            public mass: number = 1,
+            public velocity: Vector2 = new Vector2()
+          ) {}
+        }
+        ```
+      render: typescript
+    validations:
+      required: false
+
+  - type: textarea
+    id: systems
+    attributes:
+      label: Systems
+      description: What systems would this plugin provide?
+      placeholder: |
+        - PhysicsSystem: Updates rigid body physics
+        - CollisionSystem: Detects and resolves collisions
+    validations:
+      required: false
+
+  - type: textarea
+    id: api
+    attributes:
+      label: API Extension
+      description: What API extensions would this plugin add to the engine?
+      placeholder: |
+        ```typescript
+        // Usage example
+        const engine = new EngineBuilder()
+          .use(new MyPlugin())
+          .build();
+
+        engine.myPlugin.doSomething();
+        ```
+      render: typescript
+    validations:
+      required: false
+
+  - type: dropdown
+    id: category
+    attributes:
+      label: Plugin Category
+      description: What category does this plugin fall into?
+      options:
+        - Physics
+        - Rendering
+        - Input/Controls
+        - Networking
+        - Audio
+        - AI/Pathfinding
+        - Animation
+        - Particle Systems
+        - Resource Management
+        - Debugging/Profiling
+        - Serialization
+        - Spatial Partitioning
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: dependencies
+    attributes:
+      label: External Dependencies
+      description: Would this plugin require external npm packages?
+      placeholder: |
+        - matter-js (physics engine)
+        - pixi.js (rendering)
+    validations:
+      required: false
+
+  - type: textarea
+    id: configuration
+    attributes:
+      label: Configuration Options
+      description: What configuration options would the plugin accept?
+      placeholder: |
+        ```typescript
+        new MyPlugin({
+          option1: true,
+          option2: 'value'
+        })
+        ```
+      render: typescript
+    validations:
+      required: false
+
+  - type: textarea
+    id: similar
+    attributes:
+      label: Similar Implementations
+      description: Are there similar plugins in other ECS frameworks? How would this compare?
+      placeholder: |
+        - Unity's physics system provides...
+        - Bevy's physics plugin offers...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: performance
+    attributes:
+      label: Performance Impact
+      description: What is the expected performance impact of this plugin?
+      options:
+        - Minimal - Low overhead
+        - Moderate - Some performance cost
+        - High - Significant processing required
+        - Variable - Depends on configuration
+    validations:
+      required: true
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Usage Examples
+      description: Provide a complete example of how this plugin would be used
+      placeholder: |
+        ```typescript
+        // Complete usage example
+        import { EngineBuilder } from 'orion-ecs';
+        import { MyPlugin } from '@orion-ecs/my-plugin';
+
+        const engine = new EngineBuilder()
+          .use(new MyPlugin({ /* options */ }))
+          .build();
+
+        // Create entities that use plugin components
+        const entity = engine.createEntity('Example');
+        entity.addComponent(PluginComponent, ...args);
+        ```
+      render: typescript
+    validations:
+      required: true
+
+  - type: textarea
+    id: testing
+    attributes:
+      label: Testing Strategy
+      description: How would this plugin be tested?
+      placeholder: |
+        - Unit tests for component validation
+        - Integration tests for system interactions
+        - Performance benchmarks
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution Commitment
+      description: What can you contribute to this plugin?
+      options:
+        - label: I am willing to implement this plugin
+        - label: I can provide code review and feedback
+        - label: I can write documentation
+        - label: I can create examples
+        - label: I can help with testing
+
+  - type: checkboxes
+    id: requirements
+    attributes:
+      label: Plugin Requirements
+      description: Does this plugin meet the requirements for official plugins?
+      options:
+        - label: This plugin provides general functionality useful to many users
+          required: true
+        - label: This plugin follows Orion ECS architecture and patterns
+          required: true
+        - label: This plugin will include comprehensive tests
+          required: true
+        - label: This plugin will include documentation and examples
+          required: true
+        - label: I have searched for similar existing proposals
+          required: true

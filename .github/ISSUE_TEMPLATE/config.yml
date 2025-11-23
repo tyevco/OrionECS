@@ -1,0 +1,14 @@
+blank_issues_enabled: false
+contact_links:
+  - name: GitHub Discussions
+    url: https://github.com/tyevco/OrionECS/discussions
+    about: Ask questions and discuss ideas with the community
+  - name: Documentation
+    url: https://github.com/tyevco/OrionECS/blob/main/README.md
+    about: Read the comprehensive documentation and guides
+  - name: Examples
+    url: https://github.com/tyevco/OrionECS/tree/main/examples
+    about: Browse example projects and integrations
+  - name: Security Vulnerability
+    url: https://github.com/tyevco/OrionECS/security/advisories/new
+    about: Report a security vulnerability (private)

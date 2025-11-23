@@ -33,6 +33,7 @@ import type {
     SystemType,
 } from './definitions';
 import {
+    ChangeTrackingManager,
     ComponentManager,
     MessageManager,
     PrefabManager,
@@ -70,6 +71,7 @@ export class EngineBuilder {
     private eventEmitter = new EventEmitter();
     private entityManager?: EntityManager;
     private performanceMonitor = new PerformanceMonitor();
+    private changeTrackingManager?: ChangeTrackingManager;
 
     private fixedUpdateFPS: number = 60;
     private maxFixedIterations: number = 10;
@@ -77,6 +79,11 @@ export class EngineBuilder {
     private maxSnapshots: number = 10;
     private plugins: EnginePlugin[] = [];
     private enableArchetypeSystem: boolean = true; // Enable archetypes by default
+    private changeTrackingOptions: any = {
+        enableProxyTracking: false,
+        batchMode: false,
+        debounceMs: 0,
+    };
 
     /**
      * Enable or disable debug mode for enhanced logging and error messages.
@@ -192,6 +199,37 @@ export class EngineBuilder {
     }
 
     /**
+     * Configure component change tracking options
+     *
+     * Enables reactive programming patterns by tracking component changes and emitting events.
+     * Supports manual dirty flagging, automatic Proxy-based detection, and performance optimizations.
+     *
+     * @param options - Change tracking configuration
+     * @param options.enableProxyTracking - Enable automatic Proxy-based change detection (default: false)
+     * @param options.batchMode - Start in batch mode (events suspended) (default: false)
+     * @param options.debounceMs - Debounce change events in milliseconds (default: 0)
+     * @returns This builder instance for method chaining
+     *
+     * @example
+     * ```typescript
+     * const engine = new EngineBuilder()
+     *   .withChangeTracking({
+     *     enableProxyTracking: true,
+     *     debounceMs: 50
+     *   })
+     *   .build();
+     * ```
+     */
+    withChangeTracking(options: {
+        enableProxyTracking?: boolean;
+        batchMode?: boolean;
+        debounceMs?: number;
+    }): this {
+        this.changeTrackingOptions = { ...this.changeTrackingOptions, ...options };
+        return this;
+    }
+
+    /**
      * Register a plugin to extend the engine with additional functionality.
      *
      * Plugins are installed during the build() phase and can register components,
@@ -255,6 +293,14 @@ export class EngineBuilder {
         // Wire up query manager with component manager for archetype support
         this.queryManager.setComponentManager(this.componentManager);
 
+        // Create change tracking manager
+        this.changeTrackingManager = new ChangeTrackingManager(
+            this.componentManager,
+            this.entityManager,
+            this.eventEmitter,
+            this.changeTrackingOptions
+        );
+
         const engine = new Engine(
             this.entityManager,
             this.componentManager,
@@ -263,6 +309,7 @@ export class EngineBuilder {
             this.prefabManager,
             this.snapshotManager,
             this.messageManager,
+            this.changeTrackingManager,
             this.eventEmitter,
             this.performanceMonitor,
             this.debugMode
@@ -345,6 +392,7 @@ export class Engine {
         private prefabManager: PrefabManager,
         private snapshotManager: SnapshotManager,
         private messageManager: MessageManager,
+        private changeTrackingManager: ChangeTrackingManager,
         private eventEmitter: EventEmitter,
         private performanceMonitor: PerformanceMonitor,
         private debugMode: boolean
@@ -669,7 +717,7 @@ export class Engine {
         isFixedUpdate: boolean = false
     ): System<ComponentTypes<All>> {
         const query = this.queryManager.createQuery<ComponentTypes<All>>(queryOptions);
-        const system = new System<ComponentTypes<All>>(name, query, options);
+        const system = new System<ComponentTypes<All>>(name, query, options, this.eventEmitter);
 
         // Update new query with all existing entities
         for (const entity of this.entityManager.getAllEntities()) {
@@ -1024,6 +1072,104 @@ export class Engine {
             getMessageHistory: (messageType?: string) =>
                 this.messageManager.getHistory(messageType),
         };
+    }
+
+    // ========== Change Tracking ==========
+
+    /**
+     * Mark a component on an entity as dirty (changed)
+     * This will emit a component changed event if not in batch mode
+     */
+    markComponentDirty(entity: Entity, componentType: ComponentIdentifier): void {
+        this.changeTrackingManager.markComponentDirty(entity, componentType);
+    }
+
+    /**
+     * Get all dirty components for an entity
+     */
+    getDirtyComponents(entity: Entity): ComponentIdentifier[] {
+        return this.changeTrackingManager.getDirtyComponents(entity);
+    }
+
+    /**
+     * Clear dirty flags for all components on an entity
+     */
+    clearDirtyComponents(entity: Entity): void {
+        this.changeTrackingManager.clearDirtyComponents(entity);
+    }
+
+    /**
+     * Clear all dirty flags across all components
+     */
+    clearAllDirtyComponents(): void {
+        this.changeTrackingManager.clearAllDirty();
+    }
+
+    /**
+     * Enable or disable batch mode (suspends component change events)
+     * Useful for bulk operations to avoid excessive event emission
+     */
+    setBatchMode(enabled: boolean): void {
+        this.changeTrackingManager.setBatchMode(enabled);
+        if (this.debugMode) {
+            console.log(`[ECS Debug] Batch mode ${enabled ? 'enabled' : 'disabled'}`);
+        }
+    }
+
+    /**
+     * Check if batch mode is enabled
+     */
+    isBatchMode(): boolean {
+        return this.changeTrackingManager.isBatchMode();
+    }
+
+    /**
+     * Execute a function in batch mode (events suspended during execution)
+     * Automatically restores previous batch mode state after execution
+     */
+    batch<T>(fn: () => T): T {
+        return this.changeTrackingManager.batch(fn);
+    }
+
+    /**
+     * Enable Proxy-based change tracking for automatic change detection
+     * When enabled, components are wrapped in Proxy objects that automatically
+     * detect property changes and emit change events
+     */
+    enableProxyTracking(): void {
+        this.changeTrackingManager.enableProxyTracking();
+        if (this.debugMode) {
+            console.log('[ECS Debug] Proxy-based change tracking enabled');
+        }
+    }
+
+    /**
+     * Disable Proxy-based change tracking
+     */
+    disableProxyTracking(): void {
+        this.changeTrackingManager.disableProxyTracking();
+        if (this.debugMode) {
+            console.log('[ECS Debug] Proxy-based change tracking disabled');
+        }
+    }
+
+    /**
+     * Check if Proxy-based change tracking is enabled
+     */
+    isProxyTrackingEnabled(): boolean {
+        return this.changeTrackingManager.isProxyTrackingEnabled();
+    }
+
+    /**
+     * Create a reactive (Proxy-wrapped) component that automatically tracks changes
+     * Only works if Proxy tracking is enabled
+     */
+    createReactiveComponent<T extends object>(
+        component: T,
+        entity: Entity,
+        componentType: ComponentIdentifier<T>
+    ): T {
+        return this.changeTrackingManager.createReactiveComponent(component, entity, componentType);
     }
 
     // ========== Events ==========

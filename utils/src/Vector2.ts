@@ -1,6 +1,40 @@
 /**
- * Represents a 2D vector with common mathematical operations.
- * Useful for positions, velocities, directions, and other 2D spatial calculations.
+ * Represents a 2D vector with comprehensive mathematical operations.
+ *
+ * This class provides a complete set of vector operations including:
+ * - Basic arithmetic (add, subtract, multiply, divide)
+ * - Vector products (dot, cross)
+ * - Angular operations (rotation, angle calculation)
+ * - Interpolation (linear and spherical)
+ * - Reflection, projection, and perpendicular calculations
+ * - Component and magnitude clamping
+ *
+ * Most methods come in both mutable (modify in place) and immutable (return new instance) variants.
+ *
+ * @example
+ * ```typescript
+ * // Create vectors
+ * const position = new Vector2(10, 20);
+ * const velocity = new Vector2(1, 0);
+ *
+ * // Immutable operations (return new vectors)
+ * const newPos = position.plus(velocity);
+ * const normalized = velocity.normal();
+ *
+ * // Mutable operations (modify in place)
+ * position.add(velocity);
+ * velocity.normalize();
+ *
+ * // Angular operations
+ * const angle = velocity.angle();
+ * const rotated = velocity.rotated(Math.PI / 4);
+ *
+ * // Static helper methods
+ * const distance = Vector2.distance(position, newPos);
+ * const interpolated = Vector2.lerp(position, newPos, 0.5);
+ * ```
+ *
+ * @category Math
  */
 export class Vector2 {
   /**
@@ -340,9 +374,22 @@ export class Vector2 {
 
   /**
    * Returns a new vector that is the sum of this vector and another.
-   * This is the immutable version of add().
-   * @param other The vector to add
-   * @returns A new Vector2
+   *
+   * This is the immutable version of {@link add}. The original vector remains unchanged.
+   *
+   * @param other - The vector to add
+   * @returns A new Vector2 representing the sum
+   *
+   * @example
+   * ```typescript
+   * const v1 = new Vector2(1, 2);
+   * const v2 = new Vector2(3, 4);
+   * const sum = v1.plus(v2); // Vector2(4, 6)
+   * // v1 is still Vector2(1, 2)
+   * ```
+   *
+   * @see {@link add} for the mutable version
+   * @category Arithmetic
    */
   public plus(other: Vector2): Vector2 {
     return new Vector2(this._x + other.x, this._y + other.y);
@@ -350,9 +397,22 @@ export class Vector2 {
 
   /**
    * Returns a new vector that is the difference of this vector and another.
-   * This is the immutable version of subtract().
-   * @param other The vector to subtract
-   * @returns A new Vector2
+   *
+   * This is the immutable version of {@link subtract}. The original vector remains unchanged.
+   *
+   * @param other - The vector to subtract
+   * @returns A new Vector2 representing the difference
+   *
+   * @example
+   * ```typescript
+   * const v1 = new Vector2(5, 7);
+   * const v2 = new Vector2(2, 3);
+   * const diff = v1.minus(v2); // Vector2(3, 4)
+   * // v1 is still Vector2(5, 7)
+   * ```
+   *
+   * @see {@link subtract} for the mutable version
+   * @category Arithmetic
    */
   public minus(other: Vector2): Vector2 {
     return new Vector2(this._x - other.x, this._y - other.y);
@@ -360,9 +420,21 @@ export class Vector2 {
 
   /**
    * Returns a new vector that is this vector multiplied by a scalar.
-   * This is the immutable version of multiply().
-   * @param scalar The scalar value
-   * @returns A new Vector2
+   *
+   * This is the immutable version of {@link multiply}. The original vector remains unchanged.
+   *
+   * @param scalar - The scalar value to multiply by
+   * @returns A new Vector2 scaled by the scalar
+   *
+   * @example
+   * ```typescript
+   * const v = new Vector2(3, 4);
+   * const scaled = v.times(2); // Vector2(6, 8)
+   * // v is still Vector2(3, 4)
+   * ```
+   *
+   * @see {@link multiply} for the mutable version
+   * @category Arithmetic
    */
   public times(scalar: number): Vector2 {
     return new Vector2(this._x * scalar, this._y * scalar);
@@ -370,9 +442,22 @@ export class Vector2 {
 
   /**
    * Returns a new vector that is this vector divided by a scalar.
-   * This is the immutable version of divide().
-   * @param scalar The scalar value (must not be zero)
-   * @returns A new Vector2
+   *
+   * This is the immutable version of {@link divide}. The original vector remains unchanged.
+   *
+   * @param scalar - The scalar value to divide by (must not be zero)
+   * @returns A new Vector2 divided by the scalar
+   * @throws {Error} If scalar is zero
+   *
+   * @example
+   * ```typescript
+   * const v = new Vector2(10, 20);
+   * const scaled = v.dividedBy(2); // Vector2(5, 10)
+   * // v is still Vector2(10, 20)
+   * ```
+   *
+   * @see {@link divide} for the mutable version
+   * @category Arithmetic
    */
   public dividedBy(scalar: number): Vector2 {
     if (scalar === 0) {
@@ -383,7 +468,20 @@ export class Vector2 {
 
   /**
    * Returns a new vector with negated components.
+   *
+   * This creates a vector pointing in the opposite direction with the same magnitude.
+   *
    * @returns A new Vector2 pointing in the opposite direction
+   *
+   * @example
+   * ```typescript
+   * const v = new Vector2(3, -4);
+   * const neg = v.negated(); // Vector2(-3, 4)
+   * // v is still Vector2(3, -4)
+   * ```
+   *
+   * @see {@link negate} for the mutable version
+   * @category Arithmetic
    */
   public negated(): Vector2 {
     return new Vector2(-this._x, -this._y);
@@ -391,7 +489,19 @@ export class Vector2 {
 
   /**
    * Negates this vector in place (flips direction).
+   *
+   * Modifies this vector to point in the opposite direction.
+   *
    * @returns This vector for chaining
+   *
+   * @example
+   * ```typescript
+   * const v = new Vector2(3, -4);
+   * v.negate(); // v is now Vector2(-3, 4)
+   * ```
+   *
+   * @see {@link negated} for the immutable version
+   * @category Arithmetic
    */
   public negate(): this {
     this._x = -this._x;
@@ -405,17 +515,55 @@ export class Vector2 {
 
   /**
    * Calculates the angle of this vector from the positive x-axis in radians.
-   * Returns a value in the range [-PI, PI].
-   * @returns The angle in radians
+   *
+   * Returns a value in the range [-π, π], using the standard mathematical convention
+   * where positive angles are counter-clockwise.
+   *
+   * @returns The angle in radians [-π, π]
+   *
+   * @example
+   * ```typescript
+   * const right = new Vector2(1, 0);
+   * right.angle(); // 0
+   *
+   * const up = new Vector2(0, 1);
+   * up.angle(); // π/2 (90 degrees)
+   *
+   * const left = new Vector2(-1, 0);
+   * left.angle(); // π (180 degrees)
+   *
+   * const down = new Vector2(0, -1);
+   * down.angle(); // -π/2 (-90 degrees)
+   * ```
+   *
+   * @see {@link angleTo} for the angle between two vectors
+   * @category Angular
    */
   public angle(): number {
     return Math.atan2(this._y, this._x);
   }
 
   /**
-   * Rotates this vector by the specified angle in radians.
-   * @param radians The angle to rotate by
+   * Rotates this vector by the specified angle in radians (in place).
+   *
+   * Applies a 2D rotation transformation using the rotation matrix. Positive angles
+   * rotate counter-clockwise.
+   *
+   * @param radians - The angle to rotate by (positive = counter-clockwise)
    * @returns This vector for chaining
+   *
+   * @example
+   * ```typescript
+   * const v = new Vector2(1, 0);
+   * v.rotate(Math.PI / 2); // Rotate 90° counter-clockwise
+   * // v is now approximately Vector2(0, 1)
+   *
+   * const v2 = new Vector2(3, 4);
+   * v2.rotate(-Math.PI / 4); // Rotate 45° clockwise
+   * ```
+   *
+   * @see {@link rotated} for the immutable version
+   * @category Angular
    */
   public rotate(radians: number): this {
     const cos = Math.cos(radians);
@@ -429,8 +577,26 @@ export class Vector2 {
 
   /**
    * Returns a new vector rotated by the specified angle in radians.
-   * @param radians The angle to rotate by
+   *
+   * Applies a 2D rotation transformation using the rotation matrix. The original
+   * vector remains unchanged. Positive angles rotate counter-clockwise.
+   *
+   * @param radians - The angle to rotate by (positive = counter-clockwise)
    * @returns A new rotated Vector2
+   *
+   * @example
+   * ```typescript
+   * const v = new Vector2(1, 0);
+   * const rotated = v.rotated(Math.PI / 2); // Vector2(0, 1)
+   * // v is still Vector2(1, 0)
+   *
+   * // Rotate 45 degrees clockwise
+   * const diagonal = new Vector2(1, 1);
+   * const rotated45 = diagonal.rotated(-Math.PI / 4);
+   * ```
+   *
+   * @see {@link rotate} for the mutable version
+   * @category Angular
    */
   public rotated(radians: number): Vector2 {
     const cos = Math.cos(radians);
@@ -447,8 +613,26 @@ export class Vector2 {
 
   /**
    * Returns a vector perpendicular to this one (rotated 90° counter-clockwise).
-   * Same as perpendicularLeft().
+   *
+   * This is an alias for {@link perpendicularLeft}. The perpendicular vector maintains
+   * the same length as the original and is orthogonal (dot product = 0).
+   *
    * @returns A new perpendicular Vector2
+   *
+   * @example
+   * ```typescript
+   * const right = new Vector2(1, 0);
+   * const up = right.perpendicular(); // Vector2(0, 1)
+   *
+   * const v = new Vector2(3, 4);
+   * const perp = v.perpendicular();
+   * v.dot(perp); // 0 (orthogonal)
+   * perp.length(); // 5 (same length as v)
+   * ```
+   *
+   * @see {@link perpendicularLeft} for explicit left rotation
+   * @see {@link perpendicularRight} for clockwise rotation
+   * @category Perpendicular
    */
   public perpendicular(): Vector2 {
     return new Vector2(-this._y, this._x);
@@ -456,7 +640,21 @@ export class Vector2 {
 
   /**
    * Returns a vector perpendicular to this one (rotated 90° counter-clockwise).
+   *
+   * The perpendicular vector maintains the same length as the original and is
+   * orthogonal (dot product = 0).
+   *
    * @returns A new perpendicular Vector2
+   *
+   * @example
+   * ```typescript
+   * const right = new Vector2(1, 0);
+   * const up = right.perpendicularLeft(); // Vector2(0, 1)
+   * ```
+   *
+   * @see {@link perpendicular} for the default perpendicular (same as this)
+   * @see {@link perpendicularRight} for clockwise rotation
+   * @category Perpendicular
    */
   public perpendicularLeft(): Vector2 {
     return new Vector2(-this._y, this._x);
@@ -464,7 +662,21 @@ export class Vector2 {
 
   /**
    * Returns a vector perpendicular to this one (rotated 90° clockwise).
+   *
+   * The perpendicular vector maintains the same length as the original and is
+   * orthogonal (dot product = 0).
+   *
    * @returns A new perpendicular Vector2
+   *
+   * @example
+   * ```typescript
+   * const right = new Vector2(1, 0);
+   * const down = right.perpendicularRight(); // Vector2(0, -1)
+   * ```
+   *
+   * @see {@link perpendicular} for counter-clockwise rotation
+   * @see {@link perpendicularLeft} for counter-clockwise rotation (explicit)
+   * @category Perpendicular
    */
   public perpendicularRight(): Vector2 {
     return new Vector2(this._y, -this._x);
@@ -476,8 +688,27 @@ export class Vector2 {
 
   /**
    * Reflects this vector across a normal vector.
-   * @param normal The normal vector to reflect across (should be normalized)
+   *
+   * Computes the reflection of this vector across a surface defined by the normal vector,
+   * simulating a bounce effect. The magnitude of the reflected vector equals the original.
+   *
+   * @param normal - The normal vector to reflect across (should be normalized for accurate results)
    * @returns A new reflected Vector2
+   *
+   * @example
+   * ```typescript
+   * // Ball bouncing off a horizontal surface
+   * const velocity = new Vector2(3, -4); // Moving right and down
+   * const surfaceNormal = new Vector2(0, 1); // Pointing up
+   * const reflected = velocity.reflect(surfaceNormal);
+   * // reflected is Vector2(3, 4) - now moving right and up
+   *
+   * // Reflection maintains magnitude
+   * velocity.length() === reflected.length(); // true
+   * ```
+   *
+   * @see {@link project} for vector projection
+   * @category Reflection
    */
   public reflect(normal: Vector2): Vector2 {
     const dotProduct = this.dot(normal);
@@ -489,8 +720,31 @@ export class Vector2 {
 
   /**
    * Projects this vector onto another vector.
-   * @param other The vector to project onto
-   * @returns A new projected Vector2
+   *
+   * Computes the orthogonal projection of this vector onto the target vector.
+   * The result is a vector parallel to the target with length equal to the
+   * component of this vector in the direction of the target.
+   *
+   * @param other - The vector to project onto
+   * @returns A new projected Vector2 (parallel to `other`)
+   *
+   * @example
+   * ```typescript
+   * // Project velocity onto horizontal axis
+   * const velocity = new Vector2(3, 4);
+   * const horizontal = new Vector2(1, 0);
+   * const projected = velocity.project(horizontal);
+   * // projected is Vector2(3, 0) - horizontal component only
+   *
+   * // Project onto diagonal
+   * const v = new Vector2(4, 2);
+   * const diagonal = new Vector2(1, 1);
+   * const proj = v.project(diagonal);
+   * // proj is parallel to diagonal, length = v's component along diagonal
+   * ```
+   *
+   * @see {@link reflect} for vector reflection
+   * @category Projection
    */
   public project(other: Vector2): Vector2 {
     const otherLengthSq = other.lengthSquared();
@@ -508,11 +762,38 @@ export class Vector2 {
 
   /**
    * Spherical linear interpolation between this vector and another.
-   * Maintains constant speed and length during interpolation.
-   * Better than lerp for rotation-like interpolation.
-   * @param other The target vector
-   * @param t The interpolation factor (0-1)
+   *
+   * SLERP maintains constant angular velocity and magnitude during interpolation,
+   * making it ideal for smooth rotational animations. Unlike {@link lerp}, which
+   * takes a straight-line path, SLERP follows an arc on the unit circle.
+   *
+   * For vectors that are nearly parallel, this method automatically falls back to
+   * {@link lerp} for numerical stability.
+   *
+   * @param other - The target vector
+   * @param t - The interpolation factor (0 = this vector, 1 = other vector)
    * @returns A new interpolated Vector2
+   *
+   * @example
+   * ```typescript
+   * // Smooth rotation between two directions
+   * const start = new Vector2(1, 0);    // East
+   * const end = new Vector2(0, 1);      // North
+   *
+   * const quarter = start.slerp(end, 0.25);   // Northeast-ish
+   * const half = start.slerp(end, 0.5);       // Exactly northeast
+   * const threeQuarter = start.slerp(end, 0.75); // North-ish
+   *
+   * // SLERP maintains constant length
+   * start.length() === half.length(); // true (approximately)
+   *
+   * // Compare with lerp (straight line, variable speed)
+   * const lerpHalf = start.lerp(end, 0.5);
+   * lerpHalf.length() < start.length(); // true (shorter path)
+   * ```
+   *
+   * @see {@link lerp} for linear interpolation
+   * @category Interpolation
    */
   public slerp(other: Vector2, t: number): Vector2 {
     const dot = this.dot(other) / (this.length() * other.length());
@@ -532,10 +813,25 @@ export class Vector2 {
   // ============================================================
 
   /**
-   * Clamps the vector components to the specified min and max values.
-   * @param min The minimum value for each component
-   * @param max The maximum value for each component
+   * Clamps the vector components to the specified min and max values (in place).
+   *
+   * Each component (x and y) is independently clamped to the range [min, max].
+   * This is useful for keeping positions within boundaries.
+   *
+   * @param min - The minimum value for each component
+   * @param max - The maximum value for each component
    * @returns This vector for chaining
+   *
+   * @example
+   * ```typescript
+   * const position = new Vector2(150, -50);
+   * position.clamp(0, 100); // Clamp to screen bounds
+   * // position is now Vector2(100, 0)
+   * ```
+   *
+   * @see {@link clamped} for the immutable version
+   * @see {@link clampLength} for magnitude clamping
+   * @category Clamping
    */
   public clamp(min: number, max: number): this {
     this._x = Math.max(min, Math.min(max, this._x));
@@ -545,9 +841,25 @@ export class Vector2 {
 
   /**
    * Returns a new vector with clamped components.
-   * @param min The minimum value for each component
-   * @param max The maximum value for each component
+   *
+   * Each component (x and y) is independently clamped to the range [min, max].
+   * The original vector remains unchanged.
+   *
+   * @param min - The minimum value for each component
+   * @param max - The maximum value for each component
    * @returns A new clamped Vector2
+   *
+   * @example
+   * ```typescript
+   * const position = new Vector2(150, -50);
+   * const clamped = position.clamped(0, 100);
+   * // clamped is Vector2(100, 0)
+   * // position is still Vector2(150, -50)
+   * ```
+   *
+   * @see {@link clamp} for the mutable version
+   * @see {@link clampedLength} for magnitude clamping
+   * @category Clamping
    */
   public clamped(min: number, max: number): Vector2 {
     return new Vector2(
@@ -557,10 +869,31 @@ export class Vector2 {
   }
 
   /**
-   * Clamps the length (magnitude) of this vector to the specified range.
-   * @param minLength The minimum length
-   * @param maxLength The maximum length
+   * Clamps the length (magnitude) of this vector to the specified range (in place).
+   *
+   * Maintains the vector's direction while ensuring its magnitude falls within
+   * [minLength, maxLength]. Useful for limiting velocities and forces.
+   *
+   * @param minLength - The minimum length
+   * @param maxLength - The maximum length
    * @returns This vector for chaining
+   *
+   * @example
+   * ```typescript
+   * // Limit player speed
+   * const velocity = new Vector2(300, 400); // Length = 500
+   * velocity.clampLength(0, 200);
+   * // velocity is now scaled to length 200, direction unchanged
+   *
+   * // Ensure minimum speed
+   * const slowVelocity = new Vector2(1, 1); // Length ≈ 1.41
+   * slowVelocity.clampLength(10, 100);
+   * // slowVelocity is now scaled to length 10
+   * ```
+   *
+   * @see {@link clampedLength} for the immutable version
+   * @see {@link clamp} for component clamping
+   * @category Clamping
    */
   public clampLength(minLength: number, maxLength: number): this {
     const len = this.length();
@@ -576,9 +909,25 @@ export class Vector2 {
 
   /**
    * Returns a new vector with clamped length.
-   * @param minLength The minimum length
-   * @param maxLength The maximum length
+   *
+   * Maintains the vector's direction while ensuring its magnitude falls within
+   * [minLength, maxLength]. The original vector remains unchanged.
+   *
+   * @param minLength - The minimum length
+   * @param maxLength - The maximum length
    * @returns A new Vector2 with clamped length
+   *
+   * @example
+   * ```typescript
+   * const velocity = new Vector2(300, 400); // Length = 500
+   * const limited = velocity.clampedLength(0, 200);
+   * // limited has length 200, same direction as velocity
+   * // velocity still has length 500
+   * ```
+   *
+   * @see {@link clampLength} for the mutable version
+   * @see {@link clamped} for component clamping
+   * @category Clamping
    */
   public clampedLength(minLength: number, maxLength: number): Vector2 {
     const len = this.length();
@@ -598,8 +947,29 @@ export class Vector2 {
 
   /**
    * Checks if this is a zero vector (both components are zero).
-   * @param epsilon Optional tolerance for floating point comparison
-   * @returns True if this is a zero vector
+   *
+   * When an epsilon value is provided, the check uses tolerance for floating-point
+   * comparison, which is useful for physics simulations and numerical computations.
+   *
+   * @param epsilon - Optional tolerance for floating-point comparison (default: 0)
+   * @returns True if this is a zero vector within the tolerance
+   *
+   * @example
+   * ```typescript
+   * const zero = new Vector2(0, 0);
+   * zero.isZero(); // true
+   *
+   * const nearZero = new Vector2(0.00001, 0.00001);
+   * nearZero.isZero(); // false (exact comparison)
+   * nearZero.isZero(0.0001); // true (with tolerance)
+   *
+   * // Useful for stopping nearly-stopped objects
+   * if (velocity.isZero(0.01)) {
+   *   velocity.set(0, 0); // Stop completely
+   * }
+   * ```
+   *
+   * @category Utility
    */
   public isZero(epsilon: number = 0): boolean {
     if (epsilon === 0) {
@@ -614,9 +984,10 @@ export class Vector2 {
 
   /**
    * Calculates the distance between two vectors.
-   * @param a First vector
-   * @param b Second vector
+   * @param a - First vector
+   * @param b - Second vector
    * @returns The distance between the vectors
+   * @category Static Helpers
    */
   public static distance(a: Vector2, b: Vector2): number {
     return a.distanceTo(b);
@@ -624,9 +995,10 @@ export class Vector2 {
 
   /**
    * Calculates the squared distance between two vectors.
-   * @param a First vector
-   * @param b Second vector
+   * @param a - First vector
+   * @param b - Second vector
    * @returns The squared distance between the vectors
+   * @category Static Helpers
    */
   public static distanceSquared(a: Vector2, b: Vector2): number {
     return a.distanceToSquared(b);
@@ -634,9 +1006,10 @@ export class Vector2 {
 
   /**
    * Calculates the dot product of two vectors.
-   * @param a First vector
-   * @param b Second vector
+   * @param a - First vector
+   * @param b - Second vector
    * @returns The dot product
+   * @category Static Helpers
    */
   public static dot(a: Vector2, b: Vector2): number {
     return a.dot(b);
@@ -644,9 +1017,10 @@ export class Vector2 {
 
   /**
    * Calculates the 2D cross product of two vectors.
-   * @param a First vector
-   * @param b Second vector
+   * @param a - First vector
+   * @param b - Second vector
    * @returns The cross product magnitude
+   * @category Static Helpers
    */
   public static cross(a: Vector2, b: Vector2): number {
     return a.cross(b);
@@ -654,9 +1028,10 @@ export class Vector2 {
 
   /**
    * Calculates the angle between two vectors in radians.
-   * @param a First vector
-   * @param b Second vector
+   * @param a - First vector
+   * @param b - Second vector
    * @returns The angle in radians
+   * @category Static Helpers
    */
   public static angleBetween(a: Vector2, b: Vector2): number {
     return a.angleTo(b);
@@ -664,10 +1039,11 @@ export class Vector2 {
 
   /**
    * Linearly interpolates between two vectors.
-   * @param a Start vector
-   * @param b End vector
-   * @param t Interpolation factor (0-1)
+   * @param a - Start vector
+   * @param b - End vector
+   * @param t - Interpolation factor (0-1)
    * @returns A new interpolated Vector2
+   * @category Static Helpers
    */
   public static lerp(a: Vector2, b: Vector2, t: number): Vector2 {
     return a.lerp(b, t);
@@ -675,10 +1051,11 @@ export class Vector2 {
 
   /**
    * Spherically interpolates between two vectors.
-   * @param a Start vector
-   * @param b End vector
-   * @param t Interpolation factor (0-1)
+   * @param a - Start vector
+   * @param b - End vector
+   * @param t - Interpolation factor (0-1)
    * @returns A new interpolated Vector2
+   * @category Static Helpers
    */
   public static slerp(a: Vector2, b: Vector2, t: number): Vector2 {
     return a.slerp(b, t);
@@ -686,9 +1063,10 @@ export class Vector2 {
 
   /**
    * Adds two vectors and returns the result.
-   * @param a First vector
-   * @param b Second vector
+   * @param a - First vector
+   * @param b - Second vector
    * @returns A new Vector2
+   * @category Static Helpers
    */
   public static add(a: Vector2, b: Vector2): Vector2 {
     return a.plus(b);
@@ -696,9 +1074,10 @@ export class Vector2 {
 
   /**
    * Subtracts two vectors and returns the result.
-   * @param a First vector
-   * @param b Second vector
+   * @param a - First vector
+   * @param b - Second vector
    * @returns A new Vector2
+   * @category Static Helpers
    */
   public static subtract(a: Vector2, b: Vector2): Vector2 {
     return a.minus(b);
@@ -706,9 +1085,10 @@ export class Vector2 {
 
   /**
    * Multiplies a vector by a scalar and returns the result.
-   * @param vector The vector
-   * @param scalar The scalar value
+   * @param vector - The vector
+   * @param scalar - The scalar value
    * @returns A new Vector2
+   * @category Static Helpers
    */
   public static multiply(vector: Vector2, scalar: number): Vector2 {
     return vector.times(scalar);
@@ -716,9 +1096,10 @@ export class Vector2 {
 
   /**
    * Divides a vector by a scalar and returns the result.
-   * @param vector The vector
-   * @param scalar The scalar value
+   * @param vector - The vector
+   * @param scalar - The scalar value
    * @returns A new Vector2
+   * @category Static Helpers
    */
   public static divide(vector: Vector2, scalar: number): Vector2 {
     return vector.dividedBy(scalar);
@@ -726,9 +1107,23 @@ export class Vector2 {
 
   /**
    * Returns the minimum of two vectors (component-wise).
-   * @param a First vector
-   * @param b Second vector
+   *
+   * Creates a new vector where each component is the minimum of the corresponding
+   * components from the input vectors.
+   *
+   * @param a - First vector
+   * @param b - Second vector
    * @returns A new Vector2 with minimum components
+   *
+   * @example
+   * ```typescript
+   * const v1 = new Vector2(3, 8);
+   * const v2 = new Vector2(5, 2);
+   * const min = Vector2.min(v1, v2); // Vector2(3, 2)
+   * ```
+   *
+   * @see {@link max} for component-wise maximum
+   * @category Static Helpers
    */
   public static min(a: Vector2, b: Vector2): Vector2 {
     return new Vector2(Math.min(a.x, b.x), Math.min(a.y, b.y));
@@ -736,9 +1131,23 @@ export class Vector2 {
 
   /**
    * Returns the maximum of two vectors (component-wise).
-   * @param a First vector
-   * @param b Second vector
+   *
+   * Creates a new vector where each component is the maximum of the corresponding
+   * components from the input vectors.
+   *
+   * @param a - First vector
+   * @param b - Second vector
    * @returns A new Vector2 with maximum components
+   *
+   * @example
+   * ```typescript
+   * const v1 = new Vector2(3, 8);
+   * const v2 = new Vector2(5, 2);
+   * const max = Vector2.max(v1, v2); // Vector2(5, 8)
+   * ```
+   *
+   * @see {@link min} for component-wise minimum
+   * @category Static Helpers
    */
   public static max(a: Vector2, b: Vector2): Vector2 {
     return new Vector2(Math.max(a.x, b.x), Math.max(a.y, b.y));

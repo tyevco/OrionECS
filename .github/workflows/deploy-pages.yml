@@ -34,7 +34,9 @@ jobs:
         run: npm run build --workspace=core
 
       - name: Generate API documentation
-        run: npm run docs:generate --workspace=core
+        run: |
+          npm run docs:generate --workspace=core
+          npm run docs:generate --workspace=utils
 
       - name: Build examples
         run: npm run build --workspace=examples
@@ -45,6 +47,8 @@ jobs:
           cp -r ./examples/dist/* ./deploy/ 2>/dev/null || :
           mkdir -p ./deploy/api
           cp -r ./core/docs/* ./deploy/api/
+          mkdir -p ./deploy/api/utils
+          cp -r ./utils/docs/* ./deploy/api/utils/
           echo "Creating index redirect..."
           cat > ./deploy/index.html << 'EOF'
           <!DOCTYPE html>
@@ -93,13 +97,18 @@ jobs:
 
             <div class="links">
               <a href="./api/" class="link-card">
-                <h2>📚 API Reference</h2>
-                <p>Complete API documentation for OrionECS classes, interfaces, and types</p>
+                <h2>📚 Core API Reference</h2>
+                <p>Complete API documentation for OrionECS engine, entities, systems, and queries</p>
+              </a>
+
+              <a href="./api/utils/" class="link-card">
+                <h2>🔧 Utils API Reference</h2>
+                <p>Utility classes documentation: Vector2, Bounds, Color, Mesh, and more</p>
               </a>
 
               <a href="https://github.com/tyevco/OrionECS" class="link-card">
                 <h2>📖 GitHub Repository</h2>
-                <p>Source code, examples, and guides</p>
+                <p>Source code, examples, and comprehensive guides</p>
               </a>
             </div>
           </body>

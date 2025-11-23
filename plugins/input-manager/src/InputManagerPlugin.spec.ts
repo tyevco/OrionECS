@@ -11,14 +11,7 @@
 
 import { TestEngineBuilder } from '@orion-ecs/testing';
 import type { Engine } from 'orion-ecs';
-import {
-    DragEventData,
-    InputAPI,
-    InputManagerPlugin,
-    KeyboardEventData,
-    MouseButton,
-    MouseEventData,
-} from './InputManagerPlugin';
+import { InputAPI, InputManagerPlugin, MouseButton } from './InputManagerPlugin';
 
 // Mock Vector2 utility
 jest.mock('@orion-ecs/math', () => ({
@@ -52,7 +45,7 @@ class MockHTMLElement {
         if (!this.listeners.has(event)) {
             this.listeners.set(event, new Set());
         }
-        this.listeners.get(event)!.add(listener);
+        this.listeners.get(event)?.add(listener);
     }
 
     removeEventListener(event: string, listener: EventListener): void {
@@ -71,7 +64,9 @@ class MockHTMLElement {
     dispatchEvent(event: Event): void {
         const listeners = this.listeners.get(event.type);
         if (listeners) {
-            listeners.forEach((listener) => listener(event));
+            listeners.forEach((listener) => {
+                listener(event);
+            });
         }
     }
 }
@@ -94,7 +89,7 @@ describe('InputManagerPlugin', () => {
                 if (!mockWindowListeners.has(event)) {
                     mockWindowListeners.set(event, new Set());
                 }
-                mockWindowListeners.get(event)!.add(listener);
+                mockWindowListeners.get(event)?.add(listener);
             },
             removeEventListener: (event: string, listener: EventListener) => {
                 mockWindowListeners.get(event)?.delete(listener);
@@ -188,8 +183,8 @@ describe('InputManagerPlugin', () => {
             expect(mockCallback).toHaveBeenCalled();
             const position = api.getMousePosition();
             expect(position).not.toBeNull();
-            expect(position!.x).toBe(150);
-            expect(position!.y).toBe(200);
+            expect(position?.x).toBe(150);
+            expect(position?.y).toBe(200);
         });
 
         test('should emit mousemove events', () => {
@@ -469,9 +464,9 @@ describe('InputManagerPlugin', () => {
             const dragState = api.getDragState();
 
             expect(dragState).not.toBeNull();
-            expect(dragState!.startPosition).toBeDefined();
-            expect(dragState!.currentPosition).toBeDefined();
-            expect(dragState!.deltaPosition).toBeDefined();
+            expect(dragState?.startPosition).toBeDefined();
+            expect(dragState?.currentPosition).toBeDefined();
+            expect(dragState?.deltaPosition).toBeDefined();
         });
 
         test('should return null drag state when not dragging', () => {

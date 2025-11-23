@@ -140,7 +140,7 @@ describe('ProfilingPlugin', () => {
                 'TestSystem',
                 { all: [Position] },
                 {
-                    act: (entity, position: Position) => {
+                    act: (_entity, position: Position) => {
                         position.x += 1;
                     },
                 },
@@ -162,7 +162,7 @@ describe('ProfilingPlugin', () => {
             const session = api.stopRecording();
 
             expect(session).not.toBeNull();
-            expect(session!.frames.length).toBeGreaterThan(0);
+            expect(session?.frames.length).toBeGreaterThan(0);
         });
 
         test('should not record frames when not recording', () => {
@@ -188,7 +188,7 @@ describe('ProfilingPlugin', () => {
             const session = api.stopRecording();
 
             expect(session).not.toBeNull();
-            expect(session!.frames[0].systems.length).toBeGreaterThan(0);
+            expect(session?.frames[0].systems.length).toBeGreaterThan(0);
         });
 
         test('should track frame duration', () => {
@@ -203,7 +203,7 @@ describe('ProfilingPlugin', () => {
             const session = api.stopRecording();
 
             expect(session).not.toBeNull();
-            expect(session!.frames[0].duration).toBeGreaterThanOrEqual(0);
+            expect(session?.frames[0].duration).toBeGreaterThanOrEqual(0);
         });
     });
 
@@ -223,7 +223,8 @@ describe('ProfilingPlugin', () => {
             engine.update(0);
 
             const session = api.stopRecording();
-            const trace = api.exportChromeTrace(session!);
+            if (!session) throw new Error('Session should not be null');
+            const trace = api.exportChromeTrace(session);
 
             expect(typeof trace).toBe('string');
             expect(() => JSON.parse(trace)).not.toThrow();
@@ -236,7 +237,8 @@ describe('ProfilingPlugin', () => {
             engine.update(0);
 
             const session = api.stopRecording();
-            const trace = api.exportChromeTrace(session!);
+            if (!session) throw new Error('Session should not be null');
+            const trace = api.exportChromeTrace(session);
 
             const parsed = JSON.parse(trace);
             expect(parsed).toHaveProperty('traceEvents');
@@ -250,7 +252,8 @@ describe('ProfilingPlugin', () => {
             engine.update(0);
 
             const session = api.stopRecording();
-            const trace = api.exportChromeTrace(session!);
+            if (!session) throw new Error('Session should not be null');
+            const trace = api.exportChromeTrace(session);
 
             const parsed = JSON.parse(trace);
             expect(parsed).toHaveProperty('displayTimeUnit');
@@ -480,7 +483,7 @@ describe('ProfilingPlugin', () => {
                 'MovementSystem',
                 { all: [Position, Velocity] },
                 {
-                    act: (entity, position: Position, velocity: Velocity) => {
+                    act: (_entity, position: Position, velocity: Velocity) => {
                         position.x += velocity.x;
                         position.y += velocity.y;
                     },
@@ -492,7 +495,7 @@ describe('ProfilingPlugin', () => {
                 'BoundsSystem',
                 { all: [Position] },
                 {
-                    act: (entity, position: Position) => {
+                    act: (_entity, position: Position) => {
                         position.x = Math.max(0, Math.min(800, position.x));
                         position.y = Math.max(0, Math.min(600, position.y));
                     },
@@ -525,10 +528,11 @@ describe('ProfilingPlugin', () => {
 
             // Verify session data
             expect(session).not.toBeNull();
-            expect(session!.frames.length).toBe(10);
+            if (!session) throw new Error('Session should not be null');
+            expect(session.frames.length).toBe(10);
 
             // Export trace
-            const trace = api.exportChromeTrace(session!);
+            const trace = api.exportChromeTrace(session);
             expect(() => JSON.parse(trace)).not.toThrow();
 
             // Check stats
@@ -553,7 +557,7 @@ describe('ProfilingPlugin', () => {
             const session = api.stopRecording();
 
             expect(session).not.toBeNull();
-            expect(session!.frames.length).toBeGreaterThan(0);
+            expect(session?.frames.length).toBeGreaterThan(0);
         });
 
         test('should handle multiple start/stop cycles', () => {

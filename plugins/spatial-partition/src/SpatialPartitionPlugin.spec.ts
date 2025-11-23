@@ -602,7 +602,7 @@ describe('SpatialPartitionPlugin', () => {
         });
 
         test('should clean up entity subscriptions', () => {
-            const api = (engine as EngineWithSpatial).spatial;
+            const _api = (engine as EngineWithSpatial).spatial;
 
             const entity = engine.createEntity('Entity');
             entity.addComponent(SpatialPosition, 100, 100);

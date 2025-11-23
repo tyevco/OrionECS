@@ -25,7 +25,7 @@ import {
 
 // Mock Vector2 and Bounds utilities
 const mockBounds = {
-    contains: jest.fn((point: unknown) => true),
+    contains: jest.fn((_point: unknown) => true),
 };
 
 jest.mock('@orion-ecs/math', () => ({
@@ -63,11 +63,11 @@ jest.mock('@orion-ecs/math', () => ({
 
 // Mock InputManagerPlugin
 const mockInputAPI = {
-    on: jest.fn((event: string, callback: Function) => {
+    on: jest.fn((event: string, callback: (data: unknown) => void) => {
         mockInputAPI._callbacks.set(event, callback);
         return () => mockInputAPI._callbacks.delete(event);
     }),
-    _callbacks: new Map<string, Function>(),
+    _callbacks: new Map<string, (data: unknown) => void>(),
     _trigger: (event: string, data: unknown) => {
         const callback = mockInputAPI._callbacks.get(event);
         if (callback) {
@@ -290,7 +290,7 @@ describe('InteractionSystemPlugin', () => {
 
             expect(api.getSelectedEntities()).toContain(entity);
             const selectable = entity.getComponent(Selectable);
-            expect(selectable!.selected).toBe(true);
+            expect(selectable?.selected).toBe(true);
         });
 
         test('should deselect entity', () => {
@@ -302,7 +302,7 @@ describe('InteractionSystemPlugin', () => {
 
             expect(api.getSelectedEntities()).not.toContain(entity);
             const selectable = entity.getComponent(Selectable);
-            expect(selectable!.selected).toBe(false);
+            expect(selectable?.selected).toBe(false);
         });
 
         test('should call onSelect callback', () => {
@@ -479,10 +479,10 @@ describe('InteractionSystemPlugin', () => {
     });
 
     describe('Drag Interaction', () => {
-        let api: InteractionAPI;
+        let _api: InteractionAPI;
 
         beforeEach(() => {
-            api = (engine as EngineWithInteraction).interaction;
+            _api = (engine as EngineWithInteraction).interaction;
         });
 
         test('should trigger onDragStart callback', () => {
@@ -576,10 +576,10 @@ describe('InteractionSystemPlugin', () => {
     });
 
     describe('Hover Interaction', () => {
-        let api: InteractionAPI;
+        let _api: InteractionAPI;
 
         beforeEach(() => {
-            api = (engine as EngineWithInteraction).interaction;
+            _api = (engine as EngineWithInteraction).interaction;
         });
 
         test('should trigger onHoverEnter callback', () => {

@@ -23,9 +23,6 @@ import {
 } from './Canvas2DRendererPlugin';
 
 // Mock canvas and context
-type MockCanvas = Pick<HTMLCanvasElement, 'width' | 'height' | 'getContext'>;
-type MockContext = MockCanvasRenderingContext2D;
-
 class MockCanvasRenderingContext2D {
     fillStyle: string = '#000000';
     strokeStyle: string = '#000000';

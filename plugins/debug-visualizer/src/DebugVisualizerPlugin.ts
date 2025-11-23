@@ -9,7 +9,7 @@
  * - Query performance analysis
  */
 
-import type { EnginePlugin, PluginContext, EntityDef, SystemProfile, QueryStats } from '../../../core/src/index';
+import type { EnginePlugin, PluginContext, EntityDef, SystemProfile, QueryStats } from '../../../packages/core/src/index';
 
 /**
  * Debug API that will be added to the engine
@@ -334,7 +334,7 @@ export class DebugVisualizerPlugin implements EnginePlugin {
 /**
  * Usage example:
  *
- * import { EngineBuilder } from 'orion-ecs';
+ * import { EngineBuilder } from '../../../packages/core/src/index';
  * import { DebugVisualizerPlugin } from './examples/DebugVisualizerPlugin';
  *
  * const engine = new EngineBuilder()

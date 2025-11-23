@@ -11,7 +11,7 @@
  */
 
 import type { Vector2 } from '@orion-ecs/math';
-import type { EnginePlugin, PluginContext } from 'orion-ecs';
+import type { EnginePlugin, PluginContext } from '../../../packages/core/src/index';
 
 // Import utilities
 let Vector2Class: typeof Vector2;
@@ -499,7 +499,7 @@ export class InputManagerPlugin implements EnginePlugin {
 /**
  * Usage example:
  *
- * import { EngineBuilder } from 'orion-ecs';
+ * import { EngineBuilder } from '../../../packages/core/src/index';
  * import { InputManagerPlugin } from './InputManagerPlugin';
  *
  * const engine = new EngineBuilder()

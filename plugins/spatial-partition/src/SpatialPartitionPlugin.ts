@@ -9,7 +9,7 @@
  * - Custom API extension for spatial operations
  */
 
-import type { EnginePlugin, PluginContext, EntityDef } from '../../../core/src/index';
+import type { EnginePlugin, PluginContext, EntityDef } from '../../../packages/core/src/index';
 
 // Spatial components
 export class SpatialPosition {
@@ -290,7 +290,7 @@ export class SpatialPartitionPlugin implements EnginePlugin {
 /**
  * Usage example:
  *
- * import { EngineBuilder } from 'orion-ecs';
+ * import { EngineBuilder } from '../../../packages/core/src/index';
  * import { SpatialPartitionPlugin, SpatialPosition } from './examples/SpatialPartitionPlugin';
  *
  * const engine = new EngineBuilder()

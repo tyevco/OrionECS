@@ -10,7 +10,7 @@
  * - System execution profiling
  */
 
-import type { EnginePlugin, PluginContext, SystemProfile } from '../../../core/src/index';
+import type { EnginePlugin, PluginContext, SystemProfile } from '../../../packages/core/src/index';
 
 /**
  * Frame profile data
@@ -449,7 +449,7 @@ export class ProfilingPlugin implements EnginePlugin {
 /**
  * Usage example:
  *
- * import { EngineBuilder } from 'orion-ecs';
+ * import { EngineBuilder } from '../../../packages/core/src/index';
  * import { ProfilingPlugin } from './examples/ProfilingPlugin';
  *
  * const engine = new EngineBuilder()

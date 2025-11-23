@@ -7,7 +7,7 @@
  * - Extends the engine with custom APIs
  */
 
-import type { EnginePlugin, PluginContext, QueryOptions } from '../../../packages/core/src/index';
+import type { EnginePlugin, PluginContext } from '../../../packages/core/src/index';
 
 // Physics components
 export class RigidBody {
@@ -108,11 +108,12 @@ export class PhysicsPlugin implements EnginePlugin {
         context.createSystem(
             'PhysicsMovementSystem',
             {
-                all: [Position, RigidBody]
+                all: [Position, RigidBody],
             },
             {
                 priority: 100,
-                act: (entity, position: Position, rigidBody: RigidBody) => {
+                act: (_entity, ...components) => {
+                    const [position, rigidBody] = components as [Position, RigidBody];
                     const timeScale = this.physicsAPI.getTimeScale();
                     const gravity = this.physicsAPI.getGravity();
                     const dt = 1 / 60; // Fixed timestep for physics
@@ -132,7 +133,7 @@ export class PhysicsPlugin implements EnginePlugin {
                     // Reset acceleration for next frame
                     rigidBody.acceleration.x = 0;
                     rigidBody.acceleration.y = 0;
-                }
+                },
             },
             true // Fixed update system
         );
@@ -141,17 +142,17 @@ export class PhysicsPlugin implements EnginePlugin {
         context.createSystem(
             'CollisionDetectionSystem',
             {
-                all: [Position, Collider]
+                all: [Position, Collider],
             },
             {
                 priority: 90,
                 before: () => {
                     // Could build spatial partitioning here
                 },
-                act: (entity, position: Position, collider: Collider) => {
+                act: () => {
                     // This is a simple example - real collision detection would be more complex
                     // You would typically check against other entities here
-                }
+                },
             },
             true // Fixed update system
         );

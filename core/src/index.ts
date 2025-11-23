@@ -21,9 +21,17 @@ export {
 } from './core';
 // Export all type definitions
 export type {
+    ChangeTrackingOptions,
+    ComponentAddedEvent,
+    ComponentAddedListener,
     ComponentArgs,
+    ComponentChangeEvent,
+    ComponentChangeListener,
     ComponentIdentifier,
+    ComponentLifecycle,
     ComponentPoolOptions,
+    ComponentRemovedEvent,
+    ComponentRemovedListener,
     ComponentValidator,
     EngineEventNames,
     EngineEvents,
@@ -50,6 +58,7 @@ export type {
 export { Engine, EngineBuilder } from './engine';
 // Export managers
 export {
+    ChangeTrackingManager,
     ComponentManager,
     MessageManager,
     PrefabManager,

@@ -713,3 +713,253 @@ export class MessageManager {
         return this.bus.getMessageHistory(messageType);
     }
 }
+
+/**
+ * Manages component change tracking and events
+ */
+export class ChangeTrackingManager {
+    private componentManager: ComponentManager;
+    private entityManager: any; // EntityManager
+    private eventEmitter: any; // EventEmitter
+    private batchMode: boolean = false;
+    private proxyTrackingEnabled: boolean = false;
+    private reactiveComponents: WeakMap<any, any> = new WeakMap();
+    private debounceTimers: Map<string, number> = new Map();
+    private debounceMs: number = 0;
+    // Track dirty components per entity (for archetype mode)
+    private dirtyComponentsMap: Map<number, Set<ComponentIdentifier>> = new Map();
+
+    constructor(
+        componentManager: ComponentManager,
+        entityManager: any,
+        eventEmitter: any,
+        options: any = {}
+    ) {
+        this.componentManager = componentManager;
+        this.entityManager = entityManager;
+        this.eventEmitter = eventEmitter;
+        this.proxyTrackingEnabled = options.enableProxyTracking || false;
+        this.batchMode = options.batchMode || false;
+        this.debounceMs = options.debounceMs || 0;
+    }
+
+    /**
+     * Enable or disable batch mode (suspends events)
+     */
+    setBatchMode(enabled: boolean): void {
+        this.batchMode = enabled;
+        // Also update all component arrays
+        for (const componentArray of this.componentManager.getAllComponentArrays().values()) {
+            componentArray.setBatchMode(enabled);
+        }
+    }
+
+    /**
+     * Check if batch mode is enabled
+     */
+    isBatchMode(): boolean {
+        return this.batchMode;
+    }
+
+    /**
+     * Enable proxy-based change tracking
+     */
+    enableProxyTracking(): void {
+        this.proxyTrackingEnabled = true;
+    }
+
+    /**
+     * Disable proxy-based change tracking
+     */
+    disableProxyTracking(): void {
+        this.proxyTrackingEnabled = false;
+    }
+
+    /**
+     * Check if proxy tracking is enabled
+     */
+    isProxyTrackingEnabled(): boolean {
+        return this.proxyTrackingEnabled;
+    }
+
+    /**
+     * Mark a component as dirty (changed)
+     */
+    markComponentDirty(entity: any, componentType: ComponentIdentifier): void {
+        const index = (entity as any)._componentIndices.get(componentType);
+        if (index !== undefined) {
+            const archetypeManager = this.componentManager.getArchetypeManager();
+
+            if (archetypeManager) {
+                // Archetype mode: use dirtyComponentsMap
+                const entityId = entity.numericId;
+                if (!this.dirtyComponentsMap.has(entityId)) {
+                    this.dirtyComponentsMap.set(entityId, new Set());
+                }
+                this.dirtyComponentsMap.get(entityId)?.add(componentType);
+            } else {
+                // Legacy mode: use component array
+                const componentArray = this.componentManager.getComponentArray(componentType);
+                componentArray.markDirty(index);
+            }
+
+            // Emit change event if not in batch mode
+            if (!this.batchMode) {
+                this.emitComponentChanged(entity, componentType);
+            }
+        }
+    }
+
+    /**
+     * Emit a component changed event
+     */
+    private emitComponentChanged(entity: any, componentType: ComponentIdentifier): void {
+        const component = entity.getComponent(componentType);
+
+        const event = {
+            entity,
+            componentType,
+            newValue: component,
+            timestamp: Date.now(),
+        };
+
+        // Debounce if configured
+        if (this.debounceMs > 0) {
+            const key = `${entity.numericId}-${componentType.name}`;
+            const existingTimer = this.debounceTimers.get(key);
+            if (existingTimer) {
+                clearTimeout(existingTimer);
+            }
+
+            const timer = setTimeout(() => {
+                this.eventEmitter.emit('onComponentChanged', event);
+                this.debounceTimers.delete(key);
+            }, this.debounceMs);
+
+            this.debounceTimers.set(key, timer as any);
+        } else {
+            this.eventEmitter.emit('onComponentChanged', event);
+        }
+    }
+
+    /**
+     * Create a reactive (Proxy-wrapped) component that auto-tracks changes
+     */
+    createReactiveComponent<T extends object>(
+        component: T,
+        entity: any,
+        componentType: ComponentIdentifier<T>
+    ): T {
+        if (!this.proxyTrackingEnabled) {
+            return component;
+        }
+
+        // Check if already proxied
+        if (this.reactiveComponents.has(component)) {
+            return this.reactiveComponents.get(component);
+        }
+
+        const proxy = new Proxy(component, {
+            set: (target: any, property: string | symbol, value: any): boolean => {
+                const oldValue = target[property];
+                target[property] = value;
+
+                // Mark as dirty and emit change event
+                if (oldValue !== value) {
+                    this.markComponentDirty(entity, componentType);
+
+                    // Call onChanged lifecycle hook if it exists
+                    if (typeof target.onChanged === 'function') {
+                        target.onChanged();
+                    }
+                }
+
+                return true;
+            },
+        });
+
+        this.reactiveComponents.set(component, proxy);
+        this.reactiveComponents.set(proxy, proxy); // Map proxy to itself
+        return proxy;
+    }
+
+    /**
+     * Get all dirty components for an entity
+     */
+    getDirtyComponents(entity: any): ComponentIdentifier[] {
+        const archetypeManager = this.componentManager.getArchetypeManager();
+
+        if (archetypeManager) {
+            // Archetype mode: use dirtyComponentsMap
+            const entityId = entity.numericId;
+            const dirtySet = this.dirtyComponentsMap.get(entityId);
+            return dirtySet ? Array.from(dirtySet) : [];
+        } else {
+            // Legacy mode: use component arrays
+            const dirtyComponents: ComponentIdentifier[] = [];
+
+            for (const [componentType, index] of (entity as any)._componentIndices) {
+                const componentArray = this.componentManager.getComponentArray(
+                    componentType as ComponentIdentifier
+                );
+                if (componentArray.isDirty(index as number)) {
+                    dirtyComponents.push(componentType as ComponentIdentifier);
+                }
+            }
+
+            return dirtyComponents;
+        }
+    }
+
+    /**
+     * Clear dirty flags for all components on an entity
+     */
+    clearDirtyComponents(entity: any): void {
+        const archetypeManager = this.componentManager.getArchetypeManager();
+
+        if (archetypeManager) {
+            // Archetype mode: clear dirtyComponentsMap
+            const entityId = entity.numericId;
+            this.dirtyComponentsMap.delete(entityId);
+        } else {
+            // Legacy mode: clear component arrays
+            for (const [componentType, index] of (entity as any)._componentIndices) {
+                const componentArray = this.componentManager.getComponentArray(
+                    componentType as ComponentIdentifier
+                );
+                componentArray.clearDirty(index as number);
+            }
+        }
+    }
+
+    /**
+     * Clear all dirty flags across all components
+     */
+    clearAllDirty(): void {
+        const archetypeManager = this.componentManager.getArchetypeManager();
+
+        if (archetypeManager) {
+            // Archetype mode: clear dirtyComponentsMap
+            this.dirtyComponentsMap.clear();
+        } else {
+            // Legacy mode: clear component arrays
+            for (const componentArray of this.componentManager.getAllComponentArrays().values()) {
+                componentArray.clearAllDirty();
+            }
+        }
+    }
+
+    /**
+     * Execute a function in batch mode (events suspended)
+     */
+    batch<T>(fn: () => T): T {
+        const wasBatchMode = this.batchMode;
+        this.setBatchMode(true);
+
+        try {
+            return fn();
+        } finally {
+            this.setBatchMode(wasBatchMode);
+        }
+    }
+}

@@ -33,7 +33,7 @@
   "license": "MIT",
   "peerDependencies": {
     "orion-ecs": "*",
-    "@orion-ecs/utils": "*",
+    "@orion-ecs/math": "*",
     "@orion-ecs/input-manager": "*",
     "@orion-ecs/canvas2d-renderer": "*"
   },

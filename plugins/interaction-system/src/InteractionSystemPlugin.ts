@@ -13,7 +13,7 @@
  */
 
 import type { EnginePlugin, Entity, PluginContext } from '../../../packages/core/src/index';
-import type { Bounds, Vector2 } from '../../../packages/math/src/index';
+import { Bounds, type Vector2 } from '../../../packages/math/src/index';
 
 /**
  * Makes an entity clickable
@@ -234,7 +234,7 @@ export class InteractionSystemPlugin implements EnginePlugin {
                         const meshBounds = sprite.mesh.getBounds();
                         if (meshBounds) {
                             // Update interaction bounds based on mesh bounds
-                            interactionBounds.bounds = new BoundsClass(
+                            interactionBounds.bounds = new Bounds(
                                 transform.x + meshBounds.left,
                                 transform.y + meshBounds.top,
                                 meshBounds.width,

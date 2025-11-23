@@ -143,6 +143,13 @@ publish/
 # Uncomment if necessary however generally it will be regenerated when needed
 #!**/packages/repositories.config
 
+# Allow our monorepo packages
+!/packages/core/
+!/packages/math/
+!/packages/graphics/
+!/packages/testing/
+!/packages/utils/
+
 # Windows Azure Build Output
 csx/
 *.build.csdef

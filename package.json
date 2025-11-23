@@ -18,7 +18,8 @@
   },
   "workspaces": [
     "packages/core",
-    "packages/utils",
+    "packages/math",
+    "packages/graphics",
     "packages/testing",
     "examples",
     "plugins/canvas2d-renderer",

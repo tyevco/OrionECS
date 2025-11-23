@@ -1,0 +1,41 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "out": "docs",
+  "name": "OrionECS Math API Documentation",
+  "readme": "none",
+  "includeVersion": true,
+  "sort": ["source-order", "required-first", "kind"],
+  "categorizeByGroup": true,
+  "searchInComments": true,
+  "searchInDocuments": true,
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true,
+    "includeFolders": true
+  },
+  "exclude": [
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.bench.ts"
+  ],
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": false,
+  "treatWarningsAsErrors": false,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "skipErrorChecking": false,
+  "cleanOutputDir": true,
+  "githubPages": true,
+  "hideGenerator": false,
+  "visibilityFilters": {
+    "protected": true,
+    "private": false,
+    "inherited": true,
+    "external": false
+  }
+}

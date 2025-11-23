@@ -1,6 +1,11 @@
 /**
- * Core ECS building blocks
- * These are the fundamental classes used to build the ECS
+ * Core ECS Building Blocks
+ *
+ * This module contains the fundamental classes that form the foundation of OrionECS,
+ * including entities, components, systems, queries, and performance utilities.
+ *
+ * @packageDocumentation
+ * @module Core
  */
 
 import type {
@@ -21,7 +26,28 @@ const MAX_MESSAGE_HISTORY = 1000;
 const MAX_EVENT_HISTORY = 500;
 
 /**
- * Object pool for reusing instances
+ * Generic object pool for efficient memory reuse and reduced garbage collection.
+ *
+ * The Pool class manages a collection of reusable objects, reducing the overhead
+ * of frequent object creation and destruction. Objects are acquired from the pool,
+ * used, and then released back for reuse.
+ *
+ * @typeParam T - The type of objects stored in the pool
+ *
+ * @example
+ * ```typescript
+ * const particlePool = new Pool(
+ *   () => new Particle(),           // Create function
+ *   (p) => { p.x = 0; p.y = 0; },  // Reset function
+ *   100                              // Max pool size
+ * );
+ *
+ * const particle = particlePool.acquire();
+ * // Use particle...
+ * particlePool.release(particle);
+ * ```
+ *
+ * @public
  */
 export class Pool<T> {
     private available: T[] = [];
@@ -73,7 +99,19 @@ export class Pool<T> {
 }
 
 /**
- * Sparse array for component storage with change tracking
+ * Sparse array optimized for component storage with built-in change tracking.
+ *
+ * ComponentArray uses a sparse array structure to efficiently store components
+ * indexed by entity ID, with automatic versioning to track modifications. Free
+ * indices are reused to minimize memory fragmentation.
+ *
+ * @typeParam T - The component type to store
+ *
+ * @remarks
+ * This class is used internally by the ComponentManager. Most users won't need
+ * to interact with it directly.
+ *
+ * @internal
  */
 export class ComponentArray<T> {
     private components: (T | null)[] = [];
@@ -134,7 +172,56 @@ export class ComponentArray<T> {
 }
 
 /**
- * Query for finding entities with specific components and tags
+ * Efficient query system for finding entities with specific components and tags.
+ *
+ * Queries use a combination of ALL/ANY/NOT filters to match entities, with support
+ * for tag-based filtering. Results are cached for performance and automatically
+ * invalidated when entities change. When archetypes are enabled, queries can
+ * iterate directly over archetype storage for significant performance gains.
+ *
+ * @typeParam C - Tuple type of component classes to query for
+ *
+ * @remarks
+ * Queries should be created using `engine.createQuery()` or as part of system
+ * definitions. The query automatically tracks entity changes and updates its
+ * result set accordingly.
+ *
+ * @example ALL Query (entities must have all components)
+ * ```typescript
+ * const query = engine.createQuery({ all: [Position, Velocity] });
+ *
+ * for (const entity of query) {
+ *   const pos = entity.getComponent(Position);
+ *   const vel = entity.getComponent(Velocity);
+ *   // Process entity...
+ * }
+ * ```
+ *
+ * @example ANY Query (entities must have at least one component)
+ * ```typescript
+ * const damageQuery = engine.createQuery({
+ *   any: [MeleeDamage, RangedDamage, MagicDamage]
+ * });
+ * ```
+ *
+ * @example NOT Query (entities must NOT have components)
+ * ```typescript
+ * const livingEnemies = engine.createQuery({
+ *   all: [Health, Enemy],
+ *   none: [Dead]  // Exclude dead entities
+ * });
+ * ```
+ *
+ * @example Tag-based Query
+ * ```typescript
+ * const controllablePlayers = engine.createQuery({
+ *   all: [InputComponent],
+ *   tags: ['player', 'controllable'],
+ *   withoutTags: ['frozen', 'stunned']
+ * });
+ * ```
+ *
+ * @public
  */
 export class Query<C extends readonly any[] = any[]> {
     private matchingEntities: Set<Entity> = new Set();
@@ -373,7 +460,50 @@ export class QueryBuilder<C extends readonly any[] = any[]> {
 }
 
 /**
- * Forward declaration for Entity
+ * Represents a game object in the Entity Component System.
+ *
+ * An Entity is a unique identifier that serves as a container for components.
+ * Entities support hierarchical relationships (parent/child), tagging, and
+ * lifecycle management. They are pooled for performance and automatically
+ * cleaned up when marked for deletion.
+ *
+ * @remarks
+ * Entities should be created using `engine.createEntity()` rather than
+ * direct instantiation. Each entity has both a unique symbol ID and an
+ * incrementing numeric ID for different use cases.
+ *
+ * @example Basic Entity Creation
+ * ```typescript
+ * const player = engine.createEntity('Player');
+ * player.addComponent(Position, 0, 0);
+ * player.addComponent(Health, 100, 100);
+ * player.addTag('controllable');
+ * ```
+ *
+ * @example Entity Hierarchy
+ * ```typescript
+ * const ship = engine.createEntity('Ship');
+ * const turret = engine.createEntity('Turret');
+ *
+ * ship.addChild(turret);  // Turret follows ship
+ * console.log(turret.parent === ship);  // true
+ *
+ * ship.queueFree();  // Also destroys turret
+ * ```
+ *
+ * @example Component Access
+ * ```typescript
+ * if (entity.hasComponent(Health)) {
+ *   const health = entity.getComponent(Health);
+ *   health.current -= damage;
+ *
+ *   if (health.current <= 0) {
+ *     entity.queueFree();
+ *   }
+ * }
+ * ```
+ *
+ * @public
  */
 export class Entity implements EntityDef {
     private readonly _id: symbol;
@@ -754,7 +884,66 @@ export class SystemGroup {
 }
 
 /**
- * System for processing entities with specific components
+ * Represents a logic processor that operates on entities matching a query.
+ *
+ * Systems encapsulate game logic and operate on entities that match specific
+ * component criteria. They support priority-based execution, lifecycle hooks,
+ * performance profiling, and can be enabled/disabled at runtime.
+ *
+ * @typeParam C - Tuple type of component classes this system operates on
+ *
+ * @remarks
+ * Systems should be created using `engine.createSystem()` rather than direct
+ * instantiation. Each system maintains performance metrics and can be configured
+ * with priority, tags, execution groups, and conditional running.
+ *
+ * @example Basic System
+ * ```typescript
+ * // Movement system that updates Position based on Velocity
+ * engine.createSystem('Movement', {
+ *   all: [Position, Velocity]
+ * }, {
+ *   act: (entity, position, velocity) => {
+ *     position.x += velocity.x;
+ *     position.y += velocity.y;
+ *   }
+ * });
+ * ```
+ *
+ * @example System with Lifecycle Hooks
+ * ```typescript
+ * engine.createSystem('Physics', {
+ *   all: [RigidBody, Position]
+ * }, {
+ *   priority: 100,  // Higher priority runs first
+ *   before: () => {
+ *     console.log('Physics system starting');
+ *   },
+ *   act: (entity, body, position) => {
+ *     // Apply physics
+ *     body.velocity.y += body.gravity;
+ *     position.x += body.velocity.x;
+ *     position.y += body.velocity.y;
+ *   },
+ *   after: () => {
+ *     console.log('Physics system complete');
+ *   }
+ * });
+ * ```
+ *
+ * @example Fixed Update System
+ * ```typescript
+ * // Physics runs at fixed 60 FPS regardless of frame rate
+ * engine.createSystem('PhysicsStep', {
+ *   all: [RigidBody]
+ * }, {
+ *   act: (entity, body) => {
+ *     body.applyForces();
+ *   }
+ * }, true);  // true = fixed update system
+ * ```
+ *
+ * @public
  */
 export class System<C extends readonly any[] = any[]> {
     private query: Query<C>;

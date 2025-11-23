@@ -1,4 +1,4 @@
-name: Deploy Examples to GitHub Pages
+name: Deploy Examples and API Docs to GitHub Pages
 
 on:
   push:
@@ -33,8 +33,78 @@ jobs:
       - name: Build core package
         run: npm run build --workspace=core
 
+      - name: Generate API documentation
+        run: npm run docs:generate --workspace=core
+
       - name: Build examples
         run: npm run build --workspace=examples
+
+      - name: Prepare deployment directory
+        run: |
+          mkdir -p ./deploy
+          cp -r ./examples/dist/* ./deploy/ 2>/dev/null || :
+          mkdir -p ./deploy/api
+          cp -r ./core/docs/* ./deploy/api/
+          echo "Creating index redirect..."
+          cat > ./deploy/index.html << 'EOF'
+          <!DOCTYPE html>
+          <html lang="en">
+          <head>
+            <meta charset="UTF-8">
+            <meta name="viewport" content="width=device-width, initial-scale=1.0">
+            <title>OrionECS - Documentation</title>
+            <style>
+              body {
+                font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+                max-width: 800px;
+                margin: 60px auto;
+                padding: 0 20px;
+                line-height: 1.6;
+              }
+              h1 { color: #2c3e50; }
+              .links { margin-top: 40px; }
+              .link-card {
+                display: block;
+                padding: 20px;
+                margin: 15px 0;
+                background: #f8f9fa;
+                border-left: 4px solid #007bff;
+                text-decoration: none;
+                color: inherit;
+                transition: all 0.3s;
+              }
+              .link-card:hover {
+                background: #e9ecef;
+                transform: translateX(5px);
+              }
+              .link-card h2 {
+                margin: 0 0 10px 0;
+                color: #007bff;
+              }
+              .link-card p {
+                margin: 0;
+                color: #6c757d;
+              }
+            </style>
+          </head>
+          <body>
+            <h1>OrionECS Documentation</h1>
+            <p>Welcome to the OrionECS documentation site. Choose a section below:</p>
+
+            <div class="links">
+              <a href="./api/" class="link-card">
+                <h2>📚 API Reference</h2>
+                <p>Complete API documentation for OrionECS classes, interfaces, and types</p>
+              </a>
+
+              <a href="https://github.com/tyevco/OrionECS" class="link-card">
+                <h2>📖 GitHub Repository</h2>
+                <p>Source code, examples, and guides</p>
+              </a>
+            </div>
+          </body>
+          </html>
+          EOF
 
       - name: Setup Pages
         uses: actions/configure-pages@v4
@@ -42,7 +112,7 @@ jobs:
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v3
         with:
-          path: ./examples/dist
+          path: ./deploy
 
   deploy:
     environment:

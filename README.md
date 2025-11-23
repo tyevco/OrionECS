@@ -1,5 +1,10 @@
 # Orion ECS
 
+[![npm version](https://img.shields.io/npm/v/orion-ecs.svg)](https://www.npmjs.com/package/orion-ecs)
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
+[![Documentation](https://img.shields.io/badge/docs-API%20Reference-brightgreen)](https://tyevco.github.io/OrionECS/api/)
+
 Orion ECS is a comprehensive and high-performance Entity Component System (ECS) framework written in TypeScript. It provides advanced features for building complex games, simulations, and interactive applications with component-based architecture.
 
 ## Features
@@ -38,6 +43,13 @@ You can install Orion ECS using npm:
 ```bash
 npm install orion-ecs
 ```
+
+## Documentation
+
+- **[📚 API Reference](https://tyevco.github.io/OrionECS/api/)** - Complete TypeDoc-generated API documentation
+- **[📖 Cookbook](./docs/COOKBOOK.md)** - Recipes and patterns for common use cases
+- **[🔄 Migration Guides](./docs/migrations/)** - Guides for migrating from other ECS frameworks
+- **[🚀 Performance Guide](./PERFORMANCE.md)** - Performance optimization tips and benchmarks
 
 ## Quick Start
 

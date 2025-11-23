@@ -296,7 +296,6 @@ export class EngineBuilder {
         // Create change tracking manager
         this.changeTrackingManager = new ChangeTrackingManager(
             this.componentManager,
-            this.entityManager,
             this.eventEmitter,
             this.changeTrackingOptions
         );

@@ -11,17 +11,28 @@
  * - Statistics and reporting
  */
 
-import { Engine } from 'orion-ecs';
 import { TestEngineBuilder } from '@orion-ecs/testing';
-import { ProfilingPlugin, ProfilerAPI } from './ProfilingPlugin';
+import type { Engine } from 'orion-ecs';
+import { ProfilerAPI, ProfilingPlugin } from './ProfilingPlugin';
+
+// Type extensions for testing
+interface EngineWithProfiler extends Engine {
+    profiler: ProfilerAPI;
+}
 
 // Test components
 class Position {
-    constructor(public x: number = 0, public y: number = 0) {}
+    constructor(
+        public x: number = 0,
+        public y: number = 0
+    ) {}
 }
 
 class Velocity {
-    constructor(public x: number = 0, public y: number = 0) {}
+    constructor(
+        public x: number = 0,
+        public y: number = 0
+    ) {}
 }
 
 describe('ProfilingPlugin', () => {
@@ -30,9 +41,7 @@ describe('ProfilingPlugin', () => {
 
     beforeEach(() => {
         plugin = new ProfilingPlugin();
-        engine = new TestEngineBuilder()
-            .use(plugin)
-            .build();
+        engine = new TestEngineBuilder().use(plugin).build();
 
         engine.registerComponent(Position);
         engine.registerComponent(Velocity);
@@ -55,8 +64,8 @@ describe('ProfilingPlugin', () => {
         });
 
         test('should extend engine with profiler API', () => {
-            expect((engine as any).profiler).toBeDefined();
-            expect((engine as any).profiler).toBeInstanceOf(ProfilerAPI);
+            expect((engine as EngineWithProfiler).profiler).toBeDefined();
+            expect((engine as EngineWithProfiler).profiler).toBeInstanceOf(ProfilerAPI);
         });
     });
 
@@ -64,7 +73,7 @@ describe('ProfilingPlugin', () => {
         let api: ProfilerAPI;
 
         beforeEach(() => {
-            api = (engine as any).profiler;
+            api = (engine as EngineWithProfiler).profiler;
         });
 
         test('should start recording', () => {
@@ -104,7 +113,9 @@ describe('ProfilingPlugin', () => {
 
             api.stopRecording(); // Not recording
 
-            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Not currently recording'));
+            expect(consoleSpy).toHaveBeenCalledWith(
+                expect.stringContaining('Not currently recording')
+            );
 
             consoleSpy.mockRestore();
         });
@@ -122,7 +133,7 @@ describe('ProfilingPlugin', () => {
         let api: ProfilerAPI;
 
         beforeEach(() => {
-            api = (engine as any).profiler;
+            api = (engine as EngineWithProfiler).profiler;
 
             // Create a test system
             engine.createSystem(
@@ -131,7 +142,7 @@ describe('ProfilingPlugin', () => {
                 {
                     act: (entity, position: Position) => {
                         position.x += 1;
-                    }
+                    },
                 },
                 false
             );
@@ -200,7 +211,7 @@ describe('ProfilingPlugin', () => {
         let api: ProfilerAPI;
 
         beforeEach(() => {
-            api = (engine as any).profiler;
+            api = (engine as EngineWithProfiler).profiler;
 
             engine.createSystem('TestSystem', {}, { act: () => {} }, false);
         });
@@ -261,7 +272,7 @@ describe('ProfilingPlugin', () => {
         let api: ProfilerAPI;
 
         beforeEach(() => {
-            api = (engine as any).profiler;
+            api = (engine as EngineWithProfiler).profiler;
         });
 
         test('should set performance budget', () => {
@@ -298,12 +309,19 @@ describe('ProfilingPlugin', () => {
 
             api.setBudget('TestSystem', 0.001); // Very small budget
 
-            engine.createSystem('TestSystem', {}, { act: () => {
-                // Do some work
-                for (let i = 0; i < 1000; i++) {
-                    Math.sqrt(i);
-                }
-            } }, false);
+            engine.createSystem(
+                'TestSystem',
+                {},
+                {
+                    act: () => {
+                        // Do some work
+                        for (let i = 0; i < 1000; i++) {
+                            Math.sqrt(i);
+                        }
+                    },
+                },
+                false
+            );
 
             api.startRecording();
             engine.start();
@@ -321,11 +339,18 @@ describe('ProfilingPlugin', () => {
 
             api.setBudget('TestSystem', 0.001);
 
-            engine.createSystem('TestSystem', {}, { act: () => {
-                for (let i = 0; i < 1000; i++) {
-                    Math.sqrt(i);
-                }
-            } }, false);
+            engine.createSystem(
+                'TestSystem',
+                {},
+                {
+                    act: () => {
+                        for (let i = 0; i < 1000; i++) {
+                            Math.sqrt(i);
+                        }
+                    },
+                },
+                false
+            );
 
             api.startRecording();
             engine.start();
@@ -342,7 +367,7 @@ describe('ProfilingPlugin', () => {
         let api: ProfilerAPI;
 
         beforeEach(() => {
-            api = (engine as any).profiler;
+            api = (engine as EngineWithProfiler).profiler;
 
             engine.createSystem('TestSystem', {}, { act: () => {} }, false);
         });
@@ -397,7 +422,7 @@ describe('ProfilingPlugin', () => {
         let api: ProfilerAPI;
 
         beforeEach(() => {
-            api = (engine as any).profiler;
+            api = (engine as EngineWithProfiler).profiler;
         });
 
         test('should detect memory leaks with sufficient data', () => {
@@ -436,7 +461,9 @@ describe('ProfilingPlugin', () => {
 
             api.detectMemoryLeaks();
 
-            expect(consoleSpy).toHaveBeenCalledWith(expect.stringContaining('Not enough memory snapshots'));
+            expect(consoleSpy).toHaveBeenCalledWith(
+                expect.stringContaining('Not enough memory snapshots')
+            );
 
             consoleSpy.mockRestore();
         });
@@ -446,22 +473,32 @@ describe('ProfilingPlugin', () => {
         let api: ProfilerAPI;
 
         beforeEach(() => {
-            api = (engine as any).profiler;
+            api = (engine as EngineWithProfiler).profiler;
 
             // Create test systems
-            engine.createSystem('MovementSystem', { all: [Position, Velocity] }, {
-                act: (entity, position: Position, velocity: Velocity) => {
-                    position.x += velocity.x;
-                    position.y += velocity.y;
-                }
-            }, false);
+            engine.createSystem(
+                'MovementSystem',
+                { all: [Position, Velocity] },
+                {
+                    act: (entity, position: Position, velocity: Velocity) => {
+                        position.x += velocity.x;
+                        position.y += velocity.y;
+                    },
+                },
+                false
+            );
 
-            engine.createSystem('BoundsSystem', { all: [Position] }, {
-                act: (entity, position: Position) => {
-                    position.x = Math.max(0, Math.min(800, position.x));
-                    position.y = Math.max(0, Math.min(600, position.y));
-                }
-            }, false);
+            engine.createSystem(
+                'BoundsSystem',
+                { all: [Position] },
+                {
+                    act: (entity, position: Position) => {
+                        position.x = Math.max(0, Math.min(800, position.x));
+                        position.y = Math.max(0, Math.min(600, position.y));
+                    },
+                },
+                false
+            );
         });
 
         test('should profile complete game loop', () => {
@@ -481,7 +518,7 @@ describe('ProfilingPlugin', () => {
 
             engine.start();
             for (let i = 0; i < 10; i++) {
-                engine.update(1/60);
+                engine.update(1 / 60);
             }
 
             const session = api.stopRecording();
@@ -504,7 +541,7 @@ describe('ProfilingPlugin', () => {
         let api: ProfilerAPI;
 
         beforeEach(() => {
-            api = (engine as any).profiler;
+            api = (engine as EngineWithProfiler).profiler;
         });
 
         test('should handle recording with no systems', () => {
@@ -551,7 +588,7 @@ describe('ProfilingPlugin', () => {
         let api: ProfilerAPI;
 
         beforeEach(() => {
-            api = (engine as any).profiler;
+            api = (engine as EngineWithProfiler).profiler;
         });
 
         test('should uninstall cleanly', () => {

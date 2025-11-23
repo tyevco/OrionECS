@@ -9,9 +9,14 @@
  * - Edge cases and error scenarios
  */
 
-import { Engine } from 'orion-ecs';
 import { TestEngineBuilder } from '@orion-ecs/testing';
-import { PhysicsPlugin, RigidBody, Collider, Position, PhysicsAPI } from './PhysicsPlugin';
+import type { Engine } from 'orion-ecs';
+import { Collider, PhysicsAPI, PhysicsPlugin, Position, RigidBody } from './PhysicsPlugin';
+
+// Type extensions for testing
+interface EngineWithPhysics extends Engine {
+    physics: PhysicsAPI;
+}
 
 describe('PhysicsPlugin', () => {
     let engine: Engine;
@@ -19,9 +24,7 @@ describe('PhysicsPlugin', () => {
 
     beforeEach(() => {
         plugin = new PhysicsPlugin();
-        engine = new TestEngineBuilder()
-            .use(plugin)
-            .build();
+        engine = new TestEngineBuilder().use(plugin).build();
     });
 
     afterEach(() => {
@@ -42,8 +45,8 @@ describe('PhysicsPlugin', () => {
         });
 
         test('should extend engine with physics API', () => {
-            expect((engine as any).physics).toBeDefined();
-            expect((engine as any).physics).toBeInstanceOf(PhysicsAPI);
+            expect((engine as EngineWithPhysics).physics).toBeDefined();
+            expect((engine as EngineWithPhysics).physics).toBeInstanceOf(PhysicsAPI);
         });
 
         test('should register all components', () => {
@@ -57,7 +60,7 @@ describe('PhysicsPlugin', () => {
 
         test('should create physics systems', () => {
             const systems = engine.getSystemProfiles();
-            const systemNames = systems.map(s => s.name);
+            const systemNames = systems.map((s) => s.name);
 
             expect(systemNames).toContain('PhysicsMovementSystem');
             expect(systemNames).toContain('CollisionDetectionSystem');
@@ -184,7 +187,7 @@ describe('PhysicsPlugin', () => {
         let physicsAPI: PhysicsAPI;
 
         beforeEach(() => {
-            physicsAPI = (engine as any).physics;
+            physicsAPI = (engine as EngineWithPhysics).physics;
         });
 
         test('should have default gravity', () => {
@@ -223,7 +226,7 @@ describe('PhysicsPlugin', () => {
         let physicsAPI: PhysicsAPI;
 
         beforeEach(() => {
-            physicsAPI = (engine as any).physics;
+            physicsAPI = (engine as EngineWithPhysics).physics;
         });
 
         test('should have default time scale', () => {
@@ -250,7 +253,7 @@ describe('PhysicsPlugin', () => {
         let physicsAPI: PhysicsAPI;
 
         beforeEach(() => {
-            physicsAPI = (engine as any).physics;
+            physicsAPI = (engine as EngineWithPhysics).physics;
         });
 
         test('should apply force to rigid body', () => {
@@ -285,7 +288,7 @@ describe('PhysicsPlugin', () => {
         let physicsAPI: PhysicsAPI;
 
         beforeEach(() => {
-            physicsAPI = (engine as any).physics;
+            physicsAPI = (engine as EngineWithPhysics).physics;
         });
 
         test('should apply impulse to rigid body', () => {
@@ -325,7 +328,7 @@ describe('PhysicsPlugin', () => {
             engine.start();
 
             // Run one fixed update
-            engine.update(1/60);
+            engine.update(1 / 60);
 
             const pos = entity.getComponent(Position);
 
@@ -334,7 +337,7 @@ describe('PhysicsPlugin', () => {
         });
 
         test('should respect time scale', () => {
-            const physicsAPI = (engine as any).physics;
+            const physicsAPI = (engine as EngineWithPhysics).physics;
 
             // Create two identical entities
             const entity1 = engine.createEntity('Ball1');
@@ -345,23 +348,21 @@ describe('PhysicsPlugin', () => {
             physicsAPI.setTimeScale(0.5);
 
             engine.start();
-            engine.update(1/60);
+            engine.update(1 / 60);
 
             const pos1 = entity1.getComponent(Position);
 
             // Reset and test with normal time scale
             engine.stop();
 
-            const engine2 = new TestEngineBuilder()
-            .use(new PhysicsPlugin())
-                .build();
+            const engine2 = new TestEngineBuilder().use(new PhysicsPlugin()).build();
 
             const entity2 = engine2.createEntity('Ball2');
             entity2.addComponent(Position, 0, 0);
             entity2.addComponent(RigidBody, 1);
 
             engine2.start();
-            engine2.update(1/60);
+            engine2.update(1 / 60);
 
             const pos2 = entity2.getComponent(Position);
 
@@ -377,10 +378,10 @@ describe('PhysicsPlugin', () => {
             const rb = entity.addComponent(RigidBody, 1);
 
             // Apply initial force
-            (engine as any).physics.applyForce(rb, 60, 0);
+            (engine as EngineWithPhysics).physics.applyForce(rb, 60, 0);
 
             engine.start();
-            engine.update(1/60);
+            engine.update(1 / 60);
 
             // Velocity should have been updated
             expect(rb.velocity.x).toBeGreaterThan(0);
@@ -392,12 +393,12 @@ describe('PhysicsPlugin', () => {
             const rb = entity.addComponent(RigidBody, 1);
 
             // Apply force
-            (engine as any).physics.applyForce(rb, 60, 0);
+            (engine as EngineWithPhysics).physics.applyForce(rb, 60, 0);
 
             expect(rb.acceleration.x).toBe(60);
 
             engine.start();
-            engine.update(1/60);
+            engine.update(1 / 60);
 
             // Acceleration should be reset (only gravity remains)
             expect(rb.acceleration.x).toBe(0);
@@ -413,7 +414,7 @@ describe('PhysicsPlugin', () => {
             // Publish a collision event
             engine.messageBus.publish('collision', {
                 entityA: 'entity1',
-                entityB: 'entity2'
+                entityB: 'entity2',
             });
 
             // Process messages
@@ -458,11 +459,11 @@ describe('PhysicsPlugin', () => {
             }
 
             engine.start();
-            engine.update(1/60);
+            engine.update(1 / 60);
 
             // All entities should have moved
             const entities = engine.getAllEntities();
-            entities.forEach(entity => {
+            entities.forEach((entity) => {
                 const pos = entity.getComponent(Position);
                 expect(pos!.y).toBeGreaterThan(0);
             });
@@ -478,12 +479,12 @@ describe('PhysicsPlugin', () => {
             heavy.addComponent(RigidBody, 2);
 
             // Apply same force
-            const physicsAPI = (engine as any).physics;
+            const physicsAPI = (engine as EngineWithPhysics).physics;
             physicsAPI.applyImpulse(light.getComponent(RigidBody), 10, 0);
             physicsAPI.applyImpulse(heavy.getComponent(RigidBody), 10, 0);
 
             engine.start();
-            engine.update(1/60);
+            engine.update(1 / 60);
 
             // Light object should move faster
             const lightVel = light.getComponent(RigidBody)!.velocity.x;
@@ -501,7 +502,7 @@ describe('PhysicsPlugin', () => {
             const initialY = initialPos!.y;
 
             engine.start();
-            engine.update(1/60);
+            engine.update(1 / 60);
 
             const finalPos = staticObj.getComponent(Position);
 
@@ -518,7 +519,7 @@ describe('PhysicsPlugin', () => {
 
             expect(() => {
                 engine.start();
-                engine.update(1/60);
+                engine.update(1 / 60);
             }).not.toThrow();
         });
 
@@ -527,7 +528,7 @@ describe('PhysicsPlugin', () => {
             entity.addComponent(Position, 0, 0);
             const rb = entity.addComponent(RigidBody, 1);
 
-            const physicsAPI = (engine as any).physics;
+            const physicsAPI = (engine as EngineWithPhysics).physics;
 
             expect(() => {
                 physicsAPI.applyForce(rb, 1000000, 1000000);
@@ -541,12 +542,12 @@ describe('PhysicsPlugin', () => {
 
             expect(() => {
                 engine.start();
-                engine.update(1/60);
+                engine.update(1 / 60);
             }).not.toThrow();
         });
 
         test('should handle paused time scale', () => {
-            const physicsAPI = (engine as any).physics;
+            const physicsAPI = (engine as EngineWithPhysics).physics;
             physicsAPI.setTimeScale(0);
 
             const entity = engine.createEntity('Ball');
@@ -557,7 +558,7 @@ describe('PhysicsPlugin', () => {
             const initialY = initialPos!.y;
 
             engine.start();
-            engine.update(1/60);
+            engine.update(1 / 60);
 
             const finalPos = entity.getComponent(Position);
 
@@ -578,7 +579,7 @@ describe('PhysicsPlugin', () => {
             engine.start();
 
             const startTime = performance.now();
-            engine.update(1/60);
+            engine.update(1 / 60);
             const endTime = performance.now();
 
             const executionTime = endTime - startTime;

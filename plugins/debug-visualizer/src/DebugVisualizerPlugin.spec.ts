@@ -10,21 +10,35 @@
  * - Debug information reporting
  */
 
-import { Engine } from 'orion-ecs';
 import { TestEngineBuilder } from '@orion-ecs/testing';
-import { DebugVisualizerPlugin, DebugAPI } from './DebugVisualizerPlugin';
+import type { Engine } from 'orion-ecs';
+import { DebugAPI, DebugVisualizerPlugin } from './DebugVisualizerPlugin';
+
+// Type extensions for testing
+interface EngineWithDebug extends Engine {
+    debug: DebugAPI;
+}
 
 // Test components
 class Position {
-    constructor(public x: number = 0, public y: number = 0) {}
+    constructor(
+        public x: number = 0,
+        public y: number = 0
+    ) {}
 }
 
 class Velocity {
-    constructor(public x: number = 0, public y: number = 0) {}
+    constructor(
+        public x: number = 0,
+        public y: number = 0
+    ) {}
 }
 
 class Health {
-    constructor(public current: number = 100, public max: number = 100) {}
+    constructor(
+        public current: number = 100,
+        public max: number = 100
+    ) {}
 }
 
 describe('DebugVisualizerPlugin', () => {
@@ -33,9 +47,7 @@ describe('DebugVisualizerPlugin', () => {
 
     beforeEach(() => {
         plugin = new DebugVisualizerPlugin();
-        engine = new TestEngineBuilder()
-            .use(plugin)
-            .build();
+        engine = new TestEngineBuilder().use(plugin).build();
 
         // Register components
         engine.registerComponent(Position);
@@ -60,8 +72,8 @@ describe('DebugVisualizerPlugin', () => {
         });
 
         test('should extend engine with debug API', () => {
-            expect((engine as any).debug).toBeDefined();
-            expect((engine as any).debug).toBeInstanceOf(DebugAPI);
+            expect((engine as EngineWithDebug).debug).toBeDefined();
+            expect((engine as EngineWithDebug).debug).toBeInstanceOf(DebugAPI);
         });
     });
 
@@ -69,7 +81,7 @@ describe('DebugVisualizerPlugin', () => {
         let api: DebugAPI;
 
         beforeEach(() => {
-            api = (engine as any).debug;
+            api = (engine as EngineWithDebug).debug;
         });
 
         test('should print hierarchy for empty scene', () => {
@@ -144,7 +156,7 @@ describe('DebugVisualizerPlugin', () => {
         let api: DebugAPI;
 
         beforeEach(() => {
-            api = (engine as any).debug;
+            api = (engine as EngineWithDebug).debug;
         });
 
         test('should print stats for scene with no components', () => {
@@ -185,7 +197,7 @@ describe('DebugVisualizerPlugin', () => {
         let api: DebugAPI;
 
         beforeEach(() => {
-            api = (engine as any).debug;
+            api = (engine as EngineWithDebug).debug;
         });
 
         test('should generate system timeline', () => {
@@ -196,7 +208,7 @@ describe('DebugVisualizerPlugin', () => {
                 {
                     act: (entity, position: Position) => {
                         position.x += 1;
-                    }
+                    },
                 },
                 false
             );
@@ -216,7 +228,7 @@ describe('DebugVisualizerPlugin', () => {
                 {
                     act: (entity, position: Position, velocity: Velocity) => {
                         position.x += velocity.x;
-                    }
+                    },
                 },
                 false
             );
@@ -238,7 +250,7 @@ describe('DebugVisualizerPlugin', () => {
                 'TestSystem',
                 {},
                 {
-                    act: () => {}
+                    act: () => {},
                 },
                 false
             );
@@ -260,7 +272,7 @@ describe('DebugVisualizerPlugin', () => {
         let api: DebugAPI;
 
         beforeEach(() => {
-            api = (engine as any).debug;
+            api = (engine as EngineWithDebug).debug;
         });
 
         test('should analyze query', () => {
@@ -320,7 +332,7 @@ describe('DebugVisualizerPlugin', () => {
         let api: DebugAPI;
 
         beforeEach(() => {
-            api = (engine as any).debug;
+            api = (engine as EngineWithDebug).debug;
         });
 
         test('should get debug info', () => {
@@ -374,7 +386,7 @@ describe('DebugVisualizerPlugin', () => {
         let api: DebugAPI;
 
         beforeEach(() => {
-            api = (engine as any).debug;
+            api = (engine as EngineWithDebug).debug;
         });
 
         test('should work with complex scene', () => {
@@ -395,7 +407,12 @@ describe('DebugVisualizerPlugin', () => {
             enemy.addComponent(Health, 50, 50);
 
             // Create systems
-            engine.createSystem('MovementSystem', { all: [Position, Velocity] }, { act: () => {} }, false);
+            engine.createSystem(
+                'MovementSystem',
+                { all: [Position, Velocity] },
+                { act: () => {} },
+                false
+            );
 
             // Run engine
             engine.start();
@@ -414,7 +431,7 @@ describe('DebugVisualizerPlugin', () => {
         let api: DebugAPI;
 
         beforeEach(() => {
-            api = (engine as any).debug;
+            api = (engine as EngineWithDebug).debug;
         });
 
         test('should handle entities with no name', () => {

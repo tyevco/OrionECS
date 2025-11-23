@@ -79,7 +79,93 @@ setInterval(gameLoop, 16); // ~60fps
 
 ---
 
-### 2. Platformer (`platformer.ts`)
+### 2. Space Shooter (`space-shooter.ts`)
+
+A complete implementation of a classic vertical scrolling space shooter game.
+
+**Demonstrates:**
+- **Wave Management**: Progressive difficulty with wave-based enemy spawning
+- **Multiple Enemy Types**: Basic, fast, tank, and boss enemies with unique behaviors
+- **Power-Up System**: Collectible power-ups for health, weapons, shields, and speed
+- **Boss Battles**: Epic boss encounters every 5 waves
+- **Health and Lives**: Comprehensive player damage and respawn system
+- **Invulnerability Frames**: Brief invulnerability after taking damage
+- **Multi-Bullet System**: Power level affects number of simultaneous bullets
+- **Enemy AI**: Enemies target and shoot at the player
+- **Background Scrolling**: Parallax scrolling background layers
+- **Advanced Collision**: Rectangle-based collision detection
+- **Event System**: Rich messaging for game events (wave start, boss spawn, power-ups)
+
+**Key Features:**
+- Player ship with WASD/Arrow key movement
+- Wave-based enemy spawning with increasing difficulty
+- Boss battles every 5 waves with health bars
+- Power-up drops from destroyed enemies
+- Multiple enemy types with different behaviors:
+  - **Basic**: Standard enemy with moderate health and speed
+  - **Fast**: Quick-moving enemies with lower health
+  - **Tank**: Slow but heavily armored enemies
+  - **Boss**: Large enemies with unique movement patterns
+- Health system with lives and respawn
+- Score tracking with point values per enemy type
+- Invulnerability frames after damage
+
+**Code Structure:**
+```typescript
+// Components define data
+class Position { x, y }
+class Velocity { dx, dy }
+class Health { current, max }
+class Enemy { type, scoreValue, shootCooldown }
+class PowerUp { type, lifetime }
+
+// Systems define behavior
+MovementSystem: Updates positions with boundary detection
+EnemyAISystem: Controls enemy shooting and behavior
+CollisionSystem: Detects and handles all collision types
+WaveManagementSystem: Manages wave progression
+EnemySpawnerSystem: Spawns enemies based on current wave
+
+// Prefabs for entity templates
+engine.registerPrefab('Player', { components: [...], tags: ['player'] })
+engine.registerPrefab('EnemyBasic', { components: [...], tags: ['enemy'] })
+engine.registerPrefab('Boss', { components: [...], tags: ['enemy', 'boss'] })
+engine.registerPrefab('PowerUpWeapon', { components: [...], tags: ['powerup'] })
+```
+
+**Running the Example:**
+```typescript
+import { initGame, gameLoop } from './examples/games/space-shooter';
+
+// Initialize
+initGame();
+
+// Browser game loop
+function browserLoop() {
+  gameLoop();
+  requestAnimationFrame(browserLoop);
+}
+browserLoop();
+
+// Node.js game loop (for testing)
+setInterval(gameLoop, 16); // ~60fps
+```
+
+**Extending the Example:**
+- Add more enemy types with unique attack patterns
+- Implement more power-up types (bombs, lasers, etc.)
+- Add visual effects for explosions and impacts
+- Implement combo system for consecutive hits
+- Add achievements and unlockables
+- Create multiple levels with different backgrounds
+- Add sound effects and background music
+- Implement local co-op multiplayer
+- Add particle systems for visual feedback
+- Create different player ships with unique stats
+
+---
+
+### 3. Platformer (`platformer.ts`)
 
 **Coming Soon**
 
@@ -95,7 +181,7 @@ A 2D platformer game demonstrating physics, collision detection, and level loadi
 
 ---
 
-### 3. RTS Demo (`rts-demo.ts`)
+### 4. RTS Demo (`rts-demo.ts`)
 
 **Coming Soon**
 
@@ -110,7 +196,7 @@ A real-time strategy game demo showing performance with large entity counts.
 
 ---
 
-### 4. Multiplayer Demo (`multiplayer-demo.ts`)
+### 5. Multiplayer Demo (`multiplayer-demo.ts`)
 
 **Coming Soon**
 

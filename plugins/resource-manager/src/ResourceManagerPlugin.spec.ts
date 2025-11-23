@@ -11,7 +11,8 @@
  * - Custom resource types
  */
 
-import { EngineBuilder, Engine } from '../../../core/src/index';
+import { Engine } from 'orion-ecs';
+import { TestEngineBuilder } from '@orion-ecs/testing';
 import {
     ResourceManagerPlugin,
     ResourceManagerAPI,
@@ -48,8 +49,7 @@ describe('ResourceManagerPlugin', () => {
 
     beforeEach(() => {
         plugin = new ResourceManagerPlugin();
-        engine = new EngineBuilder()
-            .withDebugMode(true)
+        engine = new TestEngineBuilder()
             .use(plugin)
             .build();
     });

@@ -11,7 +11,8 @@
  * - Integration with InputManager
  */
 
-import { EngineBuilder, Engine } from '../../../core/src/index';
+import { Engine } from 'orion-ecs';
+import { TestEngineBuilder } from '@orion-ecs/testing';
 import {
     InteractionSystemPlugin,
     InteractionAPI,
@@ -27,7 +28,7 @@ const mockBounds = {
     contains: jest.fn((point: any) => true)
 };
 
-jest.mock('../../../utils/src/index', () => ({
+jest.mock('@orion-ecs/math', () => ({
     Vector2: class Vector2 {
         constructor(public x: number = 0, public y: number = 0) {}
         clone() {
@@ -85,8 +86,7 @@ describe('InteractionSystemPlugin', () => {
         plugin = new InteractionSystemPlugin();
 
         // Create engine without the plugin first
-        engine = new EngineBuilder()
-            .withDebugMode(true)
+        engine = new TestEngineBuilder()
             .build();
 
         // Manually add mock input API
@@ -403,7 +403,7 @@ describe('InteractionSystemPlugin', () => {
             const clickable = entity.addComponent(Clickable);
             clickable.onClick = mockCallback;
 
-            const Bounds = require('../../../utils/src/index').Bounds;
+            const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             mockInputAPI._trigger('click', {
@@ -420,7 +420,7 @@ describe('InteractionSystemPlugin', () => {
             const clickable = entity.addComponent(Clickable, false); // disabled
             clickable.onClick = mockCallback;
 
-            const Bounds = require('../../../utils/src/index').Bounds;
+            const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             mockInputAPI._trigger('click', {
@@ -435,7 +435,7 @@ describe('InteractionSystemPlugin', () => {
             entity.addComponent(Clickable);
             entity.addComponent(Selectable);
 
-            const Bounds = require('../../../utils/src/index').Bounds;
+            const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             // First click - select
@@ -457,7 +457,7 @@ describe('InteractionSystemPlugin', () => {
             const mockCallback1 = jest.fn();
             const mockCallback2 = jest.fn();
 
-            const Bounds = require('../../../utils/src/index').Bounds;
+            const Bounds = require('@orion-ecs/math').Bounds;
 
             // Lower layer entity
             const entity1 = engine.createEntity('Button1');
@@ -495,10 +495,10 @@ describe('InteractionSystemPlugin', () => {
             const draggable = entity.addComponent(Draggable);
             draggable.onDragStart = mockCallback;
 
-            const Bounds = require('../../../utils/src/index').Bounds;
+            const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
-            const Vector2 = require('../../../utils/src/index').Vector2;
+            const Vector2 = require('@orion-ecs/math').Vector2;
             mockInputAPI._trigger('dragstart', {
                 startPosition: new Vector2(50, 50)
             });
@@ -515,10 +515,10 @@ describe('InteractionSystemPlugin', () => {
             draggable.onDrag = mockCallback;
             draggable.isDragging = true; // Simulate drag started
 
-            const Bounds = require('../../../utils/src/index').Bounds;
+            const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
-            const Vector2 = require('../../../utils/src/index').Vector2;
+            const Vector2 = require('@orion-ecs/math').Vector2;
 
             // Start drag first
             mockInputAPI._trigger('dragstart', {
@@ -540,10 +540,10 @@ describe('InteractionSystemPlugin', () => {
             const draggable = entity.addComponent(Draggable);
             draggable.onDragEnd = mockCallback;
 
-            const Bounds = require('../../../utils/src/index').Bounds;
+            const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
-            const Vector2 = require('../../../utils/src/index').Vector2;
+            const Vector2 = require('@orion-ecs/math').Vector2;
 
             // Start drag
             mockInputAPI._trigger('dragstart', {
@@ -566,10 +566,10 @@ describe('InteractionSystemPlugin', () => {
             const draggable = entity.addComponent(Draggable, false); // disabled
             draggable.onDragStart = mockCallback;
 
-            const Bounds = require('../../../utils/src/index').Bounds;
+            const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
-            const Vector2 = require('../../../utils/src/index').Vector2;
+            const Vector2 = require('@orion-ecs/math').Vector2;
             mockInputAPI._trigger('dragstart', {
                 startPosition: new Vector2(50, 50)
             });
@@ -592,10 +592,10 @@ describe('InteractionSystemPlugin', () => {
             const hoverable = entity.addComponent(Hoverable);
             hoverable.onHoverEnter = mockCallback;
 
-            const Bounds = require('../../../utils/src/index').Bounds;
+            const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
-            const Vector2 = require('../../../utils/src/index').Vector2;
+            const Vector2 = require('@orion-ecs/math').Vector2;
             mockInputAPI._trigger('mousemove', {
                 position: new Vector2(50, 50)
             });
@@ -614,11 +614,11 @@ describe('InteractionSystemPlugin', () => {
             hoverable.onHoverExit = mockExit;
             hoverable.hovered = true; // Start as hovered
 
-            const Bounds = require('../../../utils/src/index').Bounds;
+            const Bounds = require('@orion-ecs/math').Bounds;
             const bounds = new Bounds(0, 0, 100, 100);
             entity.addComponent(InteractionBounds, bounds);
 
-            const Vector2 = require('../../../utils/src/index').Vector2;
+            const Vector2 = require('@orion-ecs/math').Vector2;
 
             // Move outside bounds
             bounds.contains = jest.fn(() => false);
@@ -650,7 +650,7 @@ describe('InteractionSystemPlugin', () => {
             const entity = engine.createEntity('Button');
             entity.addComponent(Clickable);
 
-            const Vector2 = require('../../../utils/src/index').Vector2;
+            const Vector2 = require('@orion-ecs/math').Vector2;
 
             expect(() => {
                 mockInputAPI._trigger('click', {
@@ -660,8 +660,8 @@ describe('InteractionSystemPlugin', () => {
         });
 
         test('should handle multiple entities in same position', () => {
-            const Bounds = require('../../../utils/src/index').Bounds;
-            const Vector2 = require('../../../utils/src/index').Vector2;
+            const Bounds = require('@orion-ecs/math').Bounds;
+            const Vector2 = require('@orion-ecs/math').Vector2;
 
             const mockCallback1 = jest.fn();
             const mockCallback2 = jest.fn();

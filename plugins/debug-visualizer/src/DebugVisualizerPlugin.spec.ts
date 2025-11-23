@@ -10,7 +10,8 @@
  * - Debug information reporting
  */
 
-import { EngineBuilder, Engine } from '../../../core/src/index';
+import { Engine } from 'orion-ecs';
+import { TestEngineBuilder } from '@orion-ecs/testing';
 import { DebugVisualizerPlugin, DebugAPI } from './DebugVisualizerPlugin';
 
 // Test components
@@ -32,8 +33,7 @@ describe('DebugVisualizerPlugin', () => {
 
     beforeEach(() => {
         plugin = new DebugVisualizerPlugin();
-        engine = new EngineBuilder()
-            .withDebugMode(true)
+        engine = new TestEngineBuilder()
             .use(plugin)
             .build();
 

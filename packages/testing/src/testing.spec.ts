@@ -311,7 +311,7 @@ describe('Testing Utilities', () => {
                     all: [Position, Velocity],
                 },
                 {
-                    act: (_entity, ...components) => {
+                    act: (_entity: any, ...components: any[]) => {
                         const position = components[0] as Position;
                         const velocity = components[1] as Velocity;
                         position.x += velocity.vx;
@@ -596,7 +596,7 @@ describe('Testing Utilities', () => {
                     all: [Position, Velocity],
                 },
                 {
-                    act: (_entity, ...components) => {
+                    act: (_entity: any, ...components: any[]) => {
                         const position = components[0] as Position;
                         const velocity = components[1] as Velocity;
                         position.x += velocity.vx;

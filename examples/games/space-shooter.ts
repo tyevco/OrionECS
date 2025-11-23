@@ -421,8 +421,6 @@ engine.createSystem(
             position: Position,
             velocity: Velocity
         ) => {
-            const dt = 1 / 60; // Fixed timestep
-
             // Movement
             velocity.dx = 0;
             velocity.dy = 0;
@@ -1033,7 +1031,7 @@ function spawnEnemy(wave: number): void {
  * Spawn a boss enemy
  */
 function spawnBoss(): void {
-    const boss = engine.createFromPrefab('Boss', `Boss_${Date.now()}`);
+    engine.createFromPrefab('Boss', `Boss_${Date.now()}`);
     engine.messageBus.publish('boss-spawn', {}, 'EnemySpawnerSystem');
 }
 
@@ -1062,18 +1060,12 @@ engine.createSystem(
         },
         after: () => {
             // Draw UI (simulated)
-            const playerEntities = engine.getEntitiesByTag('player');
-            if (playerEntities.length > 0) {
-                const player = playerEntities[0].getComponent(Player);
-                const health = playerEntities[0].getComponent(Health);
-
-                // Would draw:
-                // - Score: player.score
-                // - Lives: player.lives
-                // - Health bar: health.current / health.max
-                // - Power level: player.powerLevel
-                // - Wave number: waveManager?.currentWave
-            }
+            // In real implementation:
+            // - Score: player.score
+            // - Lives: player.lives
+            // - Health bar: health.current / health.max
+            // - Power level: player.powerLevel
+            // - Wave number: waveManager?.currentWave
         },
     },
     false // Variable update
@@ -1123,8 +1115,8 @@ function initGame(): void {
     console.log('Initializing Space Shooter game...');
 
     // Create background layers
-    const bg1 = engine.createFromPrefab('BackgroundLayer1', 'Background1');
-    const bg2 = engine.createFromPrefab('BackgroundLayer2', 'Background2');
+    engine.createFromPrefab('BackgroundLayer1', 'Background1');
+    engine.createFromPrefab('BackgroundLayer2', 'Background2');
     console.log('Background layers created');
 
     // Create player

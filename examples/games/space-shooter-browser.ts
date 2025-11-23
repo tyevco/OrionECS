@@ -5,9 +5,6 @@
 
 import {
     Background,
-    Bullet,
-    Collider,
-    Enemy,
     engine,
     gameLoop,
     Health,
@@ -15,9 +12,7 @@ import {
     initGame,
     Player,
     Position,
-    PowerUp,
     Renderable,
-    Velocity,
     waveManager,
 } from './space-shooter';
 

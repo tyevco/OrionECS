@@ -1,0 +1,130 @@
+name: Question
+description: Ask a question about using Orion ECS
+title: "[Question]: "
+labels: ["question"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for your question! Before submitting, please:
+        - Check the [README](https://github.com/tyevco/OrionECS/blob/main/README.md)
+        - Review the [CLAUDE.md](https://github.com/tyevco/OrionECS/blob/main/CLAUDE.md) guide
+        - Search existing issues and discussions
+        - Look at the [examples](https://github.com/tyevco/OrionECS/tree/main/examples)
+
+        If you're reporting a bug, please use the Bug Report template instead.
+        If you're suggesting a feature, please use the Feature Request template.
+
+  - type: textarea
+    id: question
+    attributes:
+      label: Your Question
+      description: What would you like to know about Orion ECS?
+      placeholder: How do I...
+    validations:
+      required: true
+
+  - type: dropdown
+    id: topic
+    attributes:
+      label: Question Topic
+      description: What area does your question relate to?
+      options:
+        - Getting Started
+        - Entity Management
+        - Component System
+        - System Creation
+        - Query System
+        - Performance Optimization
+        - Plugin Development
+        - Debugging and Profiling
+        - Serialization
+        - Best Practices
+        - Architecture and Design
+        - Integration with Other Libraries
+        - TypeScript Usage
+        - Other
+    validations:
+      required: true
+
+  - type: textarea
+    id: context
+    attributes:
+      label: Context and Background
+      description: Provide context about what you're trying to accomplish
+      placeholder: |
+        I'm building a game where...
+        I need to implement...
+    validations:
+      required: false
+
+  - type: textarea
+    id: attempted
+    attributes:
+      label: What Have You Tried?
+      description: What approaches have you already attempted?
+      placeholder: |
+        I tried...
+        I looked at...
+    validations:
+      required: false
+
+  - type: textarea
+    id: code
+    attributes:
+      label: Relevant Code
+      description: Share any relevant code snippets (if applicable)
+      placeholder: |
+        ```typescript
+        const engine = new EngineBuilder().build();
+        // Your code here
+        ```
+      render: typescript
+    validations:
+      required: false
+
+  - type: input
+    id: version
+    attributes:
+      label: Orion ECS Version
+      description: Which version are you using?
+      placeholder: e.g., 0.2.0
+    validations:
+      required: false
+
+  - type: dropdown
+    id: experience
+    attributes:
+      label: ECS Experience Level
+      description: How familiar are you with ECS architecture?
+      options:
+        - New to ECS
+        - Some ECS experience
+        - Experienced with ECS
+        - ECS expert
+    validations:
+      required: false
+
+  - type: textarea
+    id: related
+    attributes:
+      label: Related Documentation or Issues
+      description: Links to documentation or related issues you've already reviewed
+      placeholder: |
+        - I read the documentation at...
+        - I found issue #123 but it doesn't address...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: search
+    attributes:
+      label: Pre-submission Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues and discussions
+          required: true
+        - label: I have checked the documentation
+          required: true
+        - label: This is a question, not a bug report or feature request
+          required: true

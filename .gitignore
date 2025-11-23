@@ -201,4 +201,4 @@ FakesAssemblies/
 
 # Turborepo
 .turbo
-**/.turbo
+**/.turbocore/docs/

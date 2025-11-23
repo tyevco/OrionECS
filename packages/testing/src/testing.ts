@@ -76,7 +76,7 @@ export class TestEngineBuilder extends EngineBuilder {
 export class TestClock {
     private _currentTime: number = 0;
     private _deltaTime: number = 16.67; // 60 FPS default
-    private _fps: number = 60;
+    private _fps: number;
     private _isPaused: boolean = false;
 
     constructor(fps: number = 60) {

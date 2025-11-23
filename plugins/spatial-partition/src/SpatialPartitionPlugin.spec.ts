@@ -10,14 +10,14 @@
  * - Performance characteristics
  */
 
-import { Engine } from 'orion-ecs';
 import { TestEngineBuilder } from '@orion-ecs/testing';
+import type { Engine } from 'orion-ecs';
 import {
-    SpatialPartitionPlugin,
     SpatialAPI,
-    SpatialPosition,
     SpatialCell,
-    SpatialPartitionOptions
+    type SpatialPartitionOptions,
+    SpatialPartitionPlugin,
+    SpatialPosition,
 } from './SpatialPartitionPlugin';
 
 describe('SpatialPartitionPlugin', () => {
@@ -26,9 +26,7 @@ describe('SpatialPartitionPlugin', () => {
 
     beforeEach(() => {
         plugin = new SpatialPartitionPlugin();
-        engine = new TestEngineBuilder()
-            .use(plugin)
-            .build();
+        engine = new TestEngineBuilder().use(plugin).build();
     });
 
     afterEach(() => {
@@ -48,8 +46,8 @@ describe('SpatialPartitionPlugin', () => {
         });
 
         test('should extend engine with spatial API', () => {
-            expect((engine as any).spatial).toBeDefined();
-            expect((engine as any).spatial).toBeInstanceOf(SpatialAPI);
+            expect((engine as EngineWithSpatial).spatial).toBeDefined();
+            expect((engine as EngineWithSpatial).spatial).toBeInstanceOf(SpatialAPI);
         });
 
         test('should register spatial components', () => {
@@ -61,13 +59,13 @@ describe('SpatialPartitionPlugin', () => {
 
         test('should create spatial indexing system', () => {
             const systems = engine.getSystemProfiles();
-            const systemNames = systems.map(s => s.name);
+            const systemNames = systems.map((s) => s.name);
 
             expect(systemNames).toContain('SpatialIndexSystem');
         });
 
         test('should create default partition', () => {
-            const api = (engine as any).spatial as SpatialAPI;
+            const api = (engine as EngineWithSpatial).spatial as SpatialAPI;
             const stats = api.getStats();
 
             // Default partition should exist
@@ -119,14 +117,14 @@ describe('SpatialPartitionPlugin', () => {
         let api: SpatialAPI;
 
         beforeEach(() => {
-            api = (engine as any).spatial;
+            api = (engine as EngineWithSpatial).spatial;
         });
 
         test('should create partition with custom settings', () => {
             const options: SpatialPartitionOptions = {
                 type: 'grid',
                 cellSize: 50,
-                bounds: { x: 0, y: 0, width: 1000, height: 1000 }
+                bounds: { x: 0, y: 0, width: 1000, height: 1000 },
             };
 
             expect(() => {
@@ -149,7 +147,7 @@ describe('SpatialPartitionPlugin', () => {
             api.createPartition({
                 type: 'grid',
                 cellSize: 200,
-                bounds: { x: 0, y: 0, width: 5000, height: 5000 }
+                bounds: { x: 0, y: 0, width: 5000, height: 5000 },
             });
 
             stats = api.getStats();
@@ -161,7 +159,7 @@ describe('SpatialPartitionPlugin', () => {
         let api: SpatialAPI;
 
         beforeEach(() => {
-            api = (engine as any).spatial;
+            api = (engine as EngineWithSpatial).spatial;
         });
 
         test('should add entity to spatial grid', () => {
@@ -237,7 +235,7 @@ describe('SpatialPartitionPlugin', () => {
         let api: SpatialAPI;
 
         beforeEach(() => {
-            api = (engine as any).spatial;
+            api = (engine as EngineWithSpatial).spatial;
         });
 
         test('should find entities within radius', () => {
@@ -325,7 +323,7 @@ describe('SpatialPartitionPlugin', () => {
         let api: SpatialAPI;
 
         beforeEach(() => {
-            api = (engine as any).spatial;
+            api = (engine as EngineWithSpatial).spatial;
         });
 
         test('should find entities within rectangle', () => {
@@ -395,7 +393,7 @@ describe('SpatialPartitionPlugin', () => {
         let api: SpatialAPI;
 
         beforeEach(() => {
-            api = (engine as any).spatial;
+            api = (engine as EngineWithSpatial).spatial;
         });
 
         test('should provide statistics', () => {
@@ -454,16 +452,12 @@ describe('SpatialPartitionPlugin', () => {
 
     describe('Integration Tests', () => {
         test('should work with many entities', () => {
-            const api = (engine as any).spatial;
+            const api = (engine as EngineWithSpatial).spatial;
 
             // Create 1000 entities
             for (let i = 0; i < 1000; i++) {
                 const entity = engine.createEntity(`Entity${i}`);
-                entity.addComponent(
-                    SpatialPosition,
-                    Math.random() * 5000,
-                    Math.random() * 5000
-                );
+                entity.addComponent(SpatialPosition, Math.random() * 5000, Math.random() * 5000);
             }
 
             engine.start();
@@ -476,16 +470,12 @@ describe('SpatialPartitionPlugin', () => {
         });
 
         test('should efficiently handle proximity queries', () => {
-            const api = (engine as any).spatial;
+            const api = (engine as EngineWithSpatial).spatial;
 
             // Create many entities
             for (let i = 0; i < 500; i++) {
                 const entity = engine.createEntity(`Entity${i}`);
-                entity.addComponent(
-                    SpatialPosition,
-                    Math.random() * 5000,
-                    Math.random() * 5000
-                );
+                entity.addComponent(SpatialPosition, Math.random() * 5000, Math.random() * 5000);
             }
 
             engine.start();
@@ -500,7 +490,7 @@ describe('SpatialPartitionPlugin', () => {
         });
 
         test('should handle dynamic entity movement', () => {
-            const api = (engine as any).spatial;
+            const api = (engine as EngineWithSpatial).spatial;
 
             const entities = [];
             for (let i = 0; i < 50; i++) {
@@ -513,7 +503,7 @@ describe('SpatialPartitionPlugin', () => {
             engine.update(0);
 
             // Move all entities
-            entities.forEach(entity => {
+            entities.forEach((entity) => {
                 const pos = entity.getComponent(SpatialPosition);
                 if (pos) {
                     pos.x += 100;
@@ -533,7 +523,7 @@ describe('SpatialPartitionPlugin', () => {
         let api: SpatialAPI;
 
         beforeEach(() => {
-            api = (engine as any).spatial;
+            api = (engine as EngineWithSpatial).spatial;
         });
 
         test('should handle entities at negative coordinates', () => {
@@ -562,7 +552,7 @@ describe('SpatialPartitionPlugin', () => {
             api.createPartition({
                 type: 'grid',
                 cellSize: 1,
-                bounds: { x: 0, y: 0, width: 100, height: 100 }
+                bounds: { x: 0, y: 0, width: 100, height: 100 },
             });
 
             const entity = engine.createEntity('Entity');
@@ -578,7 +568,7 @@ describe('SpatialPartitionPlugin', () => {
             api.createPartition({
                 type: 'grid',
                 cellSize: 10000,
-                bounds: { x: 0, y: 0, width: 50000, height: 50000 }
+                bounds: { x: 0, y: 0, width: 50000, height: 50000 },
             });
 
             const entity = engine.createEntity('Entity');
@@ -612,7 +602,7 @@ describe('SpatialPartitionPlugin', () => {
         });
 
         test('should clean up entity subscriptions', () => {
-            const api = (engine as any).spatial;
+            const api = (engine as EngineWithSpatial).spatial;
 
             const entity = engine.createEntity('Entity');
             entity.addComponent(SpatialPosition, 100, 100);
@@ -634,18 +624,14 @@ describe('SpatialPartitionPlugin', () => {
         let api: SpatialAPI;
 
         beforeEach(() => {
-            api = (engine as any).spatial;
+            api = (engine as EngineWithSpatial).spatial;
         });
 
         test('should scale well with many entities', () => {
             // Create 5000 entities
             for (let i = 0; i < 5000; i++) {
                 const entity = engine.createEntity(`Entity${i}`);
-                entity.addComponent(
-                    SpatialPosition,
-                    Math.random() * 10000,
-                    Math.random() * 10000
-                );
+                entity.addComponent(SpatialPosition, Math.random() * 10000, Math.random() * 10000);
             }
 
             const startTime = performance.now();
@@ -661,11 +647,7 @@ describe('SpatialPartitionPlugin', () => {
             // Create many entities
             for (let i = 0; i < 1000; i++) {
                 const entity = engine.createEntity(`Entity${i}`);
-                entity.addComponent(
-                    SpatialPosition,
-                    Math.random() * 5000,
-                    Math.random() * 5000
-                );
+                entity.addComponent(SpatialPosition, Math.random() * 5000, Math.random() * 5000);
             }
 
             engine.start();

@@ -9,36 +9,39 @@
  * - Event subscriptions and cleanup
  */
 
-import { Engine } from 'orion-ecs';
 import { TestEngineBuilder } from '@orion-ecs/testing';
+import type { Engine } from 'orion-ecs';
 import {
-    InputManagerPlugin,
+    DragEventData,
     InputAPI,
+    InputManagerPlugin,
+    KeyboardEventData,
     MouseButton,
     MouseEventData,
-    DragEventData,
-    KeyboardEventData
 } from './InputManagerPlugin';
 
 // Mock Vector2 utility
 jest.mock('@orion-ecs/math', () => ({
     Vector2: class Vector2 {
-        constructor(public x: number = 0, public y: number = 0) {}
+        constructor(
+            public x: number = 0,
+            public y: number = 0
+        ) {}
 
         clone() {
             return new Vector2(this.x, this.y);
         }
 
-        distanceTo(other: any) {
+        distanceTo(other: unknown) {
             const dx = this.x - other.x;
             const dy = this.y - other.y;
             return Math.sqrt(dx * dx + dy * dy);
         }
 
-        vectorTo(other: any) {
+        vectorTo(other: unknown) {
             return new Vector2(other.x - this.x, other.y - this.y);
         }
-    }
+    },
 }));
 
 // Mock HTML element
@@ -61,14 +64,14 @@ class MockHTMLElement {
             left: 0,
             top: 0,
             width: 800,
-            height: 600
+            height: 600,
         };
     }
 
     dispatchEvent(event: Event): void {
         const listeners = this.listeners.get(event.type);
         if (listeners) {
-            listeners.forEach(listener => listener(event));
+            listeners.forEach((listener) => listener(event));
         }
     }
 }
@@ -86,7 +89,7 @@ describe('InputManagerPlugin', () => {
         mockWindowListeners = new Map();
 
         // Mock window event listeners
-        (global as any).window = {
+        (global as typeof globalThis).window = {
             addEventListener: (event: string, listener: EventListener) => {
                 if (!mockWindowListeners.has(event)) {
                     mockWindowListeners.set(event, new Set());
@@ -95,13 +98,11 @@ describe('InputManagerPlugin', () => {
             },
             removeEventListener: (event: string, listener: EventListener) => {
                 mockWindowListeners.get(event)?.delete(listener);
-            }
+            },
         };
 
         plugin = new InputManagerPlugin();
-        engine = new TestEngineBuilder()
-            .use(plugin)
-            .build();
+        engine = new TestEngineBuilder().use(plugin).build();
 
         mockElement = new MockHTMLElement();
     });
@@ -124,13 +125,13 @@ describe('InputManagerPlugin', () => {
         });
 
         test('should extend engine with input API', () => {
-            expect((engine as any).input).toBeDefined();
-            expect((engine as any).input).toBeInstanceOf(InputAPI);
+            expect((engine as EngineWithInput).input).toBeDefined();
+            expect((engine as EngineWithInput).input).toBeInstanceOf(InputAPI);
         });
 
         test('should create input cleanup system', () => {
             const systems = engine.getSystemProfiles();
-            const systemNames = systems.map(s => s.name);
+            const systemNames = systems.map((s) => s.name);
 
             expect(systemNames).toContain('InputFrameCleanupSystem');
         });
@@ -140,12 +141,12 @@ describe('InputManagerPlugin', () => {
         let api: InputAPI;
 
         beforeEach(() => {
-            api = (engine as any).input;
+            api = (engine as EngineWithInput).input;
         });
 
         test('should initialize with element', () => {
             expect(() => {
-                api.initialize(mockElement as any);
+                api.initialize(mockElement as unknown as HTMLElement);
             }).not.toThrow();
         });
 
@@ -153,8 +154,8 @@ describe('InputManagerPlugin', () => {
             const element1 = new MockHTMLElement();
             const element2 = new MockHTMLElement();
 
-            api.initialize(element1 as any);
-            api.initialize(element2 as any);
+            api.initialize(element1 as unknown as HTMLElement);
+            api.initialize(element2 as unknown as HTMLElement);
 
             // Should not throw
             expect(true).toBe(true);
@@ -170,8 +171,8 @@ describe('InputManagerPlugin', () => {
         let api: InputAPI;
 
         beforeEach(() => {
-            api = (engine as any).input;
-            api.initialize(mockElement as any);
+            api = (engine as EngineWithInput).input;
+            api.initialize(mockElement as unknown as HTMLElement);
         });
 
         test('should track mouse position', () => {
@@ -180,7 +181,7 @@ describe('InputManagerPlugin', () => {
 
             const event = new MouseEvent('mousemove', {
                 clientX: 150,
-                clientY: 200
+                clientY: 200,
             });
             mockElement.dispatchEvent(event);
 
@@ -198,14 +199,14 @@ describe('InputManagerPlugin', () => {
             const event = new MouseEvent('mousemove', {
                 clientX: 100,
                 clientY: 100,
-                button: MouseButton.Left
+                button: MouseButton.Left,
             });
             mockElement.dispatchEvent(event);
 
             expect(mockCallback).toHaveBeenCalledWith(
                 expect.objectContaining({
                     position: expect.any(Object),
-                    button: MouseButton.Left
+                    button: MouseButton.Left,
                 })
             );
         });
@@ -215,8 +216,8 @@ describe('InputManagerPlugin', () => {
         let api: InputAPI;
 
         beforeEach(() => {
-            api = (engine as any).input;
-            api.initialize(mockElement as any);
+            api = (engine as EngineWithInput).input;
+            api.initialize(mockElement as unknown as HTMLElement);
         });
 
         test('should emit click events', () => {
@@ -226,7 +227,7 @@ describe('InputManagerPlugin', () => {
             const event = new MouseEvent('click', {
                 clientX: 100,
                 clientY: 100,
-                button: MouseButton.Left
+                button: MouseButton.Left,
             });
             mockElement.dispatchEvent(event);
 
@@ -240,13 +241,13 @@ describe('InputManagerPlugin', () => {
             const event = new MouseEvent('click', {
                 clientX: 100,
                 clientY: 100,
-                button: MouseButton.Right
+                button: MouseButton.Right,
             });
             mockElement.dispatchEvent(event);
 
             expect(mockCallback).toHaveBeenCalledWith(
                 expect.objectContaining({
-                    button: MouseButton.Right
+                    button: MouseButton.Right,
                 })
             );
         });
@@ -265,15 +266,15 @@ describe('InputManagerPlugin', () => {
         let api: InputAPI;
 
         beforeEach(() => {
-            api = (engine as any).input;
-            api.initialize(mockElement as any);
+            api = (engine as EngineWithInput).input;
+            api.initialize(mockElement as unknown as HTMLElement);
         });
 
         test('should track mousedown state', () => {
             const event = new MouseEvent('mousedown', {
                 clientX: 100,
                 clientY: 100,
-                button: MouseButton.Left
+                button: MouseButton.Left,
             });
             mockElement.dispatchEvent(event);
 
@@ -287,7 +288,7 @@ describe('InputManagerPlugin', () => {
             const event = new MouseEvent('mousedown', {
                 clientX: 100,
                 clientY: 100,
-                button: MouseButton.Left
+                button: MouseButton.Left,
             });
             mockElement.dispatchEvent(event);
 
@@ -299,7 +300,7 @@ describe('InputManagerPlugin', () => {
             const downEvent = new MouseEvent('mousedown', {
                 clientX: 100,
                 clientY: 100,
-                button: MouseButton.Left
+                button: MouseButton.Left,
             });
             mockElement.dispatchEvent(downEvent);
 
@@ -307,7 +308,7 @@ describe('InputManagerPlugin', () => {
             const upEvent = new MouseEvent('mouseup', {
                 clientX: 100,
                 clientY: 100,
-                button: MouseButton.Left
+                button: MouseButton.Left,
             });
             mockElement.dispatchEvent(upEvent);
 
@@ -321,7 +322,7 @@ describe('InputManagerPlugin', () => {
             const event = new MouseEvent('mouseup', {
                 clientX: 100,
                 clientY: 100,
-                button: MouseButton.Left
+                button: MouseButton.Left,
             });
             mockElement.dispatchEvent(event);
 
@@ -333,8 +334,8 @@ describe('InputManagerPlugin', () => {
         let api: InputAPI;
 
         beforeEach(() => {
-            api = (engine as any).input;
-            api.initialize(mockElement as any);
+            api = (engine as EngineWithInput).input;
+            api.initialize(mockElement as unknown as HTMLElement);
         });
 
         test('should detect drag start after threshold', () => {
@@ -342,25 +343,31 @@ describe('InputManagerPlugin', () => {
             api.on('dragstart', mockCallback);
 
             // Mouse down
-            mockElement.dispatchEvent(new MouseEvent('mousedown', {
-                clientX: 100,
-                clientY: 100,
-                button: MouseButton.Left
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mousedown', {
+                    clientX: 100,
+                    clientY: 100,
+                    button: MouseButton.Left,
+                })
+            );
 
             // Move slightly (below threshold)
-            mockElement.dispatchEvent(new MouseEvent('mousemove', {
-                clientX: 101,
-                clientY: 101
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mousemove', {
+                    clientX: 101,
+                    clientY: 101,
+                })
+            );
 
             expect(mockCallback).not.toHaveBeenCalled();
 
             // Move beyond threshold (3 pixels)
-            mockElement.dispatchEvent(new MouseEvent('mousemove', {
-                clientX: 105,
-                clientY: 105
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mousemove', {
+                    clientX: 105,
+                    clientY: 105,
+                })
+            );
 
             expect(mockCallback).toHaveBeenCalled();
         });
@@ -370,15 +377,19 @@ describe('InputManagerPlugin', () => {
             api.on('drag', mockCallback);
 
             // Start drag
-            mockElement.dispatchEvent(new MouseEvent('mousedown', {
-                clientX: 100,
-                clientY: 100
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mousedown', {
+                    clientX: 100,
+                    clientY: 100,
+                })
+            );
 
-            mockElement.dispatchEvent(new MouseEvent('mousemove', {
-                clientX: 110,
-                clientY: 110
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mousemove', {
+                    clientX: 110,
+                    clientY: 110,
+                })
+            );
 
             expect(mockCallback).toHaveBeenCalled();
         });
@@ -388,56 +399,72 @@ describe('InputManagerPlugin', () => {
             api.on('dragend', mockCallback);
 
             // Start drag
-            mockElement.dispatchEvent(new MouseEvent('mousedown', {
-                clientX: 100,
-                clientY: 100
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mousedown', {
+                    clientX: 100,
+                    clientY: 100,
+                })
+            );
 
-            mockElement.dispatchEvent(new MouseEvent('mousemove', {
-                clientX: 110,
-                clientY: 110
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mousemove', {
+                    clientX: 110,
+                    clientY: 110,
+                })
+            );
 
             // End drag
-            mockElement.dispatchEvent(new MouseEvent('mouseup', {
-                clientX: 110,
-                clientY: 110
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mouseup', {
+                    clientX: 110,
+                    clientY: 110,
+                })
+            );
 
             expect(mockCallback).toHaveBeenCalled();
         });
 
         test('should track dragging state', () => {
-            mockElement.dispatchEvent(new MouseEvent('mousedown', {
-                clientX: 100,
-                clientY: 100
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mousedown', {
+                    clientX: 100,
+                    clientY: 100,
+                })
+            );
 
-            mockElement.dispatchEvent(new MouseEvent('mousemove', {
-                clientX: 110,
-                clientY: 110
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mousemove', {
+                    clientX: 110,
+                    clientY: 110,
+                })
+            );
 
             expect(api.getIsDragging()).toBe(true);
 
-            mockElement.dispatchEvent(new MouseEvent('mouseup', {
-                clientX: 110,
-                clientY: 110
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mouseup', {
+                    clientX: 110,
+                    clientY: 110,
+                })
+            );
 
             expect(api.getIsDragging()).toBe(false);
         });
 
         test('should provide drag state information', () => {
-            mockElement.dispatchEvent(new MouseEvent('mousedown', {
-                clientX: 100,
-                clientY: 100
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mousedown', {
+                    clientX: 100,
+                    clientY: 100,
+                })
+            );
 
-            mockElement.dispatchEvent(new MouseEvent('mousemove', {
-                clientX: 110,
-                clientY: 110
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mousemove', {
+                    clientX: 110,
+                    clientY: 110,
+                })
+            );
 
             const dragState = api.getDragState();
 
@@ -457,8 +484,8 @@ describe('InputManagerPlugin', () => {
         let api: InputAPI;
 
         beforeEach(() => {
-            api = (engine as any).input;
-            api.initialize(mockElement as any);
+            api = (engine as EngineWithInput).input;
+            api.initialize(mockElement as unknown as HTMLElement);
         });
 
         test('should track keydown state', () => {
@@ -480,16 +507,18 @@ describe('InputManagerPlugin', () => {
             const listeners = mockWindowListeners.get('keydown');
             if (listeners) {
                 const listener = Array.from(listeners)[0];
-                listener(new KeyboardEvent('keydown', {
-                    code: 'KeyA',
-                    key: 'a'
-                }));
+                listener(
+                    new KeyboardEvent('keydown', {
+                        code: 'KeyA',
+                        key: 'a',
+                    })
+                );
             }
 
             expect(mockCallback).toHaveBeenCalledWith(
                 expect.objectContaining({
                     code: 'KeyA',
-                    key: 'a'
+                    key: 'a',
                 })
             );
         });
@@ -517,10 +546,12 @@ describe('InputManagerPlugin', () => {
             const listeners = mockWindowListeners.get('keyup');
             if (listeners) {
                 const listener = Array.from(listeners)[0];
-                listener(new KeyboardEvent('keyup', {
-                    code: 'KeyA',
-                    key: 'a'
-                }));
+                listener(
+                    new KeyboardEvent('keyup', {
+                        code: 'KeyA',
+                        key: 'a',
+                    })
+                );
             }
 
             expect(mockCallback).toHaveBeenCalled();
@@ -576,7 +607,7 @@ describe('InputManagerPlugin', () => {
             }
 
             const pressedKeys = api.getPressedKeys();
-            expect(pressedKeys.filter(k => k === 'KeyA')).toHaveLength(1);
+            expect(pressedKeys.filter((k) => k === 'KeyA')).toHaveLength(1);
         });
     });
 
@@ -584,8 +615,8 @@ describe('InputManagerPlugin', () => {
         let api: InputAPI;
 
         beforeEach(() => {
-            api = (engine as any).input;
-            api.initialize(mockElement as any);
+            api = (engine as EngineWithInput).input;
+            api.initialize(mockElement as unknown as HTMLElement);
         });
 
         test('should clear pressed keys after frame', () => {
@@ -644,8 +675,8 @@ describe('InputManagerPlugin', () => {
         let api: InputAPI;
 
         beforeEach(() => {
-            api = (engine as any).input;
-            api.initialize(mockElement as any);
+            api = (engine as EngineWithInput).input;
+            api.initialize(mockElement as unknown as HTMLElement);
         });
 
         test('should subscribe to events', () => {
@@ -662,10 +693,12 @@ describe('InputManagerPlugin', () => {
             api.on('click', mockCallback1);
             api.on('click', mockCallback2);
 
-            mockElement.dispatchEvent(new MouseEvent('click', {
-                clientX: 100,
-                clientY: 100
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('click', {
+                    clientX: 100,
+                    clientY: 100,
+                })
+            );
 
             expect(mockCallback1).toHaveBeenCalled();
             expect(mockCallback2).toHaveBeenCalled();
@@ -677,10 +710,12 @@ describe('InputManagerPlugin', () => {
 
             unsubscribe();
 
-            mockElement.dispatchEvent(new MouseEvent('click', {
-                clientX: 100,
-                clientY: 100
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('click', {
+                    clientX: 100,
+                    clientY: 100,
+                })
+            );
 
             expect(mockCallback).not.toHaveBeenCalled();
         });
@@ -690,11 +725,11 @@ describe('InputManagerPlugin', () => {
         let api: InputAPI;
 
         beforeEach(() => {
-            api = (engine as any).input;
+            api = (engine as EngineWithInput).input;
         });
 
         test('should cleanup event listeners', () => {
-            api.initialize(mockElement as any);
+            api.initialize(mockElement as unknown as HTMLElement);
 
             expect(() => {
                 api.cleanup();
@@ -702,17 +737,19 @@ describe('InputManagerPlugin', () => {
         });
 
         test('should clear all subscriptions on cleanup', () => {
-            api.initialize(mockElement as any);
+            api.initialize(mockElement as unknown as HTMLElement);
 
             const mockCallback = jest.fn();
             api.on('click', mockCallback);
 
             api.cleanup();
 
-            mockElement.dispatchEvent(new MouseEvent('click', {
-                clientX: 100,
-                clientY: 100
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('click', {
+                    clientX: 100,
+                    clientY: 100,
+                })
+            );
 
             expect(mockCallback).not.toHaveBeenCalled();
         });
@@ -720,8 +757,8 @@ describe('InputManagerPlugin', () => {
 
     describe('Plugin Uninstallation', () => {
         test('should uninstall and cleanup', () => {
-            const api = (engine as any).input;
-            api.initialize(mockElement as any);
+            const api = (engine as EngineWithInput).input;
+            api.initialize(mockElement as unknown as HTMLElement);
 
             expect(() => {
                 plugin.uninstall();
@@ -733,8 +770,8 @@ describe('InputManagerPlugin', () => {
         let api: InputAPI;
 
         beforeEach(() => {
-            api = (engine as any).input;
-            api.initialize(mockElement as any);
+            api = (engine as EngineWithInput).input;
+            api.initialize(mockElement as unknown as HTMLElement);
         });
 
         test('should handle mouse events before position set', () => {
@@ -749,35 +786,41 @@ describe('InputManagerPlugin', () => {
             const mockCallback = jest.fn();
             api.on('click', mockCallback);
 
-            mockElement.dispatchEvent(new MouseEvent('click', {
-                clientX: 100,
-                clientY: 100,
-                ctrlKey: true,
-                shiftKey: true,
-                altKey: true
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('click', {
+                    clientX: 100,
+                    clientY: 100,
+                    ctrlKey: true,
+                    shiftKey: true,
+                    altKey: true,
+                })
+            );
 
             expect(mockCallback).toHaveBeenCalledWith(
                 expect.objectContaining({
                     ctrlKey: true,
                     shiftKey: true,
-                    altKey: true
+                    altKey: true,
                 })
             );
         });
 
         test('should handle multiple simultaneous mouse buttons', () => {
-            mockElement.dispatchEvent(new MouseEvent('mousedown', {
-                clientX: 100,
-                clientY: 100,
-                button: MouseButton.Left
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mousedown', {
+                    clientX: 100,
+                    clientY: 100,
+                    button: MouseButton.Left,
+                })
+            );
 
-            mockElement.dispatchEvent(new MouseEvent('mousedown', {
-                clientX: 100,
-                clientY: 100,
-                button: MouseButton.Right
-            }));
+            mockElement.dispatchEvent(
+                new MouseEvent('mousedown', {
+                    clientX: 100,
+                    clientY: 100,
+                    button: MouseButton.Right,
+                })
+            );
 
             expect(api.isMouseButtonDown(MouseButton.Left)).toBe(true);
             expect(api.isMouseButtonDown(MouseButton.Right)).toBe(true);

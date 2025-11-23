@@ -11,15 +11,15 @@
  * - Custom resource types
  */
 
-import { Engine } from 'orion-ecs';
 import { TestEngineBuilder } from '@orion-ecs/testing';
+import type { Engine } from 'orion-ecs';
 import {
-    ResourceManagerPlugin,
+    AudioResource,
+    type Resource,
     ResourceManagerAPI,
-    Resource,
-    ResourceType,
+    ResourceManagerPlugin,
+    type ResourceType,
     TextureResource,
-    AudioResource
 } from './ResourceManagerPlugin';
 
 // Custom test resource
@@ -49,15 +49,13 @@ describe('ResourceManagerPlugin', () => {
 
     beforeEach(() => {
         plugin = new ResourceManagerPlugin();
-        engine = new TestEngineBuilder()
-            .use(plugin)
-            .build();
+        engine = new TestEngineBuilder().use(plugin).build();
     });
 
     afterEach(async () => {
         engine.stop();
         // Clean up resources
-        const api = (engine as any).resources as ResourceManagerAPI;
+        const api = (engine as EngineWithResources).resources as ResourceManagerAPI;
         if (api) {
             await api.clearAll();
         }
@@ -76,12 +74,12 @@ describe('ResourceManagerPlugin', () => {
         });
 
         test('should extend engine with resources API', () => {
-            expect((engine as any).resources).toBeDefined();
-            expect((engine as any).resources).toBeInstanceOf(ResourceManagerAPI);
+            expect((engine as EngineWithResources).resources).toBeDefined();
+            expect((engine as EngineWithResources).resources).toBeInstanceOf(ResourceManagerAPI);
         });
 
         test('should register default resource types', () => {
-            const api = (engine as any).resources as ResourceManagerAPI;
+            const api = (engine as EngineWithResources).resources as ResourceManagerAPI;
 
             // Should be able to get resources of registered types
             expect(async () => {
@@ -98,7 +96,7 @@ describe('ResourceManagerPlugin', () => {
         let api: ResourceManagerAPI;
 
         beforeEach(() => {
-            api = (engine as any).resources;
+            api = (engine as EngineWithResources).resources;
         });
 
         test('should register custom resource type', () => {
@@ -123,7 +121,7 @@ describe('ResourceManagerPlugin', () => {
         let api: ResourceManagerAPI;
 
         beforeEach(() => {
-            api = (engine as any).resources;
+            api = (engine as EngineWithResources).resources;
         });
 
         test('should load texture resource', async () => {
@@ -165,7 +163,7 @@ describe('ResourceManagerPlugin', () => {
             }
 
             await expect(async () => {
-                await api.get(UnregisteredResource as any, 'test');
+                await api.get(UnregisteredResource as unknown as ResourceType<Resource>, 'test');
             }).rejects.toThrow('not registered');
         });
     });
@@ -174,7 +172,7 @@ describe('ResourceManagerPlugin', () => {
         let api: ResourceManagerAPI;
 
         beforeEach(() => {
-            api = (engine as any).resources;
+            api = (engine as EngineWithResources).resources;
         });
 
         test('should increment reference count on get', async () => {
@@ -182,7 +180,7 @@ describe('ResourceManagerPlugin', () => {
             const texture2 = await api.get(TextureResource, 'player.png');
 
             const stats = api.getStats();
-            const textureStats = stats.byType.find(t => t.type === 'Texture');
+            const textureStats = stats.byType.find((t) => t.type === 'Texture');
 
             expect(textureStats).toBeDefined();
             expect(textureStats!.totalRefs).toBeGreaterThanOrEqual(2);
@@ -195,7 +193,7 @@ describe('ResourceManagerPlugin', () => {
             await api.release(texture1);
 
             const stats = api.getStats();
-            const textureStats = stats.byType.find(t => t.type === 'Texture');
+            const textureStats = stats.byType.find((t) => t.type === 'Texture');
 
             expect(textureStats!.totalRefs).toBeGreaterThanOrEqual(1);
         });
@@ -214,7 +212,7 @@ describe('ResourceManagerPlugin', () => {
             await api.release(texture);
 
             const stats = api.getStats();
-            const textureStats = stats.byType.find(t => t.type === 'Texture');
+            const textureStats = stats.byType.find((t) => t.type === 'Texture');
 
             expect(textureStats!.count).toBe(0);
         });
@@ -233,7 +231,7 @@ describe('ResourceManagerPlugin', () => {
         let api: ResourceManagerAPI;
 
         beforeEach(() => {
-            api = (engine as any).resources;
+            api = (engine as EngineWithResources).resources;
         });
 
         test('should get loaded resource synchronously', async () => {
@@ -255,12 +253,12 @@ describe('ResourceManagerPlugin', () => {
             await api.get(TextureResource, 'player.png');
 
             const statsBefore = api.getStats();
-            const beforeRefs = statsBefore.byType.find(t => t.type === 'Texture')!.totalRefs;
+            const beforeRefs = statsBefore.byType.find((t) => t.type === 'Texture')!.totalRefs;
 
             api.getSync(TextureResource, 'player.png');
 
             const statsAfter = api.getStats();
-            const afterRefs = statsAfter.byType.find(t => t.type === 'Texture')!.totalRefs;
+            const afterRefs = statsAfter.byType.find((t) => t.type === 'Texture')!.totalRefs;
 
             expect(afterRefs).toBeGreaterThan(beforeRefs);
         });
@@ -270,18 +268,14 @@ describe('ResourceManagerPlugin', () => {
         let api: ResourceManagerAPI;
 
         beforeEach(() => {
-            api = (engine as any).resources;
+            api = (engine as EngineWithResources).resources;
         });
 
         test('should preload multiple resources', async () => {
-            await api.preload(TextureResource, [
-                'player.png',
-                'enemy.png',
-                'background.png'
-            ]);
+            await api.preload(TextureResource, ['player.png', 'enemy.png', 'background.png']);
 
             const stats = api.getStats();
-            const textureStats = stats.byType.find(t => t.type === 'Texture');
+            const textureStats = stats.byType.find((t) => t.type === 'Texture');
 
             expect(textureStats!.count).toBe(3);
         });
@@ -300,7 +294,7 @@ describe('ResourceManagerPlugin', () => {
         let api: ResourceManagerAPI;
 
         beforeEach(() => {
-            api = (engine as any).resources;
+            api = (engine as EngineWithResources).resources;
         });
 
         test('should get resource statistics', async () => {
@@ -333,8 +327,8 @@ describe('ResourceManagerPlugin', () => {
 
             const stats = api.getStats();
 
-            const textureStats = stats.byType.find(t => t.type === 'Texture');
-            const audioStats = stats.byType.find(t => t.type === 'Audio');
+            const textureStats = stats.byType.find((t) => t.type === 'Texture');
+            const audioStats = stats.byType.find((t) => t.type === 'Audio');
 
             expect(textureStats!.count).toBe(2);
             expect(audioStats!.count).toBe(1);
@@ -345,7 +339,7 @@ describe('ResourceManagerPlugin', () => {
             await api.get(TextureResource, 'player.png'); // Same resource
 
             const stats = api.getStats();
-            const textureStats = stats.byType.find(t => t.type === 'Texture');
+            const textureStats = stats.byType.find((t) => t.type === 'Texture');
 
             expect(textureStats!.averageRefs).toBeGreaterThan(0);
         });
@@ -365,7 +359,7 @@ describe('ResourceManagerPlugin', () => {
         let api: ResourceManagerAPI;
 
         beforeEach(() => {
-            api = (engine as any).resources;
+            api = (engine as EngineWithResources).resources;
         });
 
         test('should clear all resources', async () => {
@@ -415,7 +409,7 @@ describe('ResourceManagerPlugin', () => {
         let api: ResourceManagerAPI;
 
         beforeEach(() => {
-            api = (engine as any).resources;
+            api = (engine as EngineWithResources).resources;
             api.register(TestResource);
         });
 
@@ -441,7 +435,7 @@ describe('ResourceManagerPlugin', () => {
         let api: ResourceManagerAPI;
 
         beforeEach(() => {
-            api = (engine as any).resources;
+            api = (engine as EngineWithResources).resources;
         });
 
         test('should manage multiple resource types', async () => {
@@ -498,14 +492,14 @@ describe('ResourceManagerPlugin', () => {
         let api: ResourceManagerAPI;
 
         beforeEach(() => {
-            api = (engine as any).resources;
+            api = (engine as EngineWithResources).resources;
         });
 
         test('should handle releasing unknown resource', async () => {
             const fakeResource: Resource = {
                 key: 'fake',
                 load: async () => {},
-                unload: async () => {}
+                unload: async () => {},
             };
 
             const consoleSpy = jest.spyOn(console, 'warn').mockImplementation();
@@ -541,7 +535,7 @@ describe('ResourceManagerPlugin', () => {
         let api: ResourceManagerAPI;
 
         beforeEach(() => {
-            api = (engine as any).resources;
+            api = (engine as EngineWithResources).resources;
         });
 
         test('should uninstall and clear resources', async () => {
@@ -557,14 +551,14 @@ describe('ResourceManagerPlugin', () => {
         let api: ResourceManagerAPI;
 
         beforeEach(() => {
-            api = (engine as any).resources;
+            api = (engine as EngineWithResources).resources;
         });
 
         test('should handle concurrent loads of same resource', async () => {
             const promises = [
                 api.get(TextureResource, 'player.png'),
                 api.get(TextureResource, 'player.png'),
-                api.get(TextureResource, 'player.png')
+                api.get(TextureResource, 'player.png'),
             ];
 
             const results = await Promise.all(promises);
@@ -581,7 +575,7 @@ describe('ResourceManagerPlugin', () => {
             const promises = [
                 api.get(TextureResource, 'player.png'),
                 api.get(TextureResource, 'enemy.png'),
-                api.get(AudioResource, 'music.mp3')
+                api.get(AudioResource, 'music.mp3'),
             ];
 
             const results = await Promise.all(promises);

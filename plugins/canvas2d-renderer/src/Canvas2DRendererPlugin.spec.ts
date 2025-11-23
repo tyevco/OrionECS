@@ -10,19 +10,22 @@
  * - Screen-to-world coordinate conversion
  */
 
-import { Engine } from 'orion-ecs';
 import { TestEngineBuilder } from '@orion-ecs/testing';
+import type { Engine } from 'orion-ecs';
 import {
-    Canvas2DRendererPlugin,
-    Canvas2DAPI,
-    Transform,
-    ScreenElement,
     Camera,
+    Canvas2DAPI,
+    Canvas2DRendererPlugin,
+    ScreenElement,
     Sprite,
-    Unit
+    Transform,
+    Unit,
 } from './Canvas2DRendererPlugin';
 
 // Mock canvas and context
+type MockCanvas = Pick<HTMLCanvasElement, 'width' | 'height' | 'getContext'>;
+type MockContext = MockCanvasRenderingContext2D;
+
 class MockCanvasRenderingContext2D {
     fillStyle: string = '#000000';
     strokeStyle: string = '#000000';
@@ -64,9 +67,7 @@ describe('Canvas2DRendererPlugin', () => {
 
     beforeEach(() => {
         plugin = new Canvas2DRendererPlugin();
-        engine = new TestEngineBuilder()
-            .use(plugin)
-            .build();
+        engine = new TestEngineBuilder().use(plugin).build();
 
         mockCanvas = new MockHTMLCanvasElement();
     });
@@ -88,8 +89,8 @@ describe('Canvas2DRendererPlugin', () => {
         });
 
         test('should extend engine with canvas2d API', () => {
-            expect((engine as any).canvas2d).toBeDefined();
-            expect((engine as any).canvas2d).toBeInstanceOf(Canvas2DAPI);
+            expect((engine as EngineWithCanvas2D).canvas2d).toBeDefined();
+            expect((engine as EngineWithCanvas2D).canvas2d).toBeInstanceOf(Canvas2DAPI);
         });
 
         test('should register all components', () => {
@@ -102,7 +103,7 @@ describe('Canvas2DRendererPlugin', () => {
 
         test('should create rendering systems', () => {
             const systems = engine.getSystemProfiles();
-            const systemNames = systems.map(s => s.name);
+            const systemNames = systems.map((s) => s.name);
 
             expect(systemNames).toContain('CameraSetupSystem');
             expect(systemNames).toContain('SpriteRendererSystem');
@@ -225,9 +226,9 @@ describe('Canvas2DRendererPlugin', () => {
             vertices: [
                 { position: { x: 0, y: 0 } },
                 { position: { x: 10, y: 0 } },
-                { position: { x: 10, y: 10 } }
+                { position: { x: 10, y: 10 } },
             ],
-            color: { value: '#FF0000' }
+            color: { value: '#FF0000' },
         };
 
         test('should create Sprite with default values', () => {
@@ -267,19 +268,19 @@ describe('Canvas2DRendererPlugin', () => {
         let api: Canvas2DAPI;
 
         beforeEach(() => {
-            api = (engine as any).canvas2d;
+            api = (engine as EngineWithCanvas2D).canvas2d;
         });
 
         test('should set canvas', () => {
             expect(() => {
-                api.setCanvas(mockCanvas as any);
+                api.setCanvas(mockCanvas as unknown as HTMLCanvasElement);
             }).not.toThrow();
 
             expect(api.getCanvas()).toBe(mockCanvas);
         });
 
         test('should get rendering context', () => {
-            api.setCanvas(mockCanvas as any);
+            api.setCanvas(mockCanvas as unknown as HTMLCanvasElement);
             const ctx = api.getContext();
 
             expect(ctx).toBeDefined();
@@ -288,11 +289,11 @@ describe('Canvas2DRendererPlugin', () => {
 
         test('should throw error if 2D context unavailable', () => {
             const badCanvas = {
-                getContext: () => null
+                getContext: () => null,
             };
 
             expect(() => {
-                api.setCanvas(badCanvas as any);
+                api.setCanvas(badCanvas as unknown as HTMLCanvasElement);
             }).toThrow('Failed to get 2D rendering context');
         });
 
@@ -305,7 +306,7 @@ describe('Canvas2DRendererPlugin', () => {
         let api: Canvas2DAPI;
 
         beforeEach(() => {
-            api = (engine as any).canvas2d;
+            api = (engine as EngineWithCanvas2D).canvas2d;
         });
 
         test('should have default clear before render', () => {
@@ -342,8 +343,8 @@ describe('Canvas2DRendererPlugin', () => {
         let api: Canvas2DAPI;
 
         beforeEach(() => {
-            api = (engine as any).canvas2d;
-            api.setCanvas(mockCanvas as any);
+            api = (engine as EngineWithCanvas2D).canvas2d;
+            api.setCanvas(mockCanvas as unknown as HTMLCanvasElement);
         });
 
         test('should convert screen to world coordinates', () => {
@@ -385,8 +386,8 @@ describe('Canvas2DRendererPlugin', () => {
         let api: Canvas2DAPI;
 
         beforeEach(() => {
-            api = (engine as any).canvas2d;
-            api.setCanvas(mockCanvas as any);
+            api = (engine as EngineWithCanvas2D).canvas2d;
+            api.setCanvas(mockCanvas as unknown as HTMLCanvasElement);
         });
 
         test('should set up camera viewport', () => {
@@ -399,7 +400,7 @@ describe('Canvas2DRendererPlugin', () => {
             engine.update(0);
 
             // Should have cleared and drawn camera border
-            const ctx = api.getContext() as any;
+            const ctx = api.getContext() as unknown as MockCanvasRenderingContext2D;
             expect(ctx.clearRect).toHaveBeenCalled();
             expect(ctx.strokeRect).toHaveBeenCalled();
         });
@@ -419,7 +420,7 @@ describe('Canvas2DRendererPlugin', () => {
             engine.update(0);
 
             // Should clear both viewports
-            const ctx = api.getContext() as any;
+            const ctx = api.getContext() as unknown as MockCanvasRenderingContext2D;
             expect(ctx.clearRect).toHaveBeenCalledTimes(3); // Once for full canvas, once per camera
         });
 
@@ -432,7 +433,7 @@ describe('Canvas2DRendererPlugin', () => {
             engine.start();
             engine.update(0);
 
-            const ctx = api.getContext() as any;
+            const ctx = api.getContext() as unknown as MockCanvasRenderingContext2D;
             expect(ctx.fillRect).toHaveBeenCalled();
             expect(ctx.fillStyle).toBe('#87CEEB');
         });
@@ -446,14 +447,14 @@ describe('Canvas2DRendererPlugin', () => {
                 { position: { x: -10, y: -10 } },
                 { position: { x: 10, y: -10 } },
                 { position: { x: 10, y: 10 } },
-                { position: { x: -10, y: 10 } }
+                { position: { x: -10, y: 10 } },
             ],
-            color: { value: '#FF0000' }
+            color: { value: '#FF0000' },
         };
 
         beforeEach(() => {
-            api = (engine as any).canvas2d;
-            api.setCanvas(mockCanvas as any);
+            api = (engine as EngineWithCanvas2D).canvas2d;
+            api.setCanvas(mockCanvas as unknown as HTMLCanvasElement);
         });
 
         test('should render visible sprites', () => {
@@ -471,7 +472,7 @@ describe('Canvas2DRendererPlugin', () => {
             engine.start();
             engine.update(0);
 
-            const ctx = api.getContext() as any;
+            const ctx = api.getContext() as unknown as MockCanvasRenderingContext2D;
             expect(ctx.beginPath).toHaveBeenCalled();
             expect(ctx.fill).toHaveBeenCalled();
         });
@@ -488,7 +489,7 @@ describe('Canvas2DRendererPlugin', () => {
 
             engine.start();
 
-            const ctx = api.getContext() as any;
+            const ctx = api.getContext() as unknown as MockCanvasRenderingContext2D;
             const fillCallsBefore = ctx.fill.mock.calls.length;
 
             engine.update(0);
@@ -510,7 +511,7 @@ describe('Canvas2DRendererPlugin', () => {
             engine.start();
             engine.update(0);
 
-            const ctx = api.getContext() as any;
+            const ctx = api.getContext() as unknown as MockCanvasRenderingContext2D;
             expect(ctx.rotate).toHaveBeenCalledWith(Math.PI / 4);
         });
 
@@ -527,15 +528,15 @@ describe('Canvas2DRendererPlugin', () => {
             engine.start();
             engine.update(0);
 
-            const ctx = api.getContext() as any;
+            const ctx = api.getContext() as unknown as MockCanvasRenderingContext2D;
             expect(ctx.scale).toHaveBeenCalledWith(2, 0.5);
         });
     });
 
     describe('Integration Tests', () => {
         test('should work with complete scene setup', () => {
-            const api = (engine as any).canvas2d;
-            api.setCanvas(mockCanvas as any);
+            const api = (engine as EngineWithCanvas2D).canvas2d;
+            api.setCanvas(mockCanvas as unknown as HTMLCanvasElement);
 
             // Create camera
             const camera = engine.createEntity('MainCamera');
@@ -551,9 +552,9 @@ describe('Canvas2DRendererPlugin', () => {
                     vertices: [
                         { position: { x: -10, y: -10 } },
                         { position: { x: 10, y: -10 } },
-                        { position: { x: 10, y: 10 } }
+                        { position: { x: 10, y: 10 } },
                     ],
-                    color: { value: '#FF0000' }
+                    color: { value: '#FF0000' },
                 });
             }
 
@@ -566,8 +567,8 @@ describe('Canvas2DRendererPlugin', () => {
 
     describe('Edge Cases', () => {
         test('should handle sprites outside camera bounds', () => {
-            const api = (engine as any).canvas2d;
-            api.setCanvas(mockCanvas as any);
+            const api = (engine as EngineWithCanvas2D).canvas2d;
+            api.setCanvas(mockCanvas as unknown as HTMLCanvasElement);
 
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 400, 300);
@@ -579,7 +580,7 @@ describe('Canvas2DRendererPlugin', () => {
             sprite.addComponent(Transform, 10000, 10000);
             sprite.addComponent(Sprite, {
                 vertices: [{ position: { x: 0, y: 0 } }],
-                color: { value: '#FF0000' }
+                color: { value: '#FF0000' },
             });
 
             expect(() => {
@@ -589,8 +590,8 @@ describe('Canvas2DRendererPlugin', () => {
         });
 
         test('should handle empty mesh vertices', () => {
-            const api = (engine as any).canvas2d;
-            api.setCanvas(mockCanvas as any);
+            const api = (engine as EngineWithCanvas2D).canvas2d;
+            api.setCanvas(mockCanvas as unknown as HTMLCanvasElement);
 
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 400, 300);
@@ -601,7 +602,7 @@ describe('Canvas2DRendererPlugin', () => {
             sprite.addComponent(Transform, 400, 300);
             sprite.addComponent(Sprite, {
                 vertices: [],
-                color: { value: '#FF0000' }
+                color: { value: '#FF0000' },
             });
 
             expect(() => {
@@ -611,8 +612,8 @@ describe('Canvas2DRendererPlugin', () => {
         });
 
         test('should handle pixel-based screen elements', () => {
-            const api = (engine as any).canvas2d;
-            api.setCanvas(mockCanvas as any);
+            const api = (engine as EngineWithCanvas2D).canvas2d;
+            api.setCanvas(mockCanvas as unknown as HTMLCanvasElement);
 
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 200, 150);

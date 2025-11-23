@@ -11,26 +11,29 @@
  * - Integration with InputManager
  */
 
-import { Engine } from 'orion-ecs';
 import { TestEngineBuilder } from '@orion-ecs/testing';
+import type { Engine } from 'orion-ecs';
 import {
-    InteractionSystemPlugin,
-    InteractionAPI,
     Clickable,
     Draggable,
-    Selectable,
     Hoverable,
-    InteractionBounds
+    InteractionAPI,
+    InteractionBounds,
+    InteractionSystemPlugin,
+    Selectable,
 } from './InteractionSystemPlugin';
 
 // Mock Vector2 and Bounds utilities
 const mockBounds = {
-    contains: jest.fn((point: any) => true)
+    contains: jest.fn((point: unknown) => true),
 };
 
 jest.mock('@orion-ecs/math', () => ({
     Vector2: class Vector2 {
-        constructor(public x: number = 0, public y: number = 0) {}
+        constructor(
+            public x: number = 0,
+            public y: number = 0
+        ) {}
         clone() {
             return new Vector2(this.x, this.y);
         }
@@ -43,7 +46,7 @@ jest.mock('@orion-ecs/math', () => ({
             public height: number
         ) {}
 
-        contains(point: any): boolean {
+        contains(point: unknown): boolean {
             return (
                 point.x >= this.left &&
                 point.x <= this.left + this.width &&
@@ -52,15 +55,10 @@ jest.mock('@orion-ecs/math', () => ({
             );
         }
 
-        static fromCenter(center: any, width: number, height: number) {
-            return new Bounds(
-                center.x - width / 2,
-                center.y - height / 2,
-                width,
-                height
-            );
+        static fromCenter(center: { x: number; y: number }, width: number, height: number) {
+            return new Bounds(center.x - width / 2, center.y - height / 2, width, height);
         }
-    }
+    },
 }));
 
 // Mock InputManagerPlugin
@@ -70,12 +68,12 @@ const mockInputAPI = {
         return () => mockInputAPI._callbacks.delete(event);
     }),
     _callbacks: new Map<string, Function>(),
-    _trigger: (event: string, data: any) => {
+    _trigger: (event: string, data: unknown) => {
         const callback = mockInputAPI._callbacks.get(event);
         if (callback) {
             callback(data);
         }
-    }
+    },
 };
 
 describe('InteractionSystemPlugin', () => {
@@ -86,29 +84,28 @@ describe('InteractionSystemPlugin', () => {
         plugin = new InteractionSystemPlugin();
 
         // Create engine without the plugin first
-        engine = new TestEngineBuilder()
-            .build();
+        engine = new TestEngineBuilder().build();
 
         // Manually add mock input API
-        (engine as any).input = mockInputAPI;
+        (engine as Record<string, unknown>).input = mockInputAPI;
 
         // Now install the plugin manually
         const context = {
-            registerComponent: (component: any) => engine.registerComponent(component),
-            registerComponentValidator: (component: any, validator: any) =>
+            registerComponent: (component: unknown) => engine.registerComponent(component),
+            registerComponentValidator: (component: unknown, validator: unknown) =>
                 engine.registerComponentValidator(component, validator),
-            createSystem: (name: string, query: any, options: any, fixed: boolean) =>
+            createSystem: (name: string, query: unknown, options: unknown, fixed: boolean) =>
                 engine.createSystem(name, query, options, fixed),
-            createQuery: (options: any) => engine.createQuery(options),
-            extend: (name: string, api: any) => {
-                (engine as any)[name] = api;
+            createQuery: (options: unknown) => engine.createQuery(options),
+            extend: (name: string, api: unknown) => {
+                (engine as Record<string, unknown>)[name] = api;
             },
             getEngine: () => engine,
             messageBus: engine.messageBus,
-            engine: engine
+            engine: engine,
         };
 
-        plugin.install(context as any);
+        plugin.install(context as unknown as PluginContext);
     });
 
     afterEach(() => {
@@ -129,8 +126,8 @@ describe('InteractionSystemPlugin', () => {
         });
 
         test('should extend engine with interaction API', () => {
-            expect((engine as any).interaction).toBeDefined();
-            expect((engine as any).interaction).toBeInstanceOf(InteractionAPI);
+            expect((engine as EngineWithInteraction).interaction).toBeDefined();
+            expect((engine as EngineWithInteraction).interaction).toBeInstanceOf(InteractionAPI);
         });
 
         test('should register all components', () => {
@@ -262,13 +259,13 @@ describe('InteractionSystemPlugin', () => {
 
     describe('Component - InteractionBounds', () => {
         test('should create InteractionBounds', () => {
-            const bounds = new InteractionBounds(mockBounds as any);
+            const bounds = new InteractionBounds(mockBounds as unknown as Bounds);
             expect(bounds.bounds).toBe(mockBounds);
             expect(bounds.autoUpdate).toBe(false);
         });
 
         test('should create InteractionBounds with auto-update', () => {
-            const bounds = new InteractionBounds(mockBounds as any, true);
+            const bounds = new InteractionBounds(mockBounds as unknown as Bounds, true);
             expect(bounds.autoUpdate).toBe(true);
         });
     });
@@ -277,7 +274,7 @@ describe('InteractionSystemPlugin', () => {
         let api: InteractionAPI;
 
         beforeEach(() => {
-            api = (engine as any).interaction;
+            api = (engine as EngineWithInteraction).interaction;
         });
 
         test('should start with no selected entities', () => {
@@ -361,7 +358,7 @@ describe('InteractionSystemPlugin', () => {
         let api: InteractionAPI;
 
         beforeEach(() => {
-            api = (engine as any).interaction;
+            api = (engine as EngineWithInteraction).interaction;
         });
 
         test('should start with no hovered entities', () => {
@@ -393,7 +390,7 @@ describe('InteractionSystemPlugin', () => {
         let api: InteractionAPI;
 
         beforeEach(() => {
-            api = (engine as any).interaction;
+            api = (engine as EngineWithInteraction).interaction;
         });
 
         test('should trigger onClick callback when clicked', () => {
@@ -407,7 +404,7 @@ describe('InteractionSystemPlugin', () => {
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             mockInputAPI._trigger('click', {
-                position: { x: 50, y: 50 }
+                position: { x: 50, y: 50 },
             });
 
             expect(mockCallback).toHaveBeenCalled();
@@ -424,7 +421,7 @@ describe('InteractionSystemPlugin', () => {
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             mockInputAPI._trigger('click', {
-                position: { x: 50, y: 50 }
+                position: { x: 50, y: 50 },
             });
 
             expect(mockCallback).not.toHaveBeenCalled();
@@ -440,14 +437,14 @@ describe('InteractionSystemPlugin', () => {
 
             // First click - select
             mockInputAPI._trigger('click', {
-                position: { x: 50, y: 50 }
+                position: { x: 50, y: 50 },
             });
 
             expect(api.getSelectedEntities()).toContain(entity);
 
             // Second click - deselect
             mockInputAPI._trigger('click', {
-                position: { x: 50, y: 50 }
+                position: { x: 50, y: 50 },
             });
 
             expect(api.getSelectedEntities()).not.toContain(entity);
@@ -472,7 +469,7 @@ describe('InteractionSystemPlugin', () => {
             entity2.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             mockInputAPI._trigger('click', {
-                position: { x: 50, y: 50 }
+                position: { x: 50, y: 50 },
             });
 
             // Only higher layer should be clicked
@@ -485,7 +482,7 @@ describe('InteractionSystemPlugin', () => {
         let api: InteractionAPI;
 
         beforeEach(() => {
-            api = (engine as any).interaction;
+            api = (engine as EngineWithInteraction).interaction;
         });
 
         test('should trigger onDragStart callback', () => {
@@ -500,7 +497,7 @@ describe('InteractionSystemPlugin', () => {
 
             const Vector2 = require('@orion-ecs/math').Vector2;
             mockInputAPI._trigger('dragstart', {
-                startPosition: new Vector2(50, 50)
+                startPosition: new Vector2(50, 50),
             });
 
             expect(mockCallback).toHaveBeenCalled();
@@ -522,12 +519,12 @@ describe('InteractionSystemPlugin', () => {
 
             // Start drag first
             mockInputAPI._trigger('dragstart', {
-                startPosition: new Vector2(50, 50)
+                startPosition: new Vector2(50, 50),
             });
 
             // Then drag
             mockInputAPI._trigger('drag', {
-                deltaPosition: new Vector2(10, 5)
+                deltaPosition: new Vector2(10, 5),
             });
 
             expect(mockCallback).toHaveBeenCalled();
@@ -547,12 +544,12 @@ describe('InteractionSystemPlugin', () => {
 
             // Start drag
             mockInputAPI._trigger('dragstart', {
-                startPosition: new Vector2(50, 50)
+                startPosition: new Vector2(50, 50),
             });
 
             // End drag
             mockInputAPI._trigger('dragend', {
-                currentPosition: new Vector2(60, 55)
+                currentPosition: new Vector2(60, 55),
             });
 
             expect(mockCallback).toHaveBeenCalled();
@@ -571,7 +568,7 @@ describe('InteractionSystemPlugin', () => {
 
             const Vector2 = require('@orion-ecs/math').Vector2;
             mockInputAPI._trigger('dragstart', {
-                startPosition: new Vector2(50, 50)
+                startPosition: new Vector2(50, 50),
             });
 
             expect(mockCallback).not.toHaveBeenCalled();
@@ -582,7 +579,7 @@ describe('InteractionSystemPlugin', () => {
         let api: InteractionAPI;
 
         beforeEach(() => {
-            api = (engine as any).interaction;
+            api = (engine as EngineWithInteraction).interaction;
         });
 
         test('should trigger onHoverEnter callback', () => {
@@ -597,7 +594,7 @@ describe('InteractionSystemPlugin', () => {
 
             const Vector2 = require('@orion-ecs/math').Vector2;
             mockInputAPI._trigger('mousemove', {
-                position: new Vector2(50, 50)
+                position: new Vector2(50, 50),
             });
 
             expect(mockCallback).toHaveBeenCalled();
@@ -623,7 +620,7 @@ describe('InteractionSystemPlugin', () => {
             // Move outside bounds
             bounds.contains = jest.fn(() => false);
             mockInputAPI._trigger('mousemove', {
-                position: new Vector2(200, 200)
+                position: new Vector2(200, 200),
             });
 
             expect(mockExit).toHaveBeenCalled();
@@ -633,7 +630,7 @@ describe('InteractionSystemPlugin', () => {
 
     describe('Plugin Uninstallation', () => {
         test('should uninstall and clear selections', () => {
-            const api = (engine as any).interaction;
+            const api = (engine as EngineWithInteraction).interaction;
 
             const entity = engine.createEntity('Entity');
             entity.addComponent(Selectable);
@@ -654,7 +651,7 @@ describe('InteractionSystemPlugin', () => {
 
             expect(() => {
                 mockInputAPI._trigger('click', {
-                    position: new Vector2(50, 50)
+                    position: new Vector2(50, 50),
                 });
             }).not.toThrow();
         });
@@ -683,7 +680,7 @@ describe('InteractionSystemPlugin', () => {
             entity3.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             mockInputAPI._trigger('click', {
-                position: new Vector2(50, 50)
+                position: new Vector2(50, 50),
             });
 
             // Only highest layer (5) should be clicked

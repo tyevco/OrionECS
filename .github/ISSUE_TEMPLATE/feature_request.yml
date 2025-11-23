@@ -1,0 +1,140 @@
+name: Feature Request
+description: Suggest a new feature or enhancement for Orion ECS
+title: "[Feature]: "
+labels: ["enhancement"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Thank you for suggesting a new feature! Please fill out the form below to help us understand your request.
+
+  - type: textarea
+    id: summary
+    attributes:
+      label: Feature Summary
+      description: A clear and concise description of the feature you'd like to see
+      placeholder: I would like Orion ECS to...
+    validations:
+      required: true
+
+  - type: textarea
+    id: motivation
+    attributes:
+      label: Motivation and Use Case
+      description: Why do you need this feature? What problem does it solve?
+      placeholder: |
+        This feature would help with...
+        Currently, I have to work around this by...
+    validations:
+      required: true
+
+  - type: textarea
+    id: proposed
+    attributes:
+      label: Proposed Solution
+      description: How would you like this feature to work? Include API examples if possible.
+      placeholder: |
+        ```typescript
+        // Example of how the feature might be used
+        engine.newFeature({
+          option1: true,
+          option2: 'value'
+        });
+        ```
+      render: typescript
+    validations:
+      required: true
+
+  - type: textarea
+    id: alternatives
+    attributes:
+      label: Alternatives Considered
+      description: What alternative solutions or features have you considered?
+      placeholder: I also considered...
+    validations:
+      required: false
+
+  - type: dropdown
+    id: area
+    attributes:
+      label: Feature Area
+      description: Which part of Orion ECS does this feature relate to?
+      options:
+        - Core Engine
+        - Entity Management
+        - Component System
+        - Query System
+        - System Execution
+        - Plugin System
+        - Performance
+        - Developer Tools
+        - Documentation
+        - Examples
+        - Other
+    validations:
+      required: true
+
+  - type: dropdown
+    id: priority
+    attributes:
+      label: Priority (Your Opinion)
+      description: How important is this feature to you?
+      options:
+        - Critical - Blocking my work
+        - High - Very important
+        - Medium - Would be nice to have
+        - Low - Minor improvement
+    validations:
+      required: true
+
+  - type: textarea
+    id: implementation
+    attributes:
+      label: Implementation Ideas
+      description: Do you have any ideas about how this could be implemented?
+      placeholder: This could potentially be implemented by...
+    validations:
+      required: false
+
+  - type: textarea
+    id: breaking
+    attributes:
+      label: Breaking Changes
+      description: Would this feature require breaking changes to the API?
+      placeholder: This would/would not require breaking changes because...
+    validations:
+      required: false
+
+  - type: textarea
+    id: examples
+    attributes:
+      label: Related Examples
+      description: Links to examples of this feature in other libraries or frameworks
+      placeholder: |
+        - Library X implements this as...
+        - Framework Y has a similar feature...
+    validations:
+      required: false
+
+  - type: checkboxes
+    id: contribution
+    attributes:
+      label: Contribution
+      description: Are you interested in contributing to this feature?
+      options:
+        - label: I am willing to implement this feature and submit a PR
+        - label: I can help with documentation for this feature
+        - label: I can help with testing this feature
+
+  - type: checkboxes
+    id: search
+    attributes:
+      label: Pre-submission Checklist
+      description: Please confirm the following
+      options:
+        - label: I have searched existing issues to avoid duplicates
+          required: true
+        - label: I have checked the documentation to ensure this doesn't already exist
+          required: true
+        - label: This feature aligns with the goals of Orion ECS
+          required: true

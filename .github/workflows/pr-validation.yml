@@ -1,0 +1,85 @@
+name: PR Validation
+
+on:
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  validate:
+    name: Validate PR
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v6
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Setup Turborepo cache
+        uses: actions/cache@v4
+        with:
+          path: .turbo
+          key: ${{ runner.os }}-turbo-pr-${{ github.sha }}
+          restore-keys: |
+            ${{ runner.os }}-turbo-pr-
+
+      - name: Type check
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Format check
+        run: npm run format:check
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Run tests
+        run: npm test
+
+      - name: Verify build artifacts
+        run: |
+          echo "Checking core package..."
+          test -f core/dist/index.js || (echo "❌ core/dist/index.js not found" && exit 1)
+          test -f core/dist/index.d.ts || (echo "❌ core/dist/index.d.ts not found" && exit 1)
+
+          echo "Checking utils package..."
+          test -f utils/dist/index.js || (echo "❌ utils/dist/index.js not found" && exit 1)
+          test -f utils/dist/index.d.ts || (echo "❌ utils/dist/index.d.ts not found" && exit 1)
+
+          echo "✅ All build artifacts verified"
+
+      - name: Check for changesets
+        run: |
+          if [ "${{ github.event.pull_request.user.login }}" != "github-actions[bot]" ]; then
+            if ! git diff --name-only origin/main | grep -q "^\.changeset/.*\.md$"; then
+              echo "⚠️  No changeset found. If this PR includes changes that should be released, please add a changeset:"
+              echo "   npm run changeset"
+              echo ""
+              echo "If this PR doesn't require a release (docs, tests, etc.), you can ignore this message."
+            else
+              echo "✅ Changeset found"
+            fi
+          fi
+
+      - name: PR Summary
+        run: |
+          echo "### ✅ PR Validation Passed" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "All checks passed successfully!" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Type checking" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Linting" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Formatting" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Build" >> $GITHUB_STEP_SUMMARY
+          echo "- ✅ Tests" >> $GITHUB_STEP_SUMMARY

@@ -238,6 +238,63 @@ git commit -m "WIP"  # Work in progress should not be committed to main
 
 Commitlint will validate your commit messages automatically.
 
+## Release Process & Changesets
+
+OrionECS uses [Changesets](https://github.com/changesets/changesets) to manage versioning and releases.
+
+### When to Add a Changeset
+
+If your changes affect **published packages** (not just docs or tests), add a changeset:
+
+```bash
+npm run changeset:add
+```
+
+This will prompt you to:
+1. **Select packages** affected by your changes
+2. **Choose version bump type**:
+   - **patch** (0.0.x) - Bug fixes, small changes
+   - **minor** (0.x.0) - New features, backwards-compatible
+   - **major** (x.0.0) - Breaking changes
+3. **Write description** - This becomes the changelog entry
+
+**Add changesets for:**
+- ✅ New features
+- ✅ Bug fixes
+- ✅ API changes
+- ✅ Dependency updates affecting users
+
+**Skip changesets for:**
+- ❌ Documentation only
+- ❌ Test only changes
+- ❌ Internal refactoring (no API changes)
+- ❌ Build/tooling changes
+
+### Changeset Example
+
+After running `npm run changeset:add`, a file will be created in `.changeset/`:
+
+```markdown
+---
+"orion-ecs": minor
+"@orion-ecs/physics": patch
+---
+
+Add async component loading support to ResourceManager and fix physics collision detection bug
+```
+
+Commit this file along with your changes.
+
+### How Releases Work
+
+1. **You add a changeset** and create a PR
+2. **PR is merged** to main
+3. **Version PR is created** automatically with version bumps
+4. **Maintainer merges Version PR**
+5. **Packages are published** automatically to npm
+
+See [RELEASE.md](./RELEASE.md) for detailed release documentation.
+
 ## Pull Request Process
 
 ### Before Submitting
@@ -258,6 +315,11 @@ Commitlint will validate your commit messages automatically.
 3. **Update documentation** if you've changed APIs
 
 4. **Add tests** for new features or bug fixes
+
+5. **Add changeset** if your changes affect published packages:
+   ```bash
+   npm run changeset:add
+   ```
 
 ### Submitting a Pull Request
 

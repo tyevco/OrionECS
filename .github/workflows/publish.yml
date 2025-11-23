@@ -1,14 +1,28 @@
-name: Publish Package
+name: Manual Publish
 
 on:
-  release:
-    types: [published]
   workflow_dispatch:
     inputs:
-      tag:
-        description: 'Release tag to publish'
+      package:
+        description: 'Package to publish (e.g., core, utils, or plugin name)'
         required: true
-        type: string
+        type: choice
+        options:
+          - core
+          - utils
+          - canvas2d-renderer
+          - input-manager
+          - interaction-system
+          - physics
+          - spatial-partition
+          - debug-visualizer
+          - profiling
+          - resource-manager
+      dry_run:
+        description: 'Dry run (will not actually publish)'
+        required: false
+        type: boolean
+        default: true
 
 jobs:
   publish:
@@ -21,8 +35,6 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v6
-        with:
-          ref: ${{ github.event.inputs.tag || github.ref }}
 
       - name: Setup Node.js
         uses: actions/setup-node@v6
@@ -48,21 +60,66 @@ jobs:
       - name: Build package
         run: npm run build
 
+      - name: Determine workspace path
+        id: workspace
+        run: |
+          case "${{ github.event.inputs.package }}" in
+            core|utils)
+              echo "path=${{ github.event.inputs.package }}" >> $GITHUB_OUTPUT
+              ;;
+            *)
+              echo "path=plugins/${{ github.event.inputs.package }}" >> $GITHUB_OUTPUT
+              ;;
+          esac
+
       - name: Verify build artifacts
         run: |
-          test -f core/dist/index.js || exit 1
-          test -f core/dist/index.d.ts || exit 1
+          WORKSPACE_PATH="${{ steps.workspace.outputs.path }}"
+          echo "Checking build artifacts in $WORKSPACE_PATH..."
+          test -f "$WORKSPACE_PATH/dist/index.js" || (echo "❌ $WORKSPACE_PATH/dist/index.js not found" && exit 1)
+          test -f "$WORKSPACE_PATH/dist/index.d.ts" || (echo "❌ $WORKSPACE_PATH/dist/index.d.ts not found" && exit 1)
+          echo "✅ Build artifacts verified"
+
+      - name: Get package info
+        id: package_info
+        run: |
+          WORKSPACE_PATH="${{ steps.workspace.outputs.path }}"
+          PACKAGE_NAME=$(node -p "require('./$WORKSPACE_PATH/package.json').name")
+          PACKAGE_VERSION=$(node -p "require('./$WORKSPACE_PATH/package.json').version")
+          echo "name=$PACKAGE_NAME" >> $GITHUB_OUTPUT
+          echo "version=$PACKAGE_VERSION" >> $GITHUB_OUTPUT
+
+      - name: Publish to npm (dry run)
+        if: github.event.inputs.dry_run == 'true'
+        run: |
+          WORKSPACE_PATH="${{ steps.workspace.outputs.path }}"
+          echo "🔍 Dry run - would publish: ${{ steps.package_info.outputs.name }}@${{ steps.package_info.outputs.version }}"
+          npm publish --workspace="$WORKSPACE_PATH" --dry-run --provenance --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Publish to npm
-        run: npm publish --provenance --access public --workspace=core
+        if: github.event.inputs.dry_run == 'false'
+        run: |
+          WORKSPACE_PATH="${{ steps.workspace.outputs.path }}"
+          npm publish --workspace="$WORKSPACE_PATH" --provenance --access public
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
 
       - name: Create GitHub release summary
         run: |
-          echo "### Published to npm 🚀" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.dry_run }}" == "true" ]; then
+            echo "### 🔍 Dry Run Complete" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Would publish:" >> $GITHUB_STEP_SUMMARY
+          else
+            echo "### Published to npm 🚀" >> $GITHUB_STEP_SUMMARY
+            echo "" >> $GITHUB_STEP_SUMMARY
+            echo "Published:" >> $GITHUB_STEP_SUMMARY
+          fi
+          echo "- Package: \`${{ steps.package_info.outputs.name }}\`" >> $GITHUB_STEP_SUMMARY
+          echo "- Version: \`${{ steps.package_info.outputs.version }}\`" >> $GITHUB_STEP_SUMMARY
           echo "" >> $GITHUB_STEP_SUMMARY
-          echo "Package: \`orion-ecs\`" >> $GITHUB_STEP_SUMMARY
-          echo "Version: \`$(node -p "require('./core/package.json').version")\`" >> $GITHUB_STEP_SUMMARY
-          echo "" >> $GITHUB_STEP_SUMMARY
-          echo "[View on npm](https://www.npmjs.com/package/orion-ecs)" >> $GITHUB_STEP_SUMMARY
+          if [ "${{ github.event.inputs.dry_run }}" != "true" ]; then
+            echo "[View on npm](https://www.npmjs.com/package/${{ steps.package_info.outputs.name }})" >> $GITHUB_STEP_SUMMARY
+          fi

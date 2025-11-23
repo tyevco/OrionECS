@@ -14,7 +14,15 @@
     "format:check": "turbo run format:check",
     "typecheck": "turbo run typecheck",
     "check": "turbo run check",
-    "clean": "turbo run clean && rm -rf node_modules/.cache"
+    "clean": "turbo run clean && rm -rf node_modules/.cache",
+    "changeset": "changeset",
+    "changeset:add": "changeset add",
+    "changeset:status": "changeset status",
+    "version": "changeset version",
+    "release": "npm run build && npm run test && changeset publish",
+    "release:dry-run": "npm run build && npm run test && changeset publish --dry-run",
+    "validate:packages": "npm run typecheck && npm run lint && npm run test && npm run build",
+    "validate:publish": "npm run validate:packages && npm run release:dry-run"
   },
   "workspaces": [
     "packages/core",
@@ -36,6 +44,8 @@
     "@babel/preset-env": "^7.28.5",
     "@babel/preset-typescript": "^7.28.5",
     "@biomejs/biome": "^2.3.7",
+    "@changesets/changelog-github": "^0.5.1",
+    "@changesets/cli": "^2.29.7",
     "@commitlint/cli": "^20.1.0",
     "@commitlint/config-conventional": "^20.0.0",
     "@types/benchmark": "^2.1.5",

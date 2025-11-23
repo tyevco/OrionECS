@@ -1,7 +1,7 @@
 {
-  "name": "@orion-ecs/input-manager",
+  "name": "@orion-ecs/profiling",
   "version": "1.0.0",
-  "description": "Input handling plugin for OrionECS with mouse and keyboard support",
+  "description": "Performance profiling plugin for OrionECS with real-time metrics and visualization",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -24,16 +24,14 @@
     "ecs",
     "orion-ecs",
     "plugin",
-    "input",
-    "mouse",
-    "keyboard",
-    "events"
+    "profiling",
+    "performance",
+    "metrics"
   ],
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "orion-ecs": "*",
-    "@orion-ecs/math": "*"
+    "orion-ecs": "*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

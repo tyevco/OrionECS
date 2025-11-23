@@ -1,7 +1,7 @@
 {
-  "name": "@orion-ecs/input-manager",
+  "name": "@orion-ecs/debug-visualizer",
   "version": "1.0.0",
-  "description": "Input handling plugin for OrionECS with mouse and keyboard support",
+  "description": "Debug visualization plugin for OrionECS with canvas rendering for physics, colliders, and transforms",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -24,16 +24,16 @@
     "ecs",
     "orion-ecs",
     "plugin",
-    "input",
-    "mouse",
-    "keyboard",
-    "events"
+    "debug",
+    "visualizer",
+    "canvas",
+    "rendering"
   ],
   "author": "",
   "license": "MIT",
   "peerDependencies": {
     "orion-ecs": "*",
-    "@orion-ecs/math": "*"
+    "@orion-ecs/utils": "*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

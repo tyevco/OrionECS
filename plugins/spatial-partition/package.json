@@ -1,7 +1,7 @@
 {
-  "name": "@orion-ecs/input-manager",
+  "name": "@orion-ecs/spatial-partition",
   "version": "1.0.0",
-  "description": "Input handling plugin for OrionECS with mouse and keyboard support",
+  "description": "Spatial partitioning plugin for OrionECS with quadtree and grid-based collision detection",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
@@ -24,16 +24,16 @@
     "ecs",
     "orion-ecs",
     "plugin",
-    "input",
-    "mouse",
-    "keyboard",
-    "events"
+    "spatial",
+    "quadtree",
+    "collision",
+    "partition"
   ],
   "author": "",
   "license": "MIT",
   "peerDependencies": {
     "orion-ecs": "*",
-    "@orion-ecs/math": "*"
+    "@orion-ecs/utils": "*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

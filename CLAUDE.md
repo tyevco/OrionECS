@@ -124,6 +124,92 @@ Entity lifecycle is managed through advanced object pooling to minimize garbage 
 - Benchmarks: `**/*.bench.ts` files in `/benchmarks/` directory
 - Benchmark config uses specialized jest-bench environment for performance testing
 
+### Version Management & Changesets
+
+This project uses [Changesets](https://github.com/changesets/changesets) for version management and changelog generation.
+
+**When to Create a Changeset:**
+- After implementing a new feature (minor or major change)
+- After fixing a bug (patch change)
+- After making breaking changes (major change)
+- Before creating a PR for any user-facing changes
+
+**Do NOT create changesets for:**
+- Internal refactoring that doesn't affect the public API
+- Documentation-only changes
+- Test-only changes
+- CI/CD configuration changes
+- Changes to examples or tutorials (they're ignored)
+
+**Creating a Changeset:**
+
+```bash
+# Interactive mode (recommended)
+npx changeset
+
+# Or manually create a file in .changeset/ directory
+```
+
+**Changeset Format:**
+```markdown
+---
+"@orion-ecs/core": minor
+"@orion-ecs/math": patch
+---
+
+Description of your changes
+
+- Bullet point 1
+- Bullet point 2
+```
+
+**Change Types:**
+- `major`: Breaking changes (e.g., API changes, package renames)
+- `minor`: New features (backwards compatible)
+- `patch`: Bug fixes and small improvements
+
+**Ignored Packages:**
+The following packages are automatically ignored and don't need changesets:
+- `@orionecs/examples` - Example applications
+- `orionecs-tutorial-*` - All tutorial packages (glob pattern)
+
+**Version Workflow:**
+1. Create changesets as you make changes
+2. Changesets accumulate in `.changeset/` directory
+3. When ready to release, run `npx changeset version` to:
+   - Bump package versions based on changesets
+   - Generate/update CHANGELOG.md files
+   - Delete consumed changeset files
+4. Commit the version bumps and updated CHANGELOGs
+5. Run `npx changeset publish` to publish to npm
+
+**Commands:**
+- `npx changeset` - Create a new changeset (interactive)
+- `npx changeset add` - Same as above
+- `npx changeset status` - View pending changesets and version bumps
+- `npx changeset version` - Apply changesets and bump versions
+- `npx changeset publish` - Publish updated packages to npm
+
+**Configuration:**
+Changeset configuration is in `.changeset/config.json`:
+- Uses GitHub integration for rich changelogs with PR links
+- Automatically updates internal dependencies
+- Public access for all packages
+
+**Example Changeset:**
+```markdown
+---
+"@orion-ecs/core": minor
+---
+
+Add singleton component support for global state management
+
+- Singleton components enforce single-instance constraint
+- Type-safe access via engine.getSingleton()
+- Full event support for singleton changes
+- Includes serialization support
+```
+
 ### Repository Structure
 The repository uses a monorepo structure with npm workspaces:
 

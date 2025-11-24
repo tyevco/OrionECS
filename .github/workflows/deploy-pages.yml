@@ -31,12 +31,14 @@ jobs:
         run: npm ci
 
       - name: Build core package
-        run: npm run build --workspace=core
+        run: npm run build --workspace=packages/core
 
       - name: Generate API documentation
         run: |
-          npm run docs:generate --workspace=core
-          npm run docs:generate --workspace=utils
+          npm run docs:generate --workspace=packages/core
+          npm run docs:generate --workspace=packages/math
+          npm run docs:generate --workspace=packages/graphics
+          npm run docs:generate --workspace=packages/testing
 
       - name: Build examples
         run: npm run build --workspace=examples
@@ -46,9 +48,13 @@ jobs:
           mkdir -p ./deploy
           cp -r ./examples/dist/* ./deploy/ 2>/dev/null || :
           mkdir -p ./deploy/api
-          cp -r ./core/docs/* ./deploy/api/
-          mkdir -p ./deploy/api/utils
-          cp -r ./utils/docs/* ./deploy/api/utils/
+          cp -r ./packages/core/docs/* ./deploy/api/
+          mkdir -p ./deploy/api/math
+          cp -r ./packages/math/docs/* ./deploy/api/math/
+          mkdir -p ./deploy/api/graphics
+          cp -r ./packages/graphics/docs/* ./deploy/api/graphics/
+          mkdir -p ./deploy/api/testing
+          cp -r ./packages/testing/docs/* ./deploy/api/testing/
           echo "Creating index redirect..."
           cat > ./deploy/index.html << 'EOF'
           <!DOCTYPE html>
@@ -101,9 +107,19 @@ jobs:
                 <p>Complete API documentation for OrionECS engine, entities, systems, and queries</p>
               </a>
 
-              <a href="./api/utils/" class="link-card">
-                <h2>🔧 Utils API Reference</h2>
-                <p>Utility classes documentation: Vector2, Bounds, Color, Mesh, and more</p>
+              <a href="./api/math/" class="link-card">
+                <h2>🔢 Math API Reference</h2>
+                <p>Mathematical utilities: Vector2, Bounds, and geometric operations</p>
+              </a>
+
+              <a href="./api/graphics/" class="link-card">
+                <h2>🎨 Graphics API Reference</h2>
+                <p>Graphics primitives: Color, Mesh, Vertex, and rendering utilities</p>
+              </a>
+
+              <a href="./api/testing/" class="link-card">
+                <h2>🧪 Testing API Reference</h2>
+                <p>Testing utilities: TestEngineBuilder, assertions, mocks, and test helpers</p>
               </a>
 
               <a href="https://github.com/tyevco/OrionECS" class="link-card">

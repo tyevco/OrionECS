@@ -1,15 +1,15 @@
 {
   "name": "@orion-ecs/profiling",
-  "version": "1.0.0",
+  "version": "0.3.0",
   "description": "Performance profiling plugin for OrionECS with real-time metrics and visualization",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     }
   },
   "files": [
@@ -31,7 +31,7 @@
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "orion-ecs": "*"
+    "@orion-ecs/core": "*"
   },
   "devDependencies": {
     "tsup": "^8.0.0",

@@ -11,7 +11,7 @@
     "test": "echo \"No tests for examples\" && exit 0"
   },
   "dependencies": {
-    "orion-ecs": "*",
+    "@orion-ecs/core": "*",
     "pixi.js": "^8.0.0"
   },
   "devDependencies": {

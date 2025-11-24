@@ -5,8 +5,14 @@
  * @module testing
  */
 
-import type { Entity, ComponentArgs, ComponentIdentifier, SystemProfile, Engine } from 'orion-ecs';
-import { EngineBuilder } from 'orion-ecs';
+import type {
+    ComponentArgs,
+    ComponentIdentifier,
+    Engine,
+    Entity,
+    SystemProfile,
+} from '@orion-ecs/core';
+import { EngineBuilder } from '@orion-ecs/core';
 
 /**
  * TestEngineBuilder provides a preconfigured engine builder optimized for testing.

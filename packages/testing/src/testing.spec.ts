@@ -2,8 +2,8 @@
  * Tests for OrionECS Testing Utilities
  */
 
-import type { Entity, ComponentIdentifier, EntityPrefab } from 'orion-ecs';
-import { Engine } from 'orion-ecs';
+import type { ComponentIdentifier, Entity, EntityPrefab } from '@orion-ecs/core';
+import { Engine } from '@orion-ecs/core';
 import {
     assertEngineClean,
     createMockComponent,

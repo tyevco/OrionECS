@@ -5,6 +5,17 @@
 
 // Export archetype system
 export { Archetype, ArchetypeManager } from './archetype';
+export type {
+    CommandExecutionResult,
+    CommandType,
+    EntityCommand,
+} from './commands';
+// Export command buffer system
+export {
+    CommandBuffer,
+    EntityCommandBuilder,
+    SpawnEntityBuilder,
+} from './commands';
 // Export core building blocks
 export {
     ComponentArray,
@@ -66,6 +77,5 @@ export {
     SnapshotManager,
     SystemManager,
 } from './managers';
-
 // Export utility functions
 export { createTagComponent } from './utils';

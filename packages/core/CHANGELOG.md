@@ -1,6 +1,6 @@
 # @orion-ecs/core
 
-## 1.0.0
+## 0.3.0
 
 ### Major Changes
 

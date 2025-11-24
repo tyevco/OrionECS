@@ -1,6 +1,6 @@
 # @orion-ecs/canvas2d-renderer
 
-## 1.0.0
+## 0.3.0
 
 ### Major Changes
 

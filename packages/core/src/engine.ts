@@ -7,6 +7,7 @@
  * @module Engine
  */
 
+import { CommandBuffer, type CommandExecutionResult } from './commands';
 import {
     type Entity,
     EntityManager,
@@ -383,6 +384,12 @@ export class Engine {
     private inTransaction: boolean = false;
     private pendingQueryUpdates: Set<Entity> = new Set();
 
+    // Command buffer for deferred entity operations
+    private commandBuffer: CommandBuffer;
+
+    // Control whether commands are automatically executed during update
+    private autoExecuteCommands: boolean = true;
+
     constructor(
         private entityManager: EntityManager,
         private componentManager: ComponentManager,
@@ -418,6 +425,109 @@ export class Engine {
                 this.queryManager.updateQueries(entity);
             }
         });
+
+        // Initialize command buffer for deferred entity operations
+        this.commandBuffer = new CommandBuffer(this, debugMode);
+    }
+
+    // ========== Entity Commands / Deferred Operations ==========
+
+    /**
+     * Access the command buffer for deferred entity operations.
+     *
+     * The command buffer provides a safe way to perform entity operations during system
+     * execution without causing iterator invalidation or archetype transition issues.
+     * Commands are queued and executed at the end of the update cycle.
+     *
+     * @returns The command buffer instance
+     *
+     * @example Spawning entities safely during system execution
+     * ```typescript
+     * engine.createSystem('BulletSpawner', { all: [Weapon, Position] }, {
+     *   act: (entity, weapon, position) => {
+     *     if (weapon.shouldFire) {
+     *       engine.commands.spawn()
+     *         .named('Bullet')
+     *         .with(Position, position.x, position.y)
+     *         .with(Velocity, weapon.direction.x * 500, weapon.direction.y * 500)
+     *         .with(Damage, weapon.damage);
+     *     }
+     *   }
+     * });
+     * ```
+     *
+     * @example Modifying entities during iteration
+     * ```typescript
+     * engine.createSystem('DamageSystem', { all: [Health, DamageReceiver] }, {
+     *   act: (entity, health, receiver) => {
+     *     health.current -= receiver.pendingDamage;
+     *     if (health.current <= 0) {
+     *       engine.commands.despawn(entity);
+     *     }
+     *   }
+     * });
+     * ```
+     *
+     * @public
+     */
+    get commands(): CommandBuffer {
+        return this.commandBuffer;
+    }
+
+    /**
+     * Set whether commands should be automatically executed at the end of each update.
+     *
+     * When enabled (default), all pending commands are executed automatically after
+     * systems run and before entity cleanup. Disable this if you need manual control
+     * over when commands are processed.
+     *
+     * @param enabled - Whether to auto-execute commands (default: true)
+     *
+     * @example
+     * ```typescript
+     * // Disable automatic execution for manual control
+     * engine.setAutoExecuteCommands(false);
+     *
+     * // Queue some commands during update
+     * engine.update(deltaTime);
+     *
+     * // Manually execute when ready
+     * const result = engine.commands.execute();
+     * ```
+     *
+     * @public
+     */
+    setAutoExecuteCommands(enabled: boolean): void {
+        this.autoExecuteCommands = enabled;
+        if (this.debugMode) {
+            console.log(`[ECS Debug] Auto-execute commands: ${enabled}`);
+        }
+    }
+
+    /**
+     * Check if auto-execute commands is enabled.
+     *
+     * @returns Whether commands are automatically executed during update
+     *
+     * @public
+     */
+    isAutoExecuteCommandsEnabled(): boolean {
+        return this.autoExecuteCommands;
+    }
+
+    /**
+     * Execute all pending commands immediately.
+     *
+     * This is a convenience method that delegates to `engine.commands.execute()`.
+     * Useful for executing commands outside of the normal update cycle.
+     *
+     * @param options - Execution options
+     * @returns Command execution result with statistics
+     *
+     * @public
+     */
+    executeCommands(options: { rollbackOnError?: boolean } = {}): CommandExecutionResult {
+        return this.commandBuffer.execute(options);
     }
 
     // ========== Entity Management ==========
@@ -1594,6 +1704,11 @@ export class Engine {
 
         // Execute variable update systems
         this.systemManager.executeVariableSystems(dt);
+
+        // Execute deferred commands (if auto-execute is enabled)
+        if (this.autoExecuteCommands && this.commandBuffer.hasPendingCommands) {
+            this.commandBuffer.execute();
+        }
 
         // Update queries for all dirty entities
         for (const entity of this.entityManager.getAllEntities()) {

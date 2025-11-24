@@ -698,6 +698,31 @@ gh issue view 88
 gh issue view 88 --web
 ```
 
+#### Fallback: Using WebFetch When `gh` CLI Fails
+
+If the GitHub CLI (`gh`) is unavailable or fails, use the WebFetch tool to access GitHub issues directly:
+
+**View Issue:**
+```typescript
+// Fetch specific issue
+WebFetch('https://github.com/tyevco/OrionECS/issues/88', 'Extract the issue title, description, labels, milestone, and current status')
+
+// List issues (view issues page)
+WebFetch('https://github.com/tyevco/OrionECS/issues', 'List all open issues with their numbers, titles, and labels')
+
+// View milestone
+WebFetch('https://github.com/tyevco/OrionECS/milestone/1', 'List all issues in this milestone with their status')
+```
+
+**When to Use WebFetch:**
+- ✅ `gh` CLI commands fail with errors
+- ✅ GitHub API rate limiting occurs
+- ✅ Need to view issue content without modifying
+- ✅ Quick lookup of issue details
+- ❌ Don't use for creating/updating issues (requires API access)
+
+**Note:** WebFetch is read-only. For creating or modifying issues, you must use the `gh` CLI or ask the user to make changes manually.
+
 #### Creating Tracking Issues
 
 When you complete major analysis or planning work, create a **tracking issue** to document findings:

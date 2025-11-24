@@ -7,5 +7,5 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["orion-ecs-monorepo", "examples"]
+  "ignore": ["@orionecs/examples", "orionecs-tutorial-*"]
 }

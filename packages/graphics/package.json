@@ -36,7 +36,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "@orion-ecs/math": "file:../math"
+    "@orion-ecs/math": "*"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

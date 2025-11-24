@@ -1,15 +1,15 @@
 {
   "name": "@orion-ecs/debug-visualizer",
-  "version": "1.0.0",
+  "version": "0.3.0",
   "description": "Debug visualization plugin for OrionECS with canvas rendering for physics, colliders, and transforms",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
   "types": "./dist/index.d.ts",
   "exports": {
     ".": {
-      "require": "./dist/index.js",
+      "types": "./dist/index.d.ts",
       "import": "./dist/index.mjs",
-      "types": "./dist/index.d.ts"
+      "require": "./dist/index.js"
     }
   },
   "files": [
@@ -32,7 +32,7 @@
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "orion-ecs": "*",
+    "@orion-ecs/core": "*",
     "@orion-ecs/math": "*",
     "@orion-ecs/graphics": "*"
   },

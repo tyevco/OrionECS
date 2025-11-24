@@ -10,7 +10,7 @@
  * - Running a basic update loop
  */
 
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder, EntityDef } from '@orion-ecs/core';
 import { Position, Velocity, Renderable } from './components';
 
 // Build the engine with debug mode enabled for helpful error messages
@@ -66,7 +66,7 @@ engine.createSystem(
     all: [Position, Velocity]  // Query: entities with both components
   },
   {
-    act: (_entity, ...components) => {
+    act: (_entity: EntityDef, ...components: any[]) => {
       const [position, velocity] = components as [Position, Velocity];
       // Update position based on velocity
       position.x += velocity.x;
@@ -95,7 +95,7 @@ engine.createSystem(
       console.log('║' + ' OrionECS Tutorial 1: Your First ECS Project '.padEnd(48) + '║');
       console.log('╠' + '═'.repeat(48) + '╣');
     },
-    act: (entity, ...components) => {
+    act: (entity: EntityDef, ...components: any[]) => {
       const [position, renderable] = components as [Position, Renderable];
       // Simple console rendering
       const x = Math.round(position.x).toString().padStart(3);
@@ -142,7 +142,7 @@ function update() {
 
     // Display final state using a manual query
     const entities = engine.query().withAll(Position).build().getEntitiesArray();
-    entities.forEach(entity => {
+    entities.forEach((entity: EntityDef) => {
       const pos = entity.getComponent(Position)!;
       const x = Math.round(pos.x).toString().padStart(3);
       const y = Math.round(pos.y).toString().padStart(3);

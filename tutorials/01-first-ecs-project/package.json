@@ -16,7 +16,7 @@
   "author": "",
   "license": "MIT",
   "dependencies": {
-    "orion-ecs": "*"
+    "@orion-ecs/core": "*"
   },
   "devDependencies": {
     "@types/node": "^20.0.0",

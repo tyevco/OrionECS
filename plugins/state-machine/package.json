@@ -1,0 +1,49 @@
+{
+  "name": "@orion-ecs/state-machine",
+  "version": "0.1.0",
+  "description": "ECS-native finite state machine plugin for OrionECS with type-safe transitions and predicates",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "jest"
+  },
+  "keywords": [
+    "ecs",
+    "orion-ecs",
+    "plugin",
+    "state-machine",
+    "fsm",
+    "finite-state-machine",
+    "game-dev"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "@orion-ecs/core": "*"
+  },
+  "devDependencies": {
+    "@orion-ecs/core": "*",
+    "@orion-ecs/plugin-api": "*",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Void Vanguard - State Machine Example | OrionECS</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #0a0a1a 0%, #1a1a3a 100%);
+            color: #fff;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            overflow: hidden;
+        }
+
+        #game-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+
+        h1 {
+            color: #00FF88;
+            text-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: #888;
+            font-size: 0.9rem;
+            margin-bottom: 1rem;
+        }
+
+        canvas {
+            border: 2px solid #00FF88;
+            box-shadow: 0 0 30px rgba(0, 255, 136, 0.3);
+            border-radius: 4px;
+        }
+
+        #ui {
+            display: flex;
+            gap: 2rem;
+            font-size: 1.2rem;
+            font-weight: bold;
+            color: #fff;
+        }
+
+        #ui > div {
+            padding: 0.5rem 1rem;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 6px;
+        }
+
+        #ui span {
+            color: #00FF88;
+        }
+
+        #controls {
+            margin-top: 1rem;
+            text-align: center;
+            color: #aaa;
+            font-size: 0.9rem;
+        }
+
+        #controls p {
+            margin: 0.3rem 0;
+        }
+
+        kbd {
+            background: rgba(255, 255, 255, 0.1);
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            border: 1px solid #444;
+            font-family: monospace;
+        }
+
+        #state-panel {
+            position: fixed;
+            top: 1rem;
+            right: 1rem;
+            background: rgba(0, 0, 0, 0.8);
+            border: 1px solid #00FF88;
+            border-radius: 8px;
+            padding: 1rem;
+            min-width: 180px;
+        }
+
+        #state-panel h3 {
+            color: #00FF88;
+            font-size: 0.9rem;
+            margin-bottom: 0.5rem;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+        }
+
+        #state-info {
+            font-size: 0.85rem;
+            line-height: 1.6;
+        }
+
+        #state-info div {
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .state-formation { color: #00AAFF; }
+        .state-diving { color: #FF0066; }
+        .state-returning { color: #00FF00; }
+        .state-dying { color: #FF6600; }
+
+        #game-over {
+            display: none;
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: rgba(0, 0, 0, 0.95);
+            padding: 2rem 3rem;
+            border-radius: 12px;
+            border: 2px solid #00FF88;
+            text-align: center;
+            box-shadow: 0 0 50px rgba(0, 255, 136, 0.3);
+        }
+
+        #game-over h2 {
+            color: #00FF88;
+            margin-bottom: 1rem;
+            font-size: 2rem;
+        }
+
+        #game-over p {
+            font-size: 1.2rem;
+            margin-bottom: 0.5rem;
+        }
+
+        #game-over button {
+            margin-top: 1.5rem;
+            padding: 0.75rem 2rem;
+            background: linear-gradient(135deg, #00FF88 0%, #00AA55 100%);
+            color: #000;
+            border: none;
+            border-radius: 6px;
+            font-size: 1rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: transform 0.2s, box-shadow 0.2s;
+        }
+
+        #game-over button:hover {
+            transform: scale(1.05);
+            box-shadow: 0 0 20px rgba(0, 255, 136, 0.5);
+        }
+
+        .back-link {
+            position: fixed;
+            top: 1rem;
+            left: 1rem;
+            color: #00FF88;
+            text-decoration: none;
+            padding: 0.5rem 1rem;
+            background: rgba(0, 255, 136, 0.1);
+            border: 1px solid rgba(0, 255, 136, 0.3);
+            border-radius: 6px;
+            transition: background 0.3s ease;
+        }
+
+        .back-link:hover {
+            background: rgba(0, 255, 136, 0.2);
+        }
+
+        .fsm-badge {
+            display: inline-block;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 0.3rem 0.8rem;
+            border-radius: 20px;
+            font-size: 0.75rem;
+            font-weight: 600;
+            margin-left: 0.5rem;
+            vertical-align: middle;
+        }
+    </style>
+</head>
+<body>
+    <a href="../index.html" class="back-link">← Back to Examples</a>
+
+    <div id="state-panel">
+        <h3>Enemy States <span class="fsm-badge">FSM</span></h3>
+        <div id="state-info">
+            <div><span class="state-formation">Formation:</span> 0</div>
+            <div><span class="state-diving">Diving:</span> 0</div>
+            <div><span class="state-returning">Returning:</span> 0</div>
+            <div><span class="state-dying">Dying:</span> 0</div>
+        </div>
+    </div>
+
+    <div id="game-container">
+        <h1>Void Vanguard <span class="fsm-badge">State Machine Demo</span></h1>
+        <p class="subtitle">A Galaga-style shooter demonstrating ECS-native Finite State Machines</p>
+
+        <div id="ui">
+            <div>Score: <span id="score">0</span></div>
+            <div>Lives: <span id="lives">3</span></div>
+        </div>
+
+        <canvas id="game-canvas" width="800" height="600"></canvas>
+
+        <div id="controls">
+            <p><kbd>←</kbd> <kbd>→</kbd> or <kbd>A</kbd> <kbd>D</kbd> - Move</p>
+            <p><kbd>Space</kbd> - Shoot</p>
+        </div>
+    </div>
+
+    <div id="game-over">
+        <h2>Game Over!</h2>
+        <p>Final Score: <span id="final-score">0</span></p>
+        <button id="restart">Play Again</button>
+    </div>
+
+    <script type="module" src="./void-vanguard-browser.ts"></script>
+</body>
+</html>

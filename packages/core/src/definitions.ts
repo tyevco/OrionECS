@@ -8,6 +8,21 @@
  * @module Definitions
  */
 
+// Import plugin types from @orion-ecs/plugin-api for local use
+import type { SystemMessage as PluginApiSystemMessage } from '@orion-ecs/plugin-api';
+
+// Re-export plugin types from @orion-ecs/plugin-api for backward compatibility
+// Plugin authors can import directly from @orion-ecs/plugin-api for a lighter dependency
+export type {
+    EnginePlugin,
+    ExtractPluginExtensions,
+    InstalledPlugin,
+    SystemMessage,
+} from '@orion-ecs/plugin-api';
+
+// Alias for local use within this file
+type SystemMessage = PluginApiSystemMessage;
+
 /**
  * Type representing a component class constructor.
  *
@@ -519,13 +534,7 @@ export interface TagComponent {
     __isTag: true;
 }
 
-// Inter-system messaging
-export interface SystemMessage {
-    type: string;
-    data: any;
-    sender?: string;
-    timestamp: number;
-}
+// Note: SystemMessage is imported from @orion-ecs/plugin-api above
 
 /**
  * Context object providing sandboxed access to engine features for plugins.
@@ -626,144 +635,10 @@ export interface PluginContext {
     getEngine(): any; // Engine
 }
 
-/**
- * Type helper to extract the extension type from a plugin.
- * Used internally by EngineBuilder to accumulate plugin types.
- *
- * @typeParam TPlugin - The plugin type to extract extensions from
- *
- * @example
- * ```typescript
- * type PhysicsExt = ExtractPluginExtensions<PhysicsPlugin>;
- * // Result: { physics: PhysicsAPI }
- * ```
- *
- * @public
- */
-export type ExtractPluginExtensions<TPlugin> = TPlugin extends EnginePlugin<infer E> ? E : object;
-
-/**
- * Interface for creating plugins that extend the OrionECS engine.
- *
- * Plugins provide a clean way to add functionality to the engine without modifying
- * core code. They can register components, create systems, extend the engine API,
- * and integrate with external libraries.
- *
- * @typeParam TExtensions - Object type describing the APIs this plugin adds to the engine.
- *   Each key becomes a property on the engine instance after the plugin is installed.
- *
- * @remarks
- * Plugins are registered during engine construction using `EngineBuilder.use()`.
- * The install() method is called once during engine build, and the optional
- * uninstall() method is called if the plugin needs cleanup.
- *
- * When a plugin uses `context.extend()` to add APIs, it should declare those
- * types in the TExtensions generic parameter for full TypeScript intellisense support.
- *
- * @example Basic Plugin (no extensions)
- * ```typescript
- * class LoggingPlugin implements EnginePlugin {
- *   name = 'LoggingPlugin';
- *   version = '1.0.0';
- *
- *   install(context: PluginContext): void {
- *     context.on('onEntityCreated', (entity) => {
- *       console.log(`Entity created: ${entity.name}`);
- *     });
- *   }
- * }
- *
- * const engine = new EngineBuilder()
- *   .use(new LoggingPlugin())
- *   .build();
- * ```
- *
- * @example Physics Plugin with Type Extensions
- * ```typescript
- * interface PhysicsAPI {
- *   applyForce: (entity: Entity, force: Vector2) => void;
- *   raycast: (from: Vector2, to: Vector2) => RaycastHit | null;
- *   setGravity: (x: number, y: number) => void;
- * }
- *
- * class PhysicsPlugin implements EnginePlugin<{ physics: PhysicsAPI }> {
- *   name = 'PhysicsPlugin';
- *   version = '2.0.0';
- *
- *   // Type brand for compile-time type inference (not used at runtime)
- *   declare readonly __extensions: { physics: PhysicsAPI };
- *
- *   private physicsAPI: PhysicsAPI = {
- *     applyForce: (entity, force) => { ... },
- *     raycast: (from, to) => { ... },
- *     setGravity: (x, y) => { ... }
- *   };
- *
- *   install(context: PluginContext): void {
- *     context.registerComponent(RigidBody);
- *     context.registerComponent(Collider);
- *     context.extend('physics', this.physicsAPI);
- *   }
- * }
- *
- * // Full intellisense support!
- * const engine = new EngineBuilder()
- *   .use(new PhysicsPlugin())
- *   .build();
- *
- * engine.physics.setGravity(0, 9.8);  // ✅ Autocomplete works
- * engine.physics.applyForce(entity, { x: 10, y: 0 });  // ✅ Type-checked
- * ```
- *
- * @public
- */
-export interface EnginePlugin<TExtensions extends object = object> {
-    /**
-     * Unique name identifying this plugin
-     */
-    name: string;
-
-    /**
-     * Optional semantic version string (e.g., "1.0.0")
-     */
-    version?: string;
-
-    /**
-     * Type brand for compile-time type inference.
-     * This property is never actually set at runtime - it exists only to carry
-     * the TExtensions type for TypeScript's type inference system.
-     *
-     * @remarks
-     * Use `declare readonly __extensions: TExtensions;` in your plugin class
-     * to enable type inference without runtime overhead.
-     *
-     * @internal
-     */
-    readonly __extensions?: TExtensions;
-
-    /**
-     * Called during engine construction to install the plugin.
-     *
-     * This method receives a PluginContext for safe engine interaction.
-     * Can be async if the plugin needs to load external resources.
-     *
-     * @param context - Sandboxed context for engine interaction
-     */
-    install(context: PluginContext): void | Promise<void>;
-
-    /**
-     * Optional cleanup method called when the plugin is uninstalled.
-     *
-     * Use this to remove event listeners, clean up resources, or
-     * perform other teardown operations.
-     */
-    uninstall?(): void | Promise<void>;
-}
-
-export interface InstalledPlugin {
-    plugin: EnginePlugin;
-    installedAt: number;
-}
+// Note: EnginePlugin, ExtractPluginExtensions, and InstalledPlugin are
+// imported from @orion-ecs/plugin-api and re-exported above.
+// This allows plugin authors to use the lighter @orion-ecs/plugin-api package
+// while maintaining backward compatibility for existing @orion-ecs/core users.
 
 // Component pooling
 export interface PoolStats {

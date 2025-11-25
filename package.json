@@ -28,6 +28,7 @@
     "packages/core",
     "packages/math",
     "packages/graphics",
+    "packages/plugin-api",
     "packages/testing",
     "examples",
     "plugins/canvas2d-renderer",

@@ -46,6 +46,9 @@
     "url": "https://github.com/tyevco/orionecs/issues"
   },
   "homepage": "https://github.com/tyevco/orionecs#readme",
+  "dependencies": {
+    "@orion-ecs/plugin-api": "^0.3.0"
+  },
   "devDependencies": {
     "@babel/core": "^7.25.2",
     "@babel/preset-env": "^7.28.5",

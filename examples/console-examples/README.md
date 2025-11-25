@@ -96,6 +96,8 @@ npx ts-node examples/console-examples/02-rpg-combat.ts
 5. **Event Messaging** - Decoupled communication patterns
 6. **Save/Load System** - State persistence
 
+> **Note:** For the State Machine plugin example, see the browser-based **Void Vanguard** game in `examples/games/`.
+
 ## 🔧 Code Structure
 
 Each example follows this pattern:

@@ -39,6 +39,7 @@
     "plugins/debug-visualizer",
     "plugins/profiling",
     "plugins/resource-manager",
+    "plugins/state-machine",
     "tutorials/*"
   ],
   "devDependencies": {

@@ -211,6 +211,63 @@ A basic multiplayer game demonstrating network synchronization.
 
 ---
 
+### 6. Void Vanguard (`void-vanguard.ts`)
+
+A Galaga-style space shooter demonstrating the **State Machine Plugin**.
+
+**Demonstrates:**
+- **ECS-Native State Machine**: States represented as component presence
+- **Type-Safe Conditions**: Factory functions like `when.hasComponent()`, `when.componentValue()`
+- **Declarative Transitions**: Priority-based transition rules
+- **Custom Predicates**: User-defined conditions for complex AI logic
+- **State Change Events**: Hooks for `stateEnter` and `stateExit`
+- **Multiple FSM Definitions**: Separate state machines for enemies and player
+- **Live State Visualization**: Real-time display of entity states
+
+**Enemy States:**
+- `FormationState` - Bobbing gently in formation
+- `DivingState` - Diving down to attack the player
+- `ReturningState` - Returning to formation position
+- `DyingState` - Explosion animation before destruction
+
+**Player States:**
+- `NormalState` - Can be damaged
+- `HitState` - Brief stun after being hit
+- `InvincibleState` - Temporary invincibility
+
+**Key Features:**
+```typescript
+// Define state machine with transitions
+fsm.define('EnemyAI', {
+  states: [FormationState, DivingState, ReturningState, DyingState],
+  transitions: [
+    transition(FormationState, DivingState,
+      fsm.when.predicate('random.diveChance', { chance: 0.003 }),
+      { priority: 10 }),
+    transition(DivingState, ReturningState,
+      fsm.when.predicate('dive.reachedTarget', {}),
+      { priority: 100 }),
+  ],
+  initialState: FormationState,
+});
+
+// Custom predicates
+const plugin = new StateMachinePlugin()
+  .predicate('random.diveChance', (entity, args) => {
+    return Math.random() < args.chance;
+  });
+```
+
+**Running the Example:**
+Open `void-vanguard.html` in a browser, or:
+```bash
+cd examples
+npm run dev
+# Navigate to http://localhost:5173/games/void-vanguard.html
+```
+
+---
+
 ## Common Patterns
 
 All examples follow these patterns:

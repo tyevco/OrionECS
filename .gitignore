@@ -147,6 +147,7 @@ publish/
 !/packages/core/
 !/packages/math/
 !/packages/graphics/
+!/packages/plugin-api/
 !/packages/testing/
 !/packages/utils/
 

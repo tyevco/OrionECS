@@ -19,7 +19,6 @@ import {
   type PredicateContext,
   type PredicateFn,
   PredicateRegistry,
-  DecisionTreeBuilder,
 } from './types';
 
 import { DecisionTree } from './components';

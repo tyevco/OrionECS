@@ -1468,7 +1468,7 @@ describe('Engine v2 - Composition Architecture', () => {
             test('should work with untyped plugins (backward compatibility)', () => {
                 const untypedPlugin: EnginePlugin = {
                     name: 'UntypedPlugin',
-                    install: (context) => {
+                    install: (context: PluginContext) => {
                         context.extend('legacyApi', { legacy: true });
                     },
                 };

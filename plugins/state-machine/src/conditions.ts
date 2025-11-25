@@ -6,8 +6,6 @@
  * @packageDocumentation
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- Type generics require any for flexibility */
-
 import type { ComponentIdentifier } from '../../../packages/core/src/index';
 import type {
     AndCondition,

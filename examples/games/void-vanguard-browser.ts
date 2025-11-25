@@ -3,8 +3,7 @@
  * Adds canvas rendering and keyboard input to the core game logic
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
-
+import type { EntityDef } from '../../packages/core/src/definitions';
 import {
     DivingState,
     DyingState,
@@ -60,8 +59,8 @@ window.addEventListener('keydown', (e) => {
     if (player) {
         const input = player.getComponent(InputState);
         if (input) {
-            input.left = keys['arrowleft'] || keys['a'];
-            input.right = keys['arrowright'] || keys['d'];
+            input.left = keys.arrowleft || keys.a;
+            input.right = keys.arrowright || keys.d;
             input.shoot = keys[' '];
         }
     }
@@ -79,8 +78,8 @@ window.addEventListener('keyup', (e) => {
     if (player) {
         const input = player.getComponent(InputState);
         if (input) {
-            input.left = keys['arrowleft'] || keys['a'];
-            input.right = keys['arrowright'] || keys['d'];
+            input.left = keys.arrowleft || keys.a;
+            input.right = keys.arrowright || keys.d;
             input.shoot = keys[' '];
         }
     }
@@ -279,7 +278,7 @@ function updateUI() {
         let returning = 0;
         let dying = 0;
 
-        enemyEntities.forEach((enemy: any) => {
+        enemyEntities.forEach((enemy: EntityDef) => {
             if (enemy.hasComponent(FormationState)) formation++;
             else if (enemy.hasComponent(DivingState)) diving++;
             else if (enemy.hasComponent(ReturningState)) returning++;
@@ -288,9 +287,11 @@ function updateUI() {
 
         // Count total transitions
         let totalTransitions = 0;
-        enemyEntities.forEach((enemy: any) => {
-            const sm = enemy.getComponent(StateMachine);
-            if (sm) totalTransitions += sm.transitionCount;
+        enemyEntities.forEach((enemy: EntityDef) => {
+            if (enemy.hasComponent(StateMachine)) {
+                const sm = enemy.getComponent(StateMachine);
+                totalTransitions += sm.transitionCount;
+            }
         });
 
         stateInfoEl.innerHTML = `
@@ -310,7 +311,7 @@ function checkWinCondition() {
     const enemies = engine.getEntitiesWithComponent(EnemyTag);
     let aliveCount = 0;
 
-    enemies.forEach((enemy: any) => {
+    enemies.forEach((enemy: EntityDef) => {
         if (!enemy.hasComponent(DyingState)) {
             aliveCount++;
         }

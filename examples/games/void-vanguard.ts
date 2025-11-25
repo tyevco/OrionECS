@@ -12,8 +12,7 @@
  * - Multiple FSM definitions for different entity types
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- Example code uses any for simplicity */
-
+import type { EntityDef } from '../../packages/core/src/definitions';
 import { EngineBuilder } from '../../packages/core/src/engine';
 import {
     StateMachine,
@@ -158,9 +157,15 @@ export class InvincibleState {
 // Tag Components
 // ============================================================================
 
-export class PlayerTag {}
-export class EnemyTag {}
-export class BulletTag {}
+export class PlayerTag {
+    readonly __tag = 'PlayerTag' as const;
+}
+export class EnemyTag {
+    readonly __tag = 'EnemyTag' as const;
+}
+export class BulletTag {
+    readonly __tag = 'BulletTag' as const;
+}
 
 // ============================================================================
 // Game Configuration
@@ -185,25 +190,26 @@ export const BULLET_SPEED = 500;
 // ============================================================================
 
 const stateMachinePlugin = new StateMachinePlugin()
-    .predicate('random.diveChance', (_entity: any, args: { chance: number }) => {
+    .predicate('random.diveChance', (_entity: EntityDef, args: { chance: number }) => {
         return Math.random() < args.chance;
     })
-    .predicate('dive.reachedTarget', (entity: any, _args: object) => {
+    .predicate('dive.reachedTarget', (entity: EntityDef, _args: object) => {
+        if (!entity.hasComponent(Position) || !entity.hasComponent(DiveTarget)) return false;
         const pos = entity.getComponent(Position);
         const target = entity.getComponent(DiveTarget);
-        if (!pos || !target) return false;
         const dist = Math.abs(pos.x - target.targetX) + Math.abs(pos.y - target.targetY);
         return dist < 5;
     })
-    .predicate('dive.returnedToFormation', (entity: any, _args: object) => {
+    .predicate('dive.returnedToFormation', (entity: EntityDef, _args: object) => {
+        if (!entity.hasComponent(Position) || !entity.hasComponent(DiveTarget)) return false;
         const pos = entity.getComponent(Position);
         const target = entity.getComponent(DiveTarget);
-        if (!pos || !target) return false;
         const dist = Math.abs(pos.x - target.returnX) + Math.abs(pos.y - target.returnY);
         return dist < 5;
     })
-    .predicate('timer.expired', (entity: any, args: { component: string; field: string }) => {
-        let component: any = null;
+    .predicate('timer.expired', (entity: EntityDef, args: { component: string; field: string }) => {
+        type TimerComponent = { hitTimer?: number; invincibleTimer?: number; deathTimer?: number };
+        let component: TimerComponent | null = null;
         if (args.component === 'HitState' && entity.hasComponent(HitState)) {
             component = entity.getComponent(HitState);
         } else if (args.component === 'InvincibleState' && entity.hasComponent(InvincibleState)) {
@@ -212,8 +218,8 @@ const stateMachinePlugin = new StateMachinePlugin()
             component = entity.getComponent(DyingState);
         }
         if (!component) return false;
-        const value = component[args.field];
-        return value <= 0;
+        const value = component[args.field as keyof TimerComponent];
+        return typeof value === 'number' && value <= 0;
     });
 
 // ============================================================================
@@ -226,7 +232,12 @@ export const engine = new EngineBuilder()
     .use(stateMachinePlugin)
     .build();
 
-const fsm = (engine as any).stateMachine;
+// Get the state machine API - type is inferred from the plugin
+const fsm = (
+    engine as unknown as {
+        stateMachine: (typeof stateMachinePlugin)['__extensions']['stateMachine'];
+    }
+).stateMachine;
 
 // ============================================================================
 // State Machine Definitions
@@ -305,22 +316,22 @@ engine.createSystem(
     { all: [StateMachine] },
     {
         priority: 950,
-        act: (entity: any) => {
+        act: (entity: EntityDef) => {
             if (entity.hasComponent(HitState)) {
                 const hit = entity.getComponent(HitState);
-                if (hit) hit.hitTimer -= currentDeltaTime;
+                hit.hitTimer -= currentDeltaTime;
             }
             if (entity.hasComponent(InvincibleState)) {
                 const inv = entity.getComponent(InvincibleState);
-                if (inv) inv.invincibleTimer -= currentDeltaTime;
+                inv.invincibleTimer -= currentDeltaTime;
             }
             if (entity.hasComponent(DyingState)) {
                 const dying = entity.getComponent(DyingState);
-                if (dying) dying.deathTimer -= currentDeltaTime;
+                dying.deathTimer -= currentDeltaTime;
             }
             if (entity.hasComponent(FormationState)) {
                 const formation = entity.getComponent(FormationState);
-                if (formation) formation.timeInFormation += currentDeltaTime;
+                formation.timeInFormation += currentDeltaTime;
             }
         },
     },
@@ -333,10 +344,9 @@ engine.createSystem(
     { all: [PlayerTag, Position, Velocity, InputState] },
     {
         priority: 900,
-        act: (entity: any) => {
+        act: (entity: EntityDef) => {
             const vel = entity.getComponent(Velocity);
             const input = entity.getComponent(InputState);
-            if (!vel || !input) return;
 
             vel.dx = 0;
             if (input.left) vel.dx = -PLAYER_SPEED;
@@ -352,11 +362,10 @@ engine.createSystem(
     { all: [PlayerTag, Position, PlayerData, InputState] },
     {
         priority: 850,
-        act: (entity: any) => {
+        act: (entity: EntityDef) => {
             const pos = entity.getComponent(Position);
             const data = entity.getComponent(PlayerData);
             const input = entity.getComponent(InputState);
-            if (!pos || !data || !input) return;
 
             data.shootCooldown -= currentDeltaTime;
             if (input.shoot && data.shootCooldown <= 0) {
@@ -374,10 +383,9 @@ engine.createSystem(
     { all: [FormationState, Position, FormationSlot] },
     {
         priority: 100,
-        act: (entity: any) => {
+        act: (entity: EntityDef) => {
             const pos = entity.getComponent(Position);
             const slot = entity.getComponent(FormationSlot);
-            if (!pos || !slot) return;
 
             const time = Date.now() / 1000;
             const baseX = FORMATION_START_X + slot.col * ENEMY_SPACING_X;
@@ -396,11 +404,10 @@ engine.createSystem(
     { all: [DivingState, Position, DiveTarget, Velocity] },
     {
         priority: 100,
-        act: (entity: any) => {
+        act: (entity: EntityDef) => {
             const pos = entity.getComponent(Position);
             const target = entity.getComponent(DiveTarget);
             const vel = entity.getComponent(Velocity);
-            if (!pos || !target || !vel) return;
 
             const speed = 250;
             const dx = target.targetX - pos.x;
@@ -425,11 +432,10 @@ engine.createSystem(
     { all: [ReturningState, Position, DiveTarget, Velocity] },
     {
         priority: 100,
-        act: (entity: any) => {
+        act: (entity: EntityDef) => {
             const pos = entity.getComponent(Position);
             const target = entity.getComponent(DiveTarget);
             const vel = entity.getComponent(Velocity);
-            if (!pos || !target || !vel) return;
 
             const speed = 180;
             const dx = target.returnX - pos.x;
@@ -454,9 +460,9 @@ engine.createSystem(
     { all: [DyingState] },
     {
         priority: 50,
-        act: (entity: any) => {
+        act: (entity: EntityDef) => {
             const dying = entity.getComponent(DyingState);
-            if (dying && dying.deathTimer <= 0) {
+            if (dying.deathTimer <= 0) {
                 entity.queueFree();
             }
         },
@@ -470,10 +476,9 @@ engine.createSystem(
     { all: [Position, Velocity] },
     {
         priority: 200,
-        act: (entity: any) => {
+        act: (entity: EntityDef) => {
             const pos = entity.getComponent(Position);
             const vel = entity.getComponent(Velocity);
-            if (!pos || !vel) return;
 
             pos.x += vel.dx * currentDeltaTime;
             pos.y += vel.dy * currentDeltaTime;
@@ -493,10 +498,9 @@ engine.createSystem(
     { all: [BulletTag, BulletData, Position] },
     {
         priority: 150,
-        act: (entity: any) => {
+        act: (entity: EntityDef) => {
             const bullet = entity.getComponent(BulletData);
             const pos = entity.getComponent(Position);
-            if (!bullet || !pos) return;
 
             bullet.lifetime -= currentDeltaTime;
             if (bullet.lifetime <= 0 || pos.y < -10 || pos.y > SCREEN_HEIGHT + 10) {
@@ -513,18 +517,16 @@ engine.createSystem(
     { all: [Position, BulletTag, BulletData] },
     {
         priority: 300,
-        act: (bullet: any) => {
+        act: (bullet: EntityDef) => {
             const bulletPos = bullet.getComponent(Position);
             const bulletData = bullet.getComponent(BulletData);
-            if (!bulletPos || !bulletData) return;
 
             if (bulletData.owner === 'player') {
                 const enemies = engine.createQuery({ all: [Position, EnemyTag, Health] });
-                enemies.forEach((enemy: any) => {
+                enemies.forEach((enemy: EntityDef) => {
                     if (enemy.hasComponent(DyingState)) return;
 
                     const enemyPos = enemy.getComponent(Position);
-                    if (!enemyPos) return;
 
                     const dx = bulletPos.x - enemyPos.x;
                     const dy = bulletPos.y - enemyPos.y;
@@ -532,14 +534,14 @@ engine.createSystem(
 
                     if (dist < 25) {
                         const health = enemy.getComponent(Health);
-                        if (health) health.current -= bulletData.damage;
+                        health.current -= bulletData.damage;
                         bullet.queueFree();
 
                         const players = engine.createQuery({ all: [PlayerTag, PlayerData] });
-                        players.forEach((player: any) => {
+                        players.forEach((player: EntityDef) => {
                             const data = player.getComponent(PlayerData);
-                            const enemyData = enemy.getComponent(EnemyData);
-                            if (data && enemyData) {
+                            if (enemy.hasComponent(EnemyData)) {
+                                const enemyData = enemy.getComponent(EnemyData);
                                 data.score += enemyData.points;
                             }
                         });
@@ -555,12 +557,16 @@ engine.createSystem(
 // Event Handlers
 // ============================================================================
 
-engine.on('stateEnter', (event: { entity: any; stateType: any; previousStateType: any }) => {
-    if (event.stateType === DivingState) {
-        const pos = event.entity.getComponent(Position);
-        const slot = event.entity.getComponent(FormationSlot);
+engine.on(
+    'stateEnter',
+    (event: { entity: EntityDef; stateType: unknown; previousStateType: unknown }) => {
+        if (event.stateType === DivingState) {
+            if (!event.entity.hasComponent(Position) || !event.entity.hasComponent(FormationSlot)) {
+                return;
+            }
+            const _pos = event.entity.getComponent(Position);
+            const slot = event.entity.getComponent(FormationSlot);
 
-        if (pos && slot) {
             const targetX = PLAYER_START_X + (Math.random() - 0.5) * 300;
             const targetY = SCREEN_HEIGHT - 100;
             const returnX = FORMATION_START_X + slot.col * ENEMY_SPACING_X;
@@ -570,33 +576,29 @@ engine.on('stateEnter', (event: { entity: any; stateType: any; previousStateType
                 event.entity.addComponent(DiveTarget, targetX, targetY, returnX, returnY);
             } else {
                 const target = event.entity.getComponent(DiveTarget);
-                if (target) {
-                    target.targetX = targetX;
-                    target.targetY = targetY;
-                    target.returnX = returnX;
-                    target.returnY = returnY;
-                }
+                target.targetX = targetX;
+                target.targetY = targetY;
+                target.returnX = returnX;
+                target.returnY = returnY;
             }
         }
     }
-});
+);
 
-engine.on('stateEnter', (event: { entity: any; stateType: any }) => {
+engine.on('stateEnter', (event: { entity: EntityDef; stateType: unknown }) => {
     if (event.stateType === FormationState) {
         if (event.entity.hasComponent(Velocity)) {
             const vel = event.entity.getComponent(Velocity);
-            if (vel) {
-                vel.dx = 0;
-                vel.dy = 0;
-            }
+            vel.dx = 0;
+            vel.dy = 0;
         }
     }
 });
 
-engine.on('stateEnter', (event: { entity: any; stateType: any }) => {
+engine.on('stateEnter', (event: { entity: EntityDef; stateType: unknown }) => {
     if (event.stateType === DyingState) {
-        const renderable = event.entity.getComponent(Renderable);
-        if (renderable) {
+        if (event.entity.hasComponent(Renderable)) {
+            const renderable = event.entity.getComponent(Renderable);
             renderable.sprite = 'explosion';
             renderable.color = '#FF6600';
         }
@@ -607,7 +609,7 @@ engine.on('stateEnter', (event: { entity: any; stateType: any }) => {
 // Entity Creation Functions
 // ============================================================================
 
-export function createPlayer(): any {
+export function createPlayer(): EntityDef {
     const player = engine.createEntity('Player');
     player.addComponent(Position, PLAYER_START_X, PLAYER_START_Y);
     player.addComponent(Velocity, 0, 0);
@@ -621,7 +623,7 @@ export function createPlayer(): any {
     return player;
 }
 
-export function createEnemy(row: number, col: number): any {
+export function createEnemy(row: number, col: number): EntityDef {
     const enemy = engine.createEntity(`Enemy_${row}_${col}`);
 
     const x = FORMATION_START_X + col * ENEMY_SPACING_X;
@@ -637,14 +639,18 @@ export function createEnemy(row: number, col: number): any {
     const points = type === 'boss' ? 500 : type === 'elite' ? 200 : 100;
     const color = type === 'boss' ? '#FF0066' : type === 'elite' ? '#FFAA00' : '#00AAFF';
     enemy.addComponent(EnemyData, type, points);
-    enemy.addComponent(Renderable, `enemy-${type}` as any, color);
+    enemy.addComponent(
+        Renderable,
+        `enemy-${type}` as 'enemy-grunt' | 'enemy-elite' | 'enemy-boss',
+        color
+    );
 
     enemy.addComponent(FormationState);
     enemy.addComponent(StateMachine, FormationState, 'EnemyAI');
     return enemy;
 }
 
-export function createBullet(x: number, y: number, owner: 'player' | 'enemy'): any {
+export function createBullet(x: number, y: number, owner: 'player' | 'enemy'): EntityDef {
     const bullet = engine.createEntity('Bullet');
     bullet.addComponent(Position, x, y);
     bullet.addComponent(Velocity, 0, owner === 'player' ? -BULLET_SPEED : BULLET_SPEED);

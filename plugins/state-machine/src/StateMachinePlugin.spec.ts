@@ -11,8 +11,7 @@
  * - Integration scenarios
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- Tests use any for ECS entity flexibility */
-
+import type { EntityDef } from '../../../packages/core/src/definitions';
 import { TestEngineBuilder } from '../../../packages/testing/src/index';
 import {
     compare,
@@ -22,6 +21,11 @@ import {
     transition,
     when,
 } from './index';
+
+// Type for test engine with state machine extension
+type TestEngine = ReturnType<typeof TestEngineBuilder.prototype.build> & {
+    stateMachine: StateMachineAPI;
+};
 
 // ============================================================================
 // Test State Components
@@ -61,12 +65,12 @@ class AITarget {
 // ============================================================================
 
 describe('StateMachinePlugin', () => {
-    let engine: any;
+    let engine: TestEngine;
     let plugin: StateMachinePlugin;
 
     beforeEach(() => {
         plugin = new StateMachinePlugin();
-        engine = new TestEngineBuilder().use(plugin).build();
+        engine = new TestEngineBuilder().use(plugin).build() as TestEngine;
     });
 
     afterEach(() => {
@@ -462,7 +466,9 @@ describe('StateMachinePlugin', () => {
                 }
             );
 
-            const customEngine = new TestEngineBuilder().use(customPlugin).build() as any;
+            const customEngine = new TestEngineBuilder()
+                .use(customPlugin)
+                .build() as unknown as TestEngine;
             const api = customEngine.stateMachine;
 
             // The predicate should be available
@@ -726,7 +732,7 @@ describe('StateMachinePlugin', () => {
 
             // All entities should have transitioned
             const entities = engine.getAllEntities();
-            entities.forEach((entity: any) => {
+            entities.forEach((entity: EntityDef) => {
                 if (entity.hasComponent(StateMachine)) {
                     expect(entity.hasComponent(PatrolState)).toBe(true);
                 }

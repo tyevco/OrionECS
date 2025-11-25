@@ -40,6 +40,7 @@ export type {
     EntityPrefab,
     EventCallback,
     EventTypes,
+    ExtractPluginExtensions,
     InstalledPlugin,
     MemoryStats,
     PluginContext,

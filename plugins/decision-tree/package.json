@@ -1,0 +1,45 @@
+{
+  "name": "@orion-ecs/decision-tree",
+  "version": "0.0.0",
+  "description": "ECS-native Decision Tree plugin for OrionECS - AI decision making through component mutations",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "echo \"No tests yet\" && exit 0"
+  },
+  "keywords": [
+    "ecs",
+    "orion-ecs",
+    "plugin",
+    "decision-tree",
+    "behavior-tree",
+    "ai",
+    "game-ai"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "@orion-ecs/core": "*",
+    "@orion-ecs/plugin-api": "*"
+  },
+  "devDependencies": {
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

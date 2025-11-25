@@ -1,4 +1,11 @@
-import type { EntityDef, EntityPrefab, SystemMessage } from './definitions';
+import type {
+    EnginePlugin,
+    EntityDef,
+    EntityPrefab,
+    ExtractPluginExtensions,
+    PluginContext,
+    SystemMessage,
+} from './definitions';
 import { Engine, EngineBuilder } from './engine';
 import { createTagComponent } from './utils';
 
@@ -1383,6 +1390,112 @@ describe('Engine v2 - Composition Architecture', () => {
             const pluginEngine = new EngineBuilder().use(plugin1).use(plugin2).build();
 
             expect((pluginEngine as any).sharedApi.value).toBe(1);
+        });
+
+        describe('Plugin Type Extensions', () => {
+            interface TestAPI {
+                getValue: () => number;
+                setValue: (v: number) => void;
+            }
+
+            interface TestExtension {
+                testApi: TestAPI;
+            }
+
+            class TypedTestPlugin implements EnginePlugin<TestExtension> {
+                name = 'TypedTestPlugin';
+                version = '1.0.0';
+
+                // Type brand for compile-time inference
+                declare readonly __extensions: TestExtension;
+
+                private value = 100;
+
+                install(context: PluginContext): void {
+                    context.extend('testApi', {
+                        getValue: () => this.value,
+                        setValue: (v: number) => {
+                            this.value = v;
+                        },
+                    });
+                }
+            }
+
+            test('should provide type-safe access to plugin extensions via generic builder', () => {
+                const typedEngine = new EngineBuilder().use(new TypedTestPlugin()).build();
+
+                // This tests that the type system correctly infers the extension
+                // At runtime, verify the extension works
+                expect(typedEngine.testApi).toBeDefined();
+                expect(typedEngine.testApi.getValue()).toBe(100);
+
+                typedEngine.testApi.setValue(200);
+                expect(typedEngine.testApi.getValue()).toBe(200);
+            });
+
+            test('should accumulate types from multiple plugins', () => {
+                interface SecondAPI {
+                    greet: () => string;
+                }
+
+                interface SecondExtension {
+                    secondApi: SecondAPI;
+                }
+
+                class SecondTypedPlugin implements EnginePlugin<SecondExtension> {
+                    name = 'SecondTypedPlugin';
+                    declare readonly __extensions: SecondExtension;
+
+                    install(context: PluginContext): void {
+                        context.extend('secondApi', {
+                            greet: () => 'Hello from SecondPlugin!',
+                        });
+                    }
+                }
+
+                const multiPluginEngine = new EngineBuilder()
+                    .use(new TypedTestPlugin())
+                    .use(new SecondTypedPlugin())
+                    .build();
+
+                // Both extensions should be available and type-safe
+                expect(multiPluginEngine.testApi).toBeDefined();
+                expect(multiPluginEngine.testApi.getValue()).toBe(100);
+                expect(multiPluginEngine.secondApi).toBeDefined();
+                expect(multiPluginEngine.secondApi.greet()).toBe('Hello from SecondPlugin!');
+            });
+
+            test('should work with untyped plugins (backward compatibility)', () => {
+                const untypedPlugin: EnginePlugin = {
+                    name: 'UntypedPlugin',
+                    install: (context) => {
+                        context.extend('legacyApi', { legacy: true });
+                    },
+                };
+
+                // Untyped plugins should still work, extension accessed via getExtension or cast
+                const mixedEngine = new EngineBuilder()
+                    .use(new TypedTestPlugin())
+                    .use(untypedPlugin)
+                    .build();
+
+                expect(mixedEngine.testApi).toBeDefined();
+                expect(mixedEngine.testApi.getValue()).toBe(100);
+                expect(mixedEngine.getExtension('legacyApi')).toEqual({ legacy: true });
+            });
+
+            test('ExtractPluginExtensions should correctly extract extension types', () => {
+                // This is a compile-time test - if it compiles, the types are correct
+                type Extracted = ExtractPluginExtensions<TypedTestPlugin>;
+
+                // Runtime verification that the type extraction works
+                const plugin = new TypedTestPlugin();
+                const typedEngine = new EngineBuilder().use(plugin).build();
+
+                // The extracted type should match TestExtension
+                const api: Extracted['testApi'] = typedEngine.testApi;
+                expect(api.getValue()).toBe(100);
+            });
         });
     });
 

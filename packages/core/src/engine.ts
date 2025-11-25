@@ -24,6 +24,7 @@ import type {
     ComponentValidator,
     EnginePlugin,
     EntityPrefab,
+    ExtractPluginExtensions,
     InstalledPlugin,
     MemoryStats,
     PluginContext,
@@ -50,19 +51,34 @@ import {
  * before construction, including debug mode, fixed update settings, archetype system,
  * and plugin registration.
  *
- * @example
+ * @typeParam TExtensions - Accumulated type extensions from registered plugins.
+ *   This type grows as plugins are added via use(), and determines the final
+ *   Engine type returned by build().
+ *
+ * @example Basic usage
  * ```typescript
  * const engine = new EngineBuilder()
  *   .withDebugMode(true)
  *   .withFixedUpdateFPS(60)
  *   .withArchetypes(true)
- *   .use(new PhysicsPlugin())
  *   .build();
+ * ```
+ *
+ * @example With typed plugins (full intellisense support)
+ * ```typescript
+ * const engine = new EngineBuilder()
+ *   .use(new PhysicsPlugin())     // Adds { physics: PhysicsAPI }
+ *   .use(new SpatialPlugin())     // Adds { spatial: SpatialAPI }
+ *   .build();
+ *
+ * // Full autocomplete and type checking!
+ * engine.physics.setGravity(0, 9.8);
+ * engine.spatial.query(bounds);
  * ```
  *
  * @public
  */
-export class EngineBuilder {
+export class EngineBuilder<TExtensions extends object = object> {
     private componentManager = new ComponentManager();
     private systemManager?: SystemManager;
     private queryManager = new QueryManager();
@@ -236,21 +252,44 @@ export class EngineBuilder {
      * Plugins are installed during the build() phase and can register components,
      * create systems, and extend the engine API with custom methods.
      *
-     * @param plugin - The plugin instance to register
-     * @returns This builder instance for method chaining
+     * When a plugin defines type extensions (via the TExtensions generic parameter),
+     * those types are accumulated and will be available on the Engine returned by build().
      *
-     * @example
+     * @typeParam TPlugin - The plugin type, used to extract its extension types
+     * @param plugin - The plugin instance to register
+     * @returns A new builder type with accumulated extension types for method chaining
+     *
+     * @example Single plugin
      * ```typescript
      * import { PhysicsPlugin } from 'orion-ecs/plugins/physics';
      *
      * const engine = new EngineBuilder()
      *   .use(new PhysicsPlugin({ gravity: -9.8 }))
      *   .build();
+     *
+     * engine.physics.setGravity(0, 9.8);  // ✅ Full intellisense
+     * ```
+     *
+     * @example Multiple plugins with type accumulation
+     * ```typescript
+     * const engine = new EngineBuilder()
+     *   .use(new PhysicsPlugin())    // Adds { physics: PhysicsAPI }
+     *   .use(new SpatialPlugin())    // Adds { spatial: SpatialAPI }
+     *   .use(new DebugPlugin())      // Adds { debug: DebugAPI }
+     *   .build();
+     *
+     * // All plugin APIs available with full type checking
+     * engine.physics.applyForce(entity, force);
+     * engine.spatial.query(bounds);
+     * engine.debug.showColliders();
      * ```
      */
-    use(plugin: EnginePlugin): this {
+    use<TPlugin extends EnginePlugin<any>>(
+        plugin: TPlugin
+    ): EngineBuilder<TExtensions & ExtractPluginExtensions<TPlugin>> {
         this.plugins.push(plugin);
-        return this;
+        // Cast is safe: we're returning the same instance with updated type info
+        return this as unknown as EngineBuilder<TExtensions & ExtractPluginExtensions<TPlugin>>;
     }
 
     /**
@@ -260,9 +299,12 @@ export class EngineBuilder {
      * and returns a ready-to-use Engine. After calling build(), this builder
      * instance should not be used again.
      *
-     * @returns A fully configured Engine instance
+     * The returned Engine type includes all extension types from registered plugins,
+     * providing full intellisense and type checking for plugin APIs.
      *
-     * @example
+     * @returns A fully configured Engine instance with all plugin extension types
+     *
+     * @example Basic usage
      * ```typescript
      * const engine = new EngineBuilder()
      *   .withDebugMode(true)
@@ -272,8 +314,20 @@ export class EngineBuilder {
      * // Engine is ready to use
      * const player = engine.createEntity('Player');
      * ```
+     *
+     * @example With typed plugins
+     * ```typescript
+     * const engine = new EngineBuilder()
+     *   .use(new PhysicsPlugin())
+     *   .use(new SpatialPlugin())
+     *   .build();
+     *
+     * // TypeScript knows about plugin extensions
+     * engine.physics.setGravity(0, 9.8);  // ✅ Type-safe
+     * engine.spatial.query(bounds);        // ✅ Type-safe
+     * ```
      */
-    build(): Engine {
+    build(): Engine & TExtensions {
         // Enable archetype system if requested
         if (this.enableArchetypeSystem) {
             this.componentManager.enableArchetypes();
@@ -320,7 +374,9 @@ export class EngineBuilder {
             engine.installPlugin(plugin);
         }
 
-        return engine;
+        // Cast is safe: plugins add their extensions to the engine at runtime
+        // and we've accumulated their types via the TExtensions generic parameter
+        return engine as Engine & TExtensions;
     }
 }
 

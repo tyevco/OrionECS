@@ -6,11 +6,10 @@
  * @packageDocumentation
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- ECS entities and components are intentionally dynamic */
-
 import type {
     ComponentIdentifier,
     EnginePlugin,
+    EntityDef,
     PluginContext,
 } from '../../../packages/core/src/index';
 
@@ -18,6 +17,7 @@ import { StateMachine } from './components';
 import { compare, createConditionFactories } from './conditions';
 import type {
     BasePredicateRegistry,
+    ComparisonOp,
     Condition,
     PredicateContext,
     PredicateFn,
@@ -47,34 +47,34 @@ export interface StateMachineAPI<
     getDefinition(name: string): StateDefinition | undefined;
 
     /** Manually trigger a transition */
-    transitionTo(entity: any, stateType: ComponentIdentifier, ...args: any[]): boolean;
+    transitionTo(entity: EntityDef, stateType: ComponentIdentifier, ...args: unknown[]): boolean;
 
     /** Queue a transition for next frame */
-    queueTransition(entity: any, stateType: ComponentIdentifier, ...args: any[]): void;
+    queueTransition(entity: EntityDef, stateType: ComponentIdentifier, ...args: unknown[]): void;
 
     /** Get the current state type of an entity */
-    getCurrentState(entity: any): ComponentIdentifier | null;
+    getCurrentState(entity: EntityDef): ComponentIdentifier | null;
 
     /** Get time spent in current state */
-    getStateTime(entity: any): number;
+    getStateTime(entity: EntityDef): number;
 
     /** Lock transitions for an entity */
-    lock(entity: any): void;
+    lock(entity: EntityDef): void;
 
     /** Unlock transitions for an entity */
-    unlock(entity: any): void;
+    unlock(entity: EntityDef): void;
 
     /** Check if transitions are locked */
-    isLocked(entity: any): boolean;
+    isLocked(entity: EntityDef): boolean;
 
     /** Send a message that can trigger transitions */
-    sendMessage(entity: any, messageType: string): void;
+    sendMessage(entity: EntityDef, messageType: string): void;
 
     /** Get all entities currently in a specific state */
-    getEntitiesInState(stateType: ComponentIdentifier): any[];
+    getEntitiesInState(stateType: ComponentIdentifier): EntityDef[];
 
     /** Register a custom predicate (for runtime registration) */
-    registerPredicate<K extends string>(name: K, fn: PredicateFn<any>): void;
+    registerPredicate<K extends string>(name: K, fn: PredicateFn<unknown>): void;
 }
 
 // ============================================================================
@@ -140,7 +140,10 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
     private deltaTime: number = 0;
 
     /** Queued transitions to process */
-    private queuedTransitions = new Map<symbol, { stateType: ComponentIdentifier; args: any[] }>();
+    private queuedTransitions = new Map<
+        symbol,
+        { stateType: ComponentIdentifier; args: unknown[] }
+    >();
 
     /** Entities subscribed to messages */
     private messageSubscriptions?: () => void;
@@ -171,7 +174,7 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
      */
     predicate<K extends string, TArgs extends object>(
         name: K,
-        fn: (entity: any, args: TArgs, context: PredicateContext) => boolean
+        fn: (entity: EntityDef, args: TArgs, context: PredicateContext) => boolean
     ): StateMachinePlugin<TPredicates & Record<K, TArgs>> {
         this.predicateFns.set(name, fn as PredicateFn);
         return this as unknown as StateMachinePlugin<TPredicates & Record<K, TArgs>>;
@@ -215,16 +218,18 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
 
     private registerBuiltInPredicates(): void {
         // State time predicate
-        this.predicateFns.set('state.time', (entity, args: { op: string; seconds: number }) => {
+        this.predicateFns.set('state.time', ((entity: EntityDef, args: unknown) => {
+            const typedArgs = args as { op: string; seconds: number };
+            if (!entity.hasComponent(StateMachine)) return false;
             const sm = entity.getComponent(StateMachine);
-            if (!sm) return false;
-            return compare(sm.stateTime, args.op as any, args.seconds);
-        });
+            return compare(sm.stateTime, typedArgs.op as ComparisonOp, typedArgs.seconds);
+        }) as PredicateFn);
 
         // Random chance predicate
-        this.predicateFns.set('random.chance', (_entity, args: { probability: number }) => {
-            return Math.random() < args.probability;
-        });
+        this.predicateFns.set('random.chance', ((_entity: EntityDef, args: unknown) => {
+            const typedArgs = args as { probability: number };
+            return Math.random() < typedArgs.probability;
+        }) as PredicateFn);
     }
 
     // ==========================================================================
@@ -240,14 +245,14 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
 
                 before: () => {
                     // Get delta time from engine
-                    const engine = context.getEngine();
+                    const engine = context.getEngine() as { getDeltaTime?: () => number };
                     this.deltaTime = engine.getDeltaTime?.() ?? 1 / 60;
 
                     // Process queued transitions
                     this.processQueuedTransitions();
                 },
 
-                act: (entity: any, sm: StateMachine) => {
+                act: (entity: EntityDef, sm: StateMachine) => {
                     // Update state time
                     sm.stateTime += this.deltaTime;
 
@@ -271,7 +276,9 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
 
     private processQueuedTransitions(): void {
         for (const [entityId, { stateType, args }] of this.queuedTransitions) {
-            const engine = this.context?.getEngine();
+            const engine = this.context?.getEngine() as
+                | { getEntity?: (id: symbol) => EntityDef | undefined }
+                | undefined;
             const entity = engine?.getEntity?.(entityId);
             if (entity) {
                 this.executeTransition(entity, stateType, args);
@@ -280,7 +287,11 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
         this.queuedTransitions.clear();
     }
 
-    private evaluateTransitions(entity: any, sm: StateMachine, definition: StateDefinition): void {
+    private evaluateTransitions(
+        entity: EntityDef,
+        sm: StateMachine,
+        definition: StateDefinition
+    ): void {
         // Sort transitions by priority (higher first)
         const sortedTransitions = definition.transitions.toSorted(
             (a, b) => (b.priority ?? 0) - (a.priority ?? 0)
@@ -311,13 +322,13 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
 
     private evaluateConditions(
         conditions: readonly Condition[],
-        entity: any,
+        entity: EntityDef,
         sm: StateMachine
     ): boolean {
         return conditions.every((condition) => this.evaluateCondition(condition, entity, sm));
     }
 
-    private evaluateCondition(condition: Condition, entity: any, sm: StateMachine): boolean {
+    private evaluateCondition(condition: Condition, entity: EntityDef, sm: StateMachine): boolean {
         switch (condition.type) {
             case 'hasComponent':
                 return entity.hasComponent(condition.component);
@@ -327,8 +338,11 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
 
             case 'componentValue': {
                 if (!entity.hasComponent(condition.component)) return false;
-                const component = entity.getComponent(condition.component);
-                const value = component[condition.property];
+                const component = entity.getComponent(condition.component) as Record<
+                    string,
+                    unknown
+                >;
+                const value = component[condition.property as string];
                 return compare(value, condition.op, condition.value);
             }
 
@@ -365,9 +379,13 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
         }
     }
 
-    private executeTransition(entity: any, toState: ComponentIdentifier, args: any[]): void {
+    private executeTransition(
+        entity: EntityDef,
+        toState: ComponentIdentifier,
+        args: unknown[]
+    ): void {
+        if (!entity.hasComponent(StateMachine)) return;
         const sm = entity.getComponent(StateMachine);
-        if (!sm) return;
 
         const fromState = sm.currentStateType;
         const stateTime = sm.stateTime;
@@ -387,7 +405,7 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
         }
 
         // Add new state component
-        entity.addComponent(toState, ...args);
+        entity.addComponent(toState, ...(args as []));
 
         // Update metadata
         sm.recordTransition(fromState, toState, stateTime);
@@ -414,15 +432,20 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
         // Subscribe to all state machine messages
         this.messageSubscriptions = context.messageBus.subscribe(
             'stateMachine:message',
-            (message: { type: string; data: any; sender?: string; timestamp: number }) => {
+            (message: {
+                type: string;
+                data: { entityId: symbol; messageType: string };
+                sender?: string;
+                timestamp: number;
+            }) => {
                 const { entityId, messageType } = message.data;
-                const engine = context.getEngine();
+                const engine = context.getEngine() as
+                    | { getEntity?: (id: symbol) => EntityDef | undefined }
+                    | undefined;
                 const entity = engine?.getEntity?.(entityId);
-                if (entity) {
+                if (entity?.hasComponent(StateMachine)) {
                     const sm = entity.getComponent(StateMachine);
-                    if (sm) {
-                        sm.addMessage(messageType);
-                    }
+                    sm.addMessage(messageType);
                 }
             }
         );
@@ -445,75 +468,80 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
             },
 
             transitionTo: (
-                entity: any,
+                entity: EntityDef,
                 stateType: ComponentIdentifier,
-                ...args: any[]
+                ...args: unknown[]
             ): boolean => {
+                if (!entity.hasComponent(StateMachine)) return false;
                 const sm = entity.getComponent(StateMachine);
-                if (!sm || sm.locked) return false;
+                if (sm.locked) return false;
                 this.executeTransition(entity, stateType, args);
                 return true;
             },
 
             queueTransition: (
-                entity: any,
+                entity: EntityDef,
                 stateType: ComponentIdentifier,
-                ...args: any[]
+                ...args: unknown[]
             ): void => {
                 this.queuedTransitions.set(entity.id, { stateType, args });
             },
 
-            getCurrentState: (entity: any): ComponentIdentifier | null => {
+            getCurrentState: (entity: EntityDef): ComponentIdentifier | null => {
                 if (!entity.hasComponent(StateMachine)) return null;
                 const sm = entity.getComponent(StateMachine);
                 return sm?.currentStateType ?? null;
             },
 
-            getStateTime: (entity: any): number => {
+            getStateTime: (entity: EntityDef): number => {
                 if (!entity.hasComponent(StateMachine)) return 0;
                 const sm = entity.getComponent(StateMachine);
                 return sm?.stateTime ?? 0;
             },
 
-            lock: (entity: any): void => {
+            lock: (entity: EntityDef): void => {
                 if (!entity.hasComponent(StateMachine)) return;
                 const sm = entity.getComponent(StateMachine);
-                if (sm) sm.locked = true;
+                sm.locked = true;
             },
 
-            unlock: (entity: any): void => {
+            unlock: (entity: EntityDef): void => {
                 if (!entity.hasComponent(StateMachine)) return;
                 const sm = entity.getComponent(StateMachine);
-                if (sm) sm.locked = false;
+                sm.locked = false;
             },
 
-            isLocked: (entity: any): boolean => {
+            isLocked: (entity: EntityDef): boolean => {
                 if (!entity.hasComponent(StateMachine)) return false;
                 const sm = entity.getComponent(StateMachine);
                 return sm?.locked ?? false;
             },
 
-            sendMessage: (entity: any, messageType: string): void => {
+            sendMessage: (entity: EntityDef, messageType: string): void => {
                 if (!entity.hasComponent(StateMachine)) return;
                 const sm = entity.getComponent(StateMachine);
-                if (sm) {
-                    sm.addMessage(messageType);
-                }
+                sm.addMessage(messageType);
             },
 
-            getEntitiesInState: (stateType: ComponentIdentifier): any[] => {
-                const engine = this.context?.getEngine();
+            getEntitiesInState: (stateType: ComponentIdentifier): EntityDef[] => {
+                const engine = this.context?.getEngine() as
+                    | {
+                          createQuery: (opts: { all: ComponentIdentifier[] }) => {
+                              forEach: (fn: (e: EntityDef) => void) => void;
+                          };
+                      }
+                    | undefined;
                 if (!engine) return [];
 
                 const query = engine.createQuery({ all: [stateType, StateMachine] });
-                const entities: any[] = [];
-                query.forEach((entity: any) => {
+                const entities: EntityDef[] = [];
+                query.forEach((entity: EntityDef) => {
                     entities.push(entity);
                 });
                 return entities;
             },
 
-            registerPredicate: <K extends string>(name: K, fn: PredicateFn<any>): void => {
+            registerPredicate: <K extends string>(name: K, fn: PredicateFn<unknown>): void => {
                 this.predicateFns.set(name, fn);
             },
         };

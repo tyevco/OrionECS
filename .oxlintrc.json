@@ -43,19 +43,6 @@
       "rules": {
         "unicorn/no-array-sort": "off"
       }
-    },
-    {
-      "files": ["examples/games/void-vanguard*.ts"],
-      "rules": {
-        "typescript/no-extraneous-class": "off",
-        "typescript/no-explicit-any": "off"
-      }
-    },
-    {
-      "files": ["plugins/state-machine/src/**/*.ts"],
-      "rules": {
-        "typescript/no-explicit-any": "off"
-      }
     }
   ]
 }

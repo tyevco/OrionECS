@@ -6,9 +6,7 @@
  * @packageDocumentation
  */
 
-/* eslint-disable @typescript-eslint/no-explicit-any -- ECS entities and components are intentionally dynamic */
-
-import type { ComponentIdentifier } from '../../../packages/core/src/index';
+import type { ComponentIdentifier, EntityDef } from '../../../packages/core/src/index';
 
 // ============================================================================
 // Comparison Operations
@@ -102,13 +100,20 @@ export interface NotCondition {
 
 /**
  * Union of all condition types.
+ * Uses generic bounds that allow any valid condition created by the factory functions.
+ * Note: These bounds are intentionally wide to support the ECS pattern where
+ * component types are determined at runtime.
  */
 export type Condition =
+    // biome-ignore lint/suspicious/noExplicitAny: Component type is determined at runtime
     | HasComponentCondition<any>
+    // biome-ignore lint/suspicious/noExplicitAny: Component type is determined at runtime
     | MissingComponentCondition<any>
+    // biome-ignore lint/suspicious/noExplicitAny: Component and property types are determined at runtime
     | ComponentValueCondition<any, any>
     | StateTimeCondition
     | MessageCondition
+    // biome-ignore lint/suspicious/noExplicitAny: Predicate args are determined at runtime
     | PredicateCondition<any, any>
     | AndCondition
     | OrCondition
@@ -134,7 +139,7 @@ export interface TransitionRule<
     /** Higher priority transitions are evaluated first */
     readonly priority?: number;
     /** Constructor arguments for target state component */
-    readonly args?: any[];
+    readonly args?: unknown[];
 }
 
 // ============================================================================
@@ -172,8 +177,8 @@ export interface BasePredicateRegistry {
 /**
  * Function signature for predicate implementations.
  */
-export type PredicateFn<TArgs = any> = (
-    entity: any,
+export type PredicateFn<TArgs = unknown> = (
+    entity: EntityDef,
     args: TArgs,
     context: PredicateContext
 ) => boolean;
@@ -183,7 +188,7 @@ export type PredicateFn<TArgs = any> = (
  */
 export interface PredicateContext {
     /** Get the engine instance */
-    getEngine(): any;
+    getEngine(): unknown;
     /** Get delta time for current frame */
     getDeltaTime(): number;
 }
@@ -215,7 +220,7 @@ export interface StateHistoryEntry {
  */
 export interface StateEnterEvent {
     /** The entity that changed state */
-    readonly entity: any;
+    readonly entity: EntityDef;
     /** The state component type being entered */
     readonly stateType: ComponentIdentifier;
     /** The previous state component type (if any) */
@@ -229,7 +234,7 @@ export interface StateEnterEvent {
  */
 export interface StateExitEvent {
     /** The entity that changed state */
-    readonly entity: any;
+    readonly entity: EntityDef;
     /** The state component type being exited */
     readonly stateType: ComponentIdentifier;
     /** Time spent in this state (seconds) */

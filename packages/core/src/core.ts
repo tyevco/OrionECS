@@ -26,6 +26,14 @@ const MAX_MESSAGE_HISTORY = 1000;
 const MAX_EVENT_HISTORY = 500;
 
 /**
+ * Sentinel value used to indicate that a component is stored in archetypes
+ * rather than in sparse component arrays. When a component index equals this value,
+ * the component should be retrieved from the archetype system.
+ * @internal
+ */
+export const ARCHETYPE_STORAGE_INDEX = -1;
+
+/**
  * Generic object pool for efficient memory reuse and reduced garbage collection.
  *
  * The Pool class manages a collection of reusable objects, reducing the overhead
@@ -337,11 +345,15 @@ export class Query<C extends readonly any[] = any[]> {
             if (!hadEntity) {
                 this.matchingEntities.add(entity);
                 this.currentVersion++;
+                // Invalidate archetype cache when entity membership changes
+                this.archetypesCacheValid = false;
             }
         } else {
             if (hadEntity) {
                 this.matchingEntities.delete(entity);
                 this.currentVersion++;
+                // Invalidate archetype cache when entity membership changes
+                this.archetypesCacheValid = false;
             }
         }
 
@@ -460,6 +472,27 @@ export class Query<C extends readonly any[] = any[]> {
             cacheHitRate:
                 this._executionCount > 0 ? (this._cacheHits / this._executionCount) * 100 : 0,
         };
+    }
+
+    /**
+     * Invalidate all caches, forcing rebuild on next access.
+     * Call this when archetype composition changes or after bulk operations.
+     */
+    invalidateCache(): void {
+        // Force entity array cache rebuild
+        this.currentVersion++;
+
+        // Force archetype cache rebuild
+        this.archetypesCacheValid = false;
+        this.matchingArchetypes = undefined;
+    }
+
+    /**
+     * Check if the entity array cache is valid.
+     * Useful for debugging cache behavior.
+     */
+    isCacheValid(): boolean {
+        return this.cacheVersion === this.currentVersion;
     }
 }
 
@@ -696,7 +729,7 @@ export class Entity implements EntityDef {
                 archetypeManager.moveEntity(this, newComponentTypes, components);
 
                 // Update component indices to reflect archetype storage
-                this._componentIndices.set(type, -1); // -1 indicates archetype storage
+                this._componentIndices.set(type, ARCHETYPE_STORAGE_INDEX);
             } else {
                 // Legacy mode: use sparse arrays
                 const componentArray = this.componentManager.getComponentArray(type);
@@ -778,9 +811,9 @@ export class Entity implements EntityDef {
             this._dirty = true;
             this._changeVersion++;
             // Emit with component data for listeners to access
-            const emittedComponent =
-                removedComponent || this.componentManager.acquireComponent(type);
-            this.eventEmitter.emit('onComponentRemoved', this, type, emittedComponent);
+            // Note: removedComponent may be null/undefined in archetype mode,
+            // we emit it as-is to avoid pool depletion from acquiring unused components
+            this.eventEmitter.emit('onComponentRemoved', this, type, removedComponent);
         }
         return this;
     }
@@ -1313,7 +1346,7 @@ export class Entity implements EntityDef {
         for (const [componentType, index] of this._componentIndices) {
             let component: any = null;
 
-            if (archetypeManager && index === -1) {
+            if (archetypeManager && index === ARCHETYPE_STORAGE_INDEX) {
                 // Archetype mode: get component from archetype
                 component = archetypeManager.getComponent(
                     this,
@@ -1450,6 +1483,9 @@ export class System<C extends readonly any[] = any[]> {
     private runEveryInterval?: number;
     private hasRunEveryExecuted: boolean = false;
     private _profilingEnabled: boolean = true;
+    /** Stores unsubscribe functions for event listeners to enable cleanup */
+    private _eventUnsubscribers: Array<() => void> = [];
+    private _isDestroyed: boolean = false;
 
     constructor(
         public name: string,
@@ -1487,7 +1523,8 @@ export class System<C extends readonly any[] = any[]> {
     }
 
     /**
-     * Set up component change event listeners based on system options
+     * Set up component change event listeners based on system options.
+     * Stores unsubscribe functions to enable proper cleanup when the system is destroyed.
      */
     private setupComponentChangeListeners(): void {
         if (!this.eventEmitter) return;
@@ -1497,30 +1534,40 @@ export class System<C extends readonly any[] = any[]> {
 
         // Subscribe to component added events
         if (this.options.onComponentAdded) {
-            this.eventEmitter.on('onComponentAdded', (entity: any, componentType: any) => {
-                // Filter by watchComponents if specified
-                if (watchComponents && !watchComponents.includes(componentType)) {
-                    return;
+            const unsubscribe = this.eventEmitter.on(
+                'onComponentAdded',
+                (entity: any, componentType: any) => {
+                    // Don't process events if system is destroyed
+                    if (this._isDestroyed) return;
+
+                    // Filter by watchComponents if specified
+                    if (watchComponents && !watchComponents.includes(componentType)) {
+                        return;
+                    }
+
+                    // Get the component
+                    const component = entity.getComponent(componentType);
+                    const event = {
+                        entity,
+                        componentType,
+                        component,
+                        timestamp: Date.now(),
+                    };
+
+                    this.options.onComponentAdded?.(event);
                 }
-
-                // Get the component
-                const component = entity.getComponent(componentType);
-                const event = {
-                    entity,
-                    componentType,
-                    component,
-                    timestamp: Date.now(),
-                };
-
-                this.options.onComponentAdded?.(event);
-            });
+            );
+            this._eventUnsubscribers.push(unsubscribe);
         }
 
         // Subscribe to component removed events
         if (this.options.onComponentRemoved) {
-            this.eventEmitter.on(
+            const unsubscribe = this.eventEmitter.on(
                 'onComponentRemoved',
                 (entity: any, componentType: any, component: any) => {
+                    // Don't process events if system is destroyed
+                    if (this._isDestroyed) return;
+
                     // Filter by watchComponents if specified
                     if (watchComponents && !watchComponents.includes(componentType)) {
                         return;
@@ -1536,11 +1583,15 @@ export class System<C extends readonly any[] = any[]> {
                     this.options.onComponentRemoved?.(event);
                 }
             );
+            this._eventUnsubscribers.push(unsubscribe);
         }
 
         // Subscribe to component changed events
         if (this.options.onComponentChanged) {
-            this.eventEmitter.on('onComponentChanged', (event: any) => {
+            const unsubscribe = this.eventEmitter.on('onComponentChanged', (event: any) => {
+                // Don't process events if system is destroyed
+                if (this._isDestroyed) return;
+
                 // Filter by watchComponents if specified
                 if (watchComponents && !watchComponents.includes(event.componentType)) {
                     return;
@@ -1548,11 +1599,15 @@ export class System<C extends readonly any[] = any[]> {
 
                 this.options.onComponentChanged?.(event);
             });
+            this._eventUnsubscribers.push(unsubscribe);
         }
 
         // Subscribe to singleton set events
         if (this.options.onSingletonSet) {
-            this.eventEmitter.on('onSingletonSet', (event: any) => {
+            const unsubscribe = this.eventEmitter.on('onSingletonSet', (event: any) => {
+                // Don't process events if system is destroyed
+                if (this._isDestroyed) return;
+
                 // Filter by watchSingletons if specified
                 if (watchSingletons && !watchSingletons.includes(event.componentType)) {
                     return;
@@ -1560,11 +1615,15 @@ export class System<C extends readonly any[] = any[]> {
 
                 this.options.onSingletonSet?.(event);
             });
+            this._eventUnsubscribers.push(unsubscribe);
         }
 
         // Subscribe to singleton removed events
         if (this.options.onSingletonRemoved) {
-            this.eventEmitter.on('onSingletonRemoved', (event: any) => {
+            const unsubscribe = this.eventEmitter.on('onSingletonRemoved', (event: any) => {
+                // Don't process events if system is destroyed
+                if (this._isDestroyed) return;
+
                 // Filter by watchSingletons if specified
                 if (watchSingletons && !watchSingletons.includes(event.componentType)) {
                     return;
@@ -1572,6 +1631,7 @@ export class System<C extends readonly any[] = any[]> {
 
                 this.options.onSingletonRemoved?.(event);
             });
+            this._eventUnsubscribers.push(unsubscribe);
         }
 
         // ========== Hierarchy Event Listeners ==========
@@ -1596,6 +1656,30 @@ export class System<C extends readonly any[] = any[]> {
                 this.options.onParentChanged?.(event);
             });
         }
+    }
+
+    /**
+     * Clean up all event listeners and mark the system as destroyed.
+     * Called when the system is removed from the engine.
+     */
+    destroy(): void {
+        if (this._isDestroyed) return;
+
+        this._isDestroyed = true;
+        this._enabled = false;
+
+        // Unsubscribe from all events
+        for (const unsubscribe of this._eventUnsubscribers) {
+            unsubscribe();
+        }
+        this._eventUnsubscribers = [];
+    }
+
+    /**
+     * Check if the system has been destroyed.
+     */
+    get isDestroyed(): boolean {
+        return this._isDestroyed;
     }
 
     get enabled(): boolean {
@@ -1867,6 +1951,67 @@ export class EventEmitter {
 }
 
 /**
+ * Utility class for managing event subscriptions with automatic cleanup.
+ *
+ * This class solves the common pattern of subscribing to events and needing
+ * to unsubscribe later. It stores unsubscribe functions and provides a
+ * single method to clean up all subscriptions.
+ *
+ * @example
+ * ```typescript
+ * const subscriptions = new EventSubscriptionManager();
+ *
+ * // Subscribe to events
+ * subscriptions.subscribe(eventEmitter, 'onUpdate', () => { ... });
+ * subscriptions.subscribe(eventEmitter, 'onDestroy', () => { ... });
+ *
+ * // Later, clean up all subscriptions at once
+ * subscriptions.unsubscribeAll();
+ * ```
+ *
+ * @public
+ */
+export class EventSubscriptionManager {
+    private unsubscribers: Array<() => void> = [];
+
+    /**
+     * Subscribe to an event and track the subscription for later cleanup.
+     *
+     * @param emitter - The EventEmitter to subscribe to
+     * @param event - The event name to listen for
+     * @param callback - The callback function to execute when the event fires
+     * @returns The unsubscribe function (also stored internally)
+     */
+    subscribe(
+        emitter: EventEmitter,
+        event: string,
+        callback: (...args: any[]) => void
+    ): () => void {
+        const unsubscribe = emitter.on(event, callback);
+        this.unsubscribers.push(unsubscribe);
+        return unsubscribe;
+    }
+
+    /**
+     * Unsubscribe from all tracked events.
+     * After calling this, the manager can be reused for new subscriptions.
+     */
+    unsubscribeAll(): void {
+        for (const unsubscribe of this.unsubscribers) {
+            unsubscribe();
+        }
+        this.unsubscribers = [];
+    }
+
+    /**
+     * Get the number of active subscriptions.
+     */
+    get subscriptionCount(): number {
+        return this.unsubscribers.length;
+    }
+}
+
+/**
  * Performance monitor for tracking metrics
  */
 export class PerformanceMonitor {
@@ -1908,6 +2053,8 @@ export class EntityManager {
     private entitiesByNumericId: Map<number, Entity> = new Map();
     private entityPool: Pool<Entity>;
     private entitiesToDelete: Set<Entity> = new Set();
+    /** Stores unsubscribe functions for event listeners to enable cleanup */
+    private _eventUnsubscribers: Array<() => void> = [];
 
     constructor(
         componentManager: any,
@@ -1919,15 +2066,33 @@ export class EntityManager {
         );
 
         // Subscribe to entity changes to maintain tag index
-        eventEmitter.on('onComponentAdded', (entity: Entity) => {
-            this.updateEntityTags(entity);
-        });
-        eventEmitter.on('onComponentRemoved', (entity: Entity) => {
-            this.updateEntityTags(entity);
-        });
-        eventEmitter.on('onTagChanged', (entity: Entity) => {
-            this.updateEntityTags(entity);
-        });
+        // Store unsubscribe functions for proper cleanup
+        this._eventUnsubscribers.push(
+            eventEmitter.on('onComponentAdded', (entity: Entity) => {
+                this.updateEntityTags(entity);
+            })
+        );
+        this._eventUnsubscribers.push(
+            eventEmitter.on('onComponentRemoved', (entity: Entity) => {
+                this.updateEntityTags(entity);
+            })
+        );
+        this._eventUnsubscribers.push(
+            eventEmitter.on('onTagChanged', (entity: Entity) => {
+                this.updateEntityTags(entity);
+            })
+        );
+    }
+
+    /**
+     * Clean up all event listeners.
+     * Called when the EntityManager is being disposed.
+     */
+    dispose(): void {
+        for (const unsubscribe of this._eventUnsubscribers) {
+            unsubscribe();
+        }
+        this._eventUnsubscribers = [];
     }
 
     createEntity(name?: string): Entity {

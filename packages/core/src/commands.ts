@@ -1024,6 +1024,8 @@ export class CommandBuffer {
             console.log('[Commands] Rolling back changes...');
         }
 
+        let failedOperations = 0;
+
         // Rollback hierarchy changes in reverse order
         for (const change of state.hierarchyChanges.toReversed()) {
             const entity = this.engine.getEntity(change.entityId);
@@ -1032,6 +1034,13 @@ export class CommandBuffer {
                     ? this.engine.getEntity(change.oldParentId)
                     : null;
                 entity.setParent(oldParent ?? null);
+            } else {
+                failedOperations++;
+                if (this._debugMode) {
+                    console.warn(
+                        `[Commands] Rollback skipped: entity not found for hierarchy change`
+                    );
+                }
             }
         }
 
@@ -1043,6 +1052,13 @@ export class CommandBuffer {
                     entity.removeTag(change.tag);
                 } else {
                     entity.addTag(change.tag);
+                }
+            } else {
+                failedOperations++;
+                if (this._debugMode) {
+                    console.warn(
+                        `[Commands] Rollback skipped: entity not found for tag change (${change.tag})`
+                    );
                 }
             }
         }
@@ -1067,6 +1083,13 @@ export class CommandBuffer {
                         Object.assign(component, componentData);
                     }
                 }
+            } else {
+                failedOperations++;
+                if (this._debugMode) {
+                    console.warn(
+                        `[Commands] Rollback skipped: entity not found for component change (${change.componentType.name})`
+                    );
+                }
             }
         }
 
@@ -1076,7 +1099,13 @@ export class CommandBuffer {
         }
 
         if (this._debugMode) {
-            console.log('[Commands] Rollback complete');
+            if (failedOperations > 0) {
+                console.warn(
+                    `[Commands] Rollback partially complete: ${failedOperations} operation(s) skipped due to missing entities`
+                );
+            } else {
+                console.log('[Commands] Rollback complete');
+            }
         }
     }
 }

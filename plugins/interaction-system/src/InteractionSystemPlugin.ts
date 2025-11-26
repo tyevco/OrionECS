@@ -15,8 +15,13 @@
 import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
 import { Bounds, type Vector2 } from '../../../packages/math/src/index';
 
-// Local Entity type for compatibility
-type Entity = any;
+// Entity definition for type safety
+interface EntityDef {
+    id: symbol;
+    name?: string;
+    getComponent<T>(type: new (...args: any[]) => T): T | undefined;
+    hasComponent<T>(type: new (...args: any[]) => T): boolean;
+}
 
 /**
  * Makes an entity clickable
@@ -96,17 +101,17 @@ export class InteractionBounds {
  */
 export interface IInteractionAPI {
     /** Gets all currently selected entities */
-    getSelectedEntities(): Entity[];
+    getSelectedEntities(): EntityDef[];
     /** Selects an entity */
-    selectEntity(entity: Entity): void;
+    selectEntity(entity: EntityDef): void;
     /** Deselects an entity */
-    deselectEntity(entity: Entity): void;
+    deselectEntity(entity: EntityDef): void;
     /** Clears all selections */
     clearSelection(): void;
     /** Gets all currently hovered entities */
-    getHoveredEntities(): Entity[];
+    getHoveredEntities(): EntityDef[];
     /** Marks an entity as hovered (internal use) */
-    _setHovered(entity: Entity, hovered: boolean): void;
+    _setHovered(entity: EntityDef, hovered: boolean): void;
 }
 
 // =============================================================================
@@ -117,20 +122,20 @@ export interface IInteractionAPI {
  * Interaction System API implementation class.
  */
 export class InteractionAPI implements IInteractionAPI {
-    private selectedEntities: Set<Entity> = new Set();
-    private hoveredEntities: Set<Entity> = new Set();
+    private selectedEntities: Set<EntityDef> = new Set();
+    private hoveredEntities: Set<EntityDef> = new Set();
 
     /**
      * Gets all currently selected entities
      */
-    public getSelectedEntities(): Entity[] {
+    public getSelectedEntities(): EntityDef[] {
         return Array.from(this.selectedEntities);
     }
 
     /**
      * Selects an entity
      */
-    public selectEntity(entity: Entity): void {
+    public selectEntity(entity: EntityDef): void {
         const selectable = entity.getComponent(Selectable);
         if (selectable && !selectable.selected) {
             selectable.selected = true;
@@ -144,7 +149,7 @@ export class InteractionAPI implements IInteractionAPI {
     /**
      * Deselects an entity
      */
-    public deselectEntity(entity: Entity): void {
+    public deselectEntity(entity: EntityDef): void {
         const selectable = entity.getComponent(Selectable);
         if (selectable && selectable.selected) {
             selectable.selected = false;
@@ -167,14 +172,14 @@ export class InteractionAPI implements IInteractionAPI {
     /**
      * Gets all currently hovered entities
      */
-    public getHoveredEntities(): Entity[] {
+    public getHoveredEntities(): EntityDef[] {
         return Array.from(this.hoveredEntities);
     }
 
     /**
      * Marks an entity as hovered (internal use)
      */
-    public _setHovered(entity: Entity, hovered: boolean): void {
+    public _setHovered(entity: EntityDef, hovered: boolean): void {
         if (hovered) {
             this.hoveredEntities.add(entity);
         } else {
@@ -198,7 +203,7 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
     declare readonly __extensions: { interaction: IInteractionAPI };
 
     private api = new InteractionAPI();
-    private currentDrag: { entity: Entity; startPos: Vector2 } | null = null;
+    private currentDrag: { entity: EntityDef; startPos: Vector2 } | null = null;
 
     install(context: PluginContext): void {
         // Register components

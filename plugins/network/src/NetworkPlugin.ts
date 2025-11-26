@@ -268,7 +268,7 @@ export class NetworkPlugin implements EnginePlugin {
 
         this.transport.onConnect((connectionId) => {
             if (this.role === 'server') {
-                this.log(`Client connected: ${connectionId}`);
+                this.log(`Client connected: ${this.sanitizeLog(connectionId)}`);
             } else {
                 this.log('Connected to server');
                 if (this.callbacks.onConnected) {
@@ -281,7 +281,7 @@ export class NetworkPlugin implements EnginePlugin {
             if (this.role === 'server') {
                 this.handleClientDisconnect(connectionId, reason);
             } else {
-                this.log(`Disconnected: ${reason}`);
+                this.log(`Disconnected: ${this.sanitizeLog(reason || '')}`);
                 if (this.callbacks.onDisconnected) {
                     this.callbacks.onDisconnected(reason);
                 }
@@ -399,7 +399,7 @@ export class NetworkPlugin implements EnginePlugin {
             },
         });
 
-        this.log(`Player ${playerName} joined (${this.clients.size} players)`);
+        this.log(`Player ${this.sanitizeLog(playerName)} joined (${this.clients.size} players)`);
 
         if (this.callbacks.onPlayerJoin) {
             this.callbacks.onPlayerJoin(clientId, playerName);
@@ -471,7 +471,9 @@ export class NetworkPlugin implements EnginePlugin {
             data: { clientId },
         });
 
-        this.log(`Player ${connection.playerName} left: ${reason}`);
+        this.log(
+            `Player ${this.sanitizeLog(connection.playerName)} left: ${this.sanitizeLog(reason || '')}`
+        );
 
         if (this.callbacks.onPlayerLeave) {
             this.callbacks.onPlayerLeave(clientId);
@@ -536,14 +538,14 @@ export class NetworkPlugin implements EnginePlugin {
                 break;
 
             case 'player_joined':
-                this.log(`Player ${message.data.playerName} joined`);
+                this.log(`Player ${this.sanitizeLog(message.data.playerName)} joined`);
                 if (this.callbacks.onPlayerJoin) {
                     this.callbacks.onPlayerJoin(message.data.clientId, message.data.playerName);
                 }
                 break;
 
             case 'player_left':
-                this.log(`Player ${message.data.clientId} left`);
+                this.log(`Player ${this.sanitizeLog(message.data.clientId)} left`);
                 if (this.callbacks.onPlayerLeave) {
                     this.callbacks.onPlayerLeave(message.data.clientId);
                 }
@@ -567,7 +569,9 @@ export class NetworkPlugin implements EnginePlugin {
             ).setConnectionId(data.clientId);
         }
 
-        this.log(`Joined as ${data.clientId}, entity: ${data.networkEntityId}`);
+        this.log(
+            `Joined as ${this.sanitizeLog(data.clientId)}, entity: ${this.sanitizeLog(data.networkEntityId)}`
+        );
     }
 
     private handleWorldSnapshot(data: {
@@ -701,7 +705,7 @@ export class NetworkPlugin implements EnginePlugin {
 
         entity.queueFree();
         this.networkEntities.delete(networkEntityId);
-        this.log(`Entity destroyed: ${networkEntityId}`);
+        this.log(`Entity destroyed: ${this.sanitizeLog(networkEntityId)}`);
     }
 
     private createEntityFromSnapshot(data: SerializedNetworkEntity): EntityDef | undefined {
@@ -1078,5 +1082,13 @@ export class NetworkPlugin implements EnginePlugin {
         if (this.config.debug) {
             console.log(`[NetworkPlugin:${this.role}]`, ...args);
         }
+    }
+
+    /**
+     * Sanitize string for safe logging (remove newlines to prevent log injection)
+     */
+    private sanitizeLog(str: string): string {
+        if (typeof str !== 'string') return String(str);
+        return str.replace(/[\r\n]/g, '');
     }
 }

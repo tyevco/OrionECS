@@ -33,6 +33,18 @@ import {
 } from './shared';
 
 // ============================================================================
+// Security Helpers
+// ============================================================================
+
+/**
+ * Sanitize string for safe logging (remove newlines to prevent log injection)
+ */
+function sanitizeLog(str: string): string {
+    if (typeof str !== 'string') return String(str);
+    return str.replace(/[\r\n]/g, '');
+}
+
+// ============================================================================
 // Server Setup
 // ============================================================================
 
@@ -60,7 +72,9 @@ const networkPlugin = new NetworkPlugin({
     },
     callbacks: {
         onPlayerJoin: (clientId, playerName) => {
-            console.log(`[Game] Player joined: ${playerName} (${clientId})`);
+            console.log(
+                `[Game] Player joined: ${sanitizeLog(playerName)} (${sanitizeLog(clientId)})`
+            );
 
             // Get the player entity and add game-specific components
             const clients = networkPlugin.getConnectedClients();
@@ -80,12 +94,14 @@ const networkPlugin = new NetworkPlugin({
                     entity.addComponent(Bouncing, false, 0);
                     entity.addComponent(PlayerInfo, playerName, 0, Date.now());
 
-                    console.log(`[Game] Assigned color ${color} to ${playerName}`);
+                    console.log(
+                        `[Game] Assigned color ${sanitizeLog(color)} to ${sanitizeLog(playerName)}`
+                    );
                 }
             }
         },
         onPlayerLeave: (clientId) => {
-            console.log(`[Game] Player left: ${clientId}`);
+            console.log(`[Game] Player left: ${sanitizeLog(clientId)}`);
         },
     },
 });

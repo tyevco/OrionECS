@@ -157,9 +157,9 @@ export class WebSocketServerTransport implements ServerTransport {
         if (socket && socket.readyState === WS_OPEN) {
             try {
                 socket.send(JSON.stringify(message));
-                this.log(`Sent to ${connectionId}:`, message.type);
+                this.log(`Sent to ${this.sanitizeLog(connectionId)}:`, message.type);
             } catch (error) {
-                this.log(`Error sending to ${connectionId}:`, error);
+                this.log(`Error sending to ${this.sanitizeLog(connectionId)}:`, error);
                 if (this.errorHandler) {
                     this.errorHandler(error as Error);
                 }
@@ -174,7 +174,7 @@ export class WebSocketServerTransport implements ServerTransport {
                 try {
                     socket.send(data);
                 } catch (error) {
-                    this.log(`Error broadcasting to ${clientId}:`, error);
+                    this.log(`Error broadcasting to ${this.sanitizeLog(clientId)}:`, error);
                 }
             }
         }
@@ -188,7 +188,7 @@ export class WebSocketServerTransport implements ServerTransport {
                 try {
                     socket.send(data);
                 } catch (error) {
-                    this.log(`Error broadcasting to ${clientId}:`, error);
+                    this.log(`Error broadcasting to ${this.sanitizeLog(clientId)}:`, error);
                 }
             }
         }
@@ -247,7 +247,7 @@ export class WebSocketServerTransport implements ServerTransport {
         this.clients.set(clientId, socket);
         this.socketToId.set(socket, clientId);
 
-        this.log(`Client connected: ${clientId}`);
+        this.log(`Client connected: ${this.sanitizeLog(clientId)}`);
 
         if (this.connectHandler) {
             this.connectHandler(clientId);
@@ -260,14 +260,16 @@ export class WebSocketServerTransport implements ServerTransport {
                     this.messageHandler(message, clientId);
                 }
             } catch (error) {
-                this.log(`Error parsing message from ${clientId}:`, error);
+                this.log(`Error parsing message from ${this.sanitizeLog(clientId)}:`, error);
             }
         });
 
         socket.on('close', (...args: unknown[]) => {
             const code = args[0] as number;
             const reason = args[1] as string;
-            this.log(`Client disconnected: ${clientId}, code: ${code}, reason: ${reason}`);
+            this.log(
+                `Client disconnected: ${this.sanitizeLog(clientId)}, code: ${code}, reason: ${this.sanitizeLog(reason)}`
+            );
             this.clients.delete(clientId);
             this.socketToId.delete(socket);
             if (this.disconnectHandler) {
@@ -277,7 +279,7 @@ export class WebSocketServerTransport implements ServerTransport {
 
         socket.on('error', (...args: unknown[]) => {
             const error = args[0] as Error;
-            this.log(`Socket error for ${clientId}:`, error);
+            this.log(`Socket error for ${this.sanitizeLog(clientId)}:`, error);
             if (this.errorHandler) {
                 this.errorHandler(error);
             }
@@ -288,6 +290,14 @@ export class WebSocketServerTransport implements ServerTransport {
         if (this.debug) {
             console.log('[WebSocketServerTransport]', ...args);
         }
+    }
+
+    /**
+     * Sanitize string for safe logging (remove newlines to prevent log injection)
+     */
+    private sanitizeLog(str: string): string {
+        if (typeof str !== 'string') return String(str);
+        return str.replace(/[\r\n]/g, '');
     }
 }
 

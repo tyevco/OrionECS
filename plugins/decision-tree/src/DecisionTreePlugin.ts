@@ -62,7 +62,7 @@ export interface DecisionTreeAPI {
   evaluate(entity: EntityDef): boolean;
 
   /** Get the predicate registry for registering predicates */
-  readonly predicates: PredicateRegistry<unknown>;
+  readonly predicates: PredicateRegistry<any>;
 }
 
 // =============================================================================
@@ -199,7 +199,7 @@ export class DecisionTreePlugin
 
   private getPredicateContext(): PredicateContext {
     if (!this.predicateContext) {
-      const engine = this.context?.getEngine() as unknown;
+      const engine = this.context?.getEngine() as any;
       this.predicateContext = {
         getSingleton: (type) => engine?.getSingleton?.(type),
         getEntity: (id) => engine?.getEntity?.(id),

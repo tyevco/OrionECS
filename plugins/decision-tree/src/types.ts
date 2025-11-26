@@ -159,7 +159,7 @@ export interface DecisionNodeJSON {
 export class PredicateRegistry<
   TPredicates extends Record<string, Record<string, unknown>> = BuiltInPredicates
 > {
-  private predicates = new Map<string, PredicateFn<unknown>>();
+  private predicates = new Map<string, PredicateFn<any>>();
 
   constructor() {
     this.registerBuiltIns();
@@ -196,7 +196,7 @@ export class PredicateRegistry<
     name: K,
     fn: PredicateFn<TArgs>
   ): PredicateRegistry<TPredicates & { [P in K]: TArgs }> {
-    this.predicates.set(name, fn as PredicateFn<unknown>);
+    this.predicates.set(name, fn as PredicateFn<any>);
     return this as unknown as PredicateRegistry<TPredicates & { [P in K]: TArgs }>;
   }
 

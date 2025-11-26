@@ -33,6 +33,11 @@ export {
 // Export all type definitions
 export type {
     ChangeTrackingOptions,
+    // Hierarchy event types
+    ChildAddedEvent,
+    ChildAddedListener,
+    ChildRemovedEvent,
+    ChildRemovedListener,
     ComponentAddedEvent,
     ComponentAddedListener,
     ComponentArgs,
@@ -54,6 +59,8 @@ export type {
     ExtractPluginExtensions,
     InstalledPlugin,
     MemoryStats,
+    ParentChangedEvent,
+    ParentChangedListener,
     PluginContext,
     PoolStats,
     QueryOptions,

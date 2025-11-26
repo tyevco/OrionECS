@@ -261,6 +261,85 @@ export type SingletonSetListener<T = any> = (event: SingletonSetEvent<T>) => voi
  */
 export type SingletonRemovedListener<T = any> = (event: SingletonRemovedEvent<T>) => void;
 
+// ========== Hierarchy Event Types ==========
+
+/**
+ * Event emitted when a child entity is added to a parent.
+ *
+ * This event is triggered after the parent-child relationship is established,
+ * allowing listeners to respond to hierarchy changes.
+ *
+ * @public
+ */
+export interface ChildAddedEvent {
+    /** The parent entity that received the child */
+    parent: EntityDef;
+    /** The child entity that was added */
+    child: EntityDef;
+    /** Unix timestamp (milliseconds) when the child was added */
+    timestamp: number;
+}
+
+/**
+ * Event emitted when a child entity is removed from a parent.
+ *
+ * This event is triggered after the parent-child relationship is severed,
+ * allowing listeners to respond to hierarchy changes.
+ *
+ * @public
+ */
+export interface ChildRemovedEvent {
+    /** The parent entity that lost the child */
+    parent: EntityDef;
+    /** The child entity that was removed */
+    child: EntityDef;
+    /** Unix timestamp (milliseconds) when the child was removed */
+    timestamp: number;
+}
+
+/**
+ * Event emitted when an entity's parent changes.
+ *
+ * This event is triggered after the parent relationship is updated,
+ * providing both the previous and new parent for comparison.
+ *
+ * @public
+ */
+export interface ParentChangedEvent {
+    /** The entity whose parent changed */
+    entity: EntityDef;
+    /** The previous parent (undefined if entity had no parent) */
+    previousParent?: EntityDef;
+    /** The new parent (undefined if entity now has no parent) */
+    newParent?: EntityDef;
+    /** Unix timestamp (milliseconds) when the parent changed */
+    timestamp: number;
+}
+
+/**
+ * Callback function invoked when a child is added to a parent entity.
+ *
+ * @param event - The child added event details
+ * @public
+ */
+export type ChildAddedListener = (event: ChildAddedEvent) => void;
+
+/**
+ * Callback function invoked when a child is removed from a parent entity.
+ *
+ * @param event - The child removed event details
+ * @public
+ */
+export type ChildRemovedListener = (event: ChildRemovedEvent) => void;
+
+/**
+ * Callback function invoked when an entity's parent changes.
+ *
+ * @param event - The parent changed event details
+ * @public
+ */
+export type ParentChangedListener = (event: ParentChangedEvent) => void;
+
 // Enhanced system options with profiling and lifecycle hooks
 export interface SystemOptions<C extends readonly any[] = any[]> {
     act?: (entity: EntityDef, ...components: C) => void;
@@ -327,6 +406,37 @@ export interface SystemOptions<C extends readonly any[] = any[]> {
      * If omitted, all singleton changes will trigger the callbacks.
      */
     watchSingletons?: ComponentIdentifier[];
+
+    // ========== Hierarchy Observer Options ==========
+
+    /**
+     * Callback invoked when a child entity is added to any parent entity.
+     *
+     * Only triggered if `watchHierarchy` is true or this callback is set.
+     */
+    onChildAdded?: ChildAddedListener;
+
+    /**
+     * Callback invoked when a child entity is removed from any parent entity.
+     *
+     * Only triggered if `watchHierarchy` is true or this callback is set.
+     */
+    onChildRemoved?: ChildRemovedListener;
+
+    /**
+     * Callback invoked when any entity's parent changes.
+     *
+     * Only triggered if `watchHierarchy` is true or this callback is set.
+     */
+    onParentChanged?: ParentChangedListener;
+
+    /**
+     * Enable hierarchy event callbacks for this system.
+     *
+     * When true, `onChildAdded`, `onChildRemoved`, and `onParentChanged`
+     * callbacks will be invoked for all hierarchy changes.
+     */
+    watchHierarchy?: boolean;
 }
 
 export type SystemType<T extends readonly any[] = any[]> = SystemOptions<T> & Partial<EngineEvents>;
@@ -349,6 +459,9 @@ export type EngineEventNames =
     | 'onComponentAdded'
     | 'onComponentRemoved'
     | 'onEntityHierarchyChanged'
+    | 'onChildAdded'
+    | 'onChildRemoved'
+    | 'onParentChanged'
     | 'onSingletonSet'
     | 'onSingletonRemoved';
 
@@ -376,6 +489,32 @@ export interface EntityDef {
     get isDirty(): boolean;
     get isMarkedForDeletion(): boolean;
     serialize(): SerializedEntity;
+
+    // Hierarchy Query Methods
+    /** Get all descendants (children, grandchildren, etc.) */
+    getDescendants(maxDepth?: number): EntityDef[];
+    /** Get all ancestors (parent, grandparent, etc.) */
+    getAncestors(): EntityDef[];
+    /** Find first child matching predicate */
+    findChild(predicate: (child: EntityDef) => boolean, recursive?: boolean): EntityDef | undefined;
+    /** Find all children matching predicate */
+    findChildren(predicate: (child: EntityDef) => boolean, recursive?: boolean): EntityDef[];
+    /** Get the root entity of this hierarchy */
+    getRoot(): EntityDef;
+    /** Get depth in hierarchy (0 = root) */
+    getDepth(): number;
+    /** Check if this entity is an ancestor of another */
+    isAncestorOf(entity: EntityDef): boolean;
+    /** Check if this entity is a descendant of another */
+    isDescendantOf(entity: EntityDef): boolean;
+    /** Get all siblings (other children of the same parent) */
+    getSiblings(includeSelf?: boolean): EntityDef[];
+    /** Get the number of direct children */
+    getChildCount(): number;
+    /** Check if this entity has any children */
+    hasChildren(): boolean;
+    /** Check if this entity has a parent */
+    hasParent(): boolean;
 }
 
 /**

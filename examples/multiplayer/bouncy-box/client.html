@@ -1,0 +1,737 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Bouncy Box - OrionECS Multiplayer Demo</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      color: #fff;
+    }
+
+    h1 {
+      margin-bottom: 10px;
+      font-size: 2rem;
+      text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
+    }
+
+    .subtitle {
+      color: #888;
+      margin-bottom: 20px;
+      font-size: 0.9rem;
+    }
+
+    #game-container {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      box-shadow: 0 10px 40px rgba(0, 0, 0, 0.5);
+    }
+
+    #game-canvas {
+      display: block;
+      background: #0f0f23;
+    }
+
+    #ui-overlay {
+      position: absolute;
+      top: 10px;
+      left: 10px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      pointer-events: none;
+    }
+
+    #status {
+      padding: 5px 10px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 4px;
+      margin-bottom: 5px;
+    }
+
+    #latency {
+      padding: 5px 10px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 4px;
+    }
+
+    #connect-form {
+      margin-bottom: 20px;
+      display: flex;
+      gap: 10px;
+      align-items: center;
+    }
+
+    #connect-form input {
+      padding: 10px 15px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      background: rgba(255, 255, 255, 0.1);
+      color: #fff;
+      outline: none;
+    }
+
+    #connect-form input:focus {
+      background: rgba(255, 255, 255, 0.15);
+    }
+
+    #connect-form input::placeholder {
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    #connect-form button {
+      padding: 10px 20px;
+      border: none;
+      border-radius: 4px;
+      font-size: 14px;
+      cursor: pointer;
+      background: #4ECDC4;
+      color: #1a1a2e;
+      font-weight: 600;
+      transition: transform 0.1s, background 0.2s;
+    }
+
+    #connect-form button:hover {
+      background: #45B7D1;
+      transform: translateY(-1px);
+    }
+
+    #connect-form button:disabled {
+      background: #666;
+      cursor: not-allowed;
+      transform: none;
+    }
+
+    .controls {
+      margin-top: 20px;
+      color: #888;
+      font-size: 0.85rem;
+      text-align: center;
+    }
+
+    .controls kbd {
+      display: inline-block;
+      padding: 2px 6px;
+      background: rgba(255, 255, 255, 0.1);
+      border-radius: 3px;
+      font-family: monospace;
+    }
+
+    #player-list {
+      position: absolute;
+      top: 10px;
+      right: 10px;
+      font-size: 12px;
+      color: rgba(255, 255, 255, 0.7);
+      pointer-events: none;
+      text-align: right;
+    }
+
+    .player-entry {
+      padding: 3px 8px;
+      background: rgba(0, 0, 0, 0.5);
+      border-radius: 4px;
+      margin-bottom: 3px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      justify-content: flex-end;
+    }
+
+    .player-color {
+      width: 10px;
+      height: 10px;
+      border-radius: 2px;
+    }
+  </style>
+</head>
+<body>
+  <h1>Bouncy Box</h1>
+  <p class="subtitle">OrionECS Network Plugin Demo</p>
+
+  <div id="connect-form">
+    <input type="text" id="server-url" placeholder="ws://localhost:8080" value="ws://localhost:8080">
+    <input type="text" id="player-name" placeholder="Your name" maxlength="20">
+    <button id="connect-btn">Connect</button>
+  </div>
+
+  <div id="game-container">
+    <canvas id="game-canvas" width="800" height="600"></canvas>
+    <div id="ui-overlay">
+      <div id="status">Disconnected</div>
+      <div id="latency">Latency: --</div>
+    </div>
+    <div id="player-list"></div>
+  </div>
+
+  <div class="controls">
+    Use <kbd>W</kbd> <kbd>A</kbd> <kbd>S</kbd> <kbd>D</kbd> or <kbd>Arrow Keys</kbd> to move
+  </div>
+
+  <script type="module">
+    // =========================================================================
+    // Game Configuration (must match server)
+    // =========================================================================
+
+    const GAME_CONFIG = {
+      worldWidth: 800,
+      worldHeight: 600,
+      boxWidth: 40,
+      boxHeight: 40,
+      boxSpeed: 200,
+    };
+
+    const NETWORK_CONFIG = {
+      tickRate: 25,
+      snapshotRate: 25,
+      clientTickRate: 60,
+      interpolationDelay: 80,
+      reconciliationWindow: 30,
+      enablePrediction: true,
+      enableInterpolation: true,
+      enableReconciliation: true,
+    };
+
+    // =========================================================================
+    // Client State
+    // =========================================================================
+
+    let socket = null;
+    let connected = false;
+    let clientId = null;
+    let localEntityId = null;
+
+    // Entity storage
+    const entities = new Map();
+    const interpolationBuffers = new Map();
+
+    // Input state
+    const inputState = {
+      moveX: 0,
+      moveY: 0,
+      actions: {},
+    };
+    let inputSequence = 0;
+    const inputBuffer = [];
+    const MAX_INPUT_BUFFER = 60;
+
+    // Server state for reconciliation
+    let lastAckSequence = -1;
+    let serverPosition = { x: 0, y: 0 };
+
+    // Timing
+    let lastUpdateTime = performance.now();
+    let accumulator = 0;
+    const tickInterval = 1000 / NETWORK_CONFIG.clientTickRate;
+
+    // Latency
+    let latency = 0;
+    let serverTimeOffset = 0;
+
+    // =========================================================================
+    // DOM Elements
+    // =========================================================================
+
+    const canvas = document.getElementById('game-canvas');
+    const ctx = canvas.getContext('2d');
+    const statusEl = document.getElementById('status');
+    const latencyEl = document.getElementById('latency');
+    const playerListEl = document.getElementById('player-list');
+    const connectBtn = document.getElementById('connect-btn');
+    const serverUrlInput = document.getElementById('server-url');
+    const playerNameInput = document.getElementById('player-name');
+
+    // =========================================================================
+    // WebSocket Connection
+    // =========================================================================
+
+    function connect() {
+      const url = serverUrlInput.value.trim();
+      const playerName = playerNameInput.value.trim() || 'Player';
+
+      if (!url) {
+        alert('Please enter a server URL');
+        return;
+      }
+
+      statusEl.textContent = 'Connecting...';
+      connectBtn.disabled = true;
+
+      try {
+        socket = new WebSocket(url);
+
+        socket.onopen = () => {
+          console.log('[Client] Connected to server');
+          statusEl.textContent = 'Connected - Joining...';
+
+          // Send join request
+          send({
+            type: 'join',
+            timestamp: Date.now(),
+            data: { playerName },
+          });
+
+          // Start ping interval
+          setInterval(sendPing, 5000);
+        };
+
+        socket.onclose = (event) => {
+          console.log('[Client] Disconnected:', event.reason);
+          connected = false;
+          statusEl.textContent = 'Disconnected';
+          connectBtn.disabled = false;
+          connectBtn.textContent = 'Reconnect';
+          entities.clear();
+          interpolationBuffers.clear();
+        };
+
+        socket.onerror = (error) => {
+          console.error('[Client] WebSocket error:', error);
+          statusEl.textContent = 'Connection Error';
+          connectBtn.disabled = false;
+        };
+
+        socket.onmessage = (event) => {
+          try {
+            const message = JSON.parse(event.data);
+            handleMessage(message);
+          } catch (e) {
+            console.error('[Client] Failed to parse message:', e);
+          }
+        };
+      } catch (error) {
+        console.error('[Client] Connection failed:', error);
+        statusEl.textContent = 'Connection Failed';
+        connectBtn.disabled = false;
+      }
+    }
+
+    function send(message) {
+      if (socket && socket.readyState === WebSocket.OPEN) {
+        socket.send(JSON.stringify(message));
+      }
+    }
+
+    function sendPing() {
+      send({
+        type: 'ping',
+        timestamp: Date.now(),
+        data: { clientTime: Date.now() },
+      });
+    }
+
+    // =========================================================================
+    // Message Handlers
+    // =========================================================================
+
+    function handleMessage(message) {
+      switch (message.type) {
+        case 'join_accepted':
+          handleJoinAccepted(message.data);
+          break;
+        case 'join_rejected':
+          console.log('[Client] Join rejected:', message.data.reason);
+          statusEl.textContent = 'Join rejected: ' + message.data.reason;
+          break;
+        case 'world_snapshot':
+          handleWorldSnapshot(message.data);
+          break;
+        case 'input_ack':
+          handleInputAck(message.data);
+          break;
+        case 'entity_spawn':
+          handleEntitySpawn(message.data);
+          break;
+        case 'entity_destroy':
+          handleEntityDestroy(message.data.networkEntityId);
+          break;
+        case 'player_joined':
+          console.log('[Client] Player joined:', message.data.playerName);
+          break;
+        case 'player_left':
+          console.log('[Client] Player left:', message.data.clientId);
+          break;
+        case 'pong':
+          handlePong(message.data);
+          break;
+      }
+    }
+
+    function handleJoinAccepted(data) {
+      clientId = data.clientId;
+      localEntityId = data.networkEntityId;
+      connected = true;
+      statusEl.textContent = 'Playing';
+      console.log('[Client] Joined as', clientId, 'entity:', localEntityId);
+    }
+
+    function handleWorldSnapshot(data) {
+      // Handle removed entities
+      if (data.removedEntityIds) {
+        for (const id of data.removedEntityIds) {
+          handleEntityDestroy(id);
+        }
+      }
+
+      // Update entities
+      for (const entityData of data.entities) {
+        updateEntity(entityData, data.timestamp);
+      }
+
+      updatePlayerList();
+    }
+
+    function updateEntity(entityData, timestamp) {
+      const isLocalPlayer = entityData.networkEntityId === localEntityId;
+
+      if (!entities.has(entityData.networkEntityId)) {
+        // Create new entity
+        entities.set(entityData.networkEntityId, {
+          ...entityData,
+          renderX: entityData.position?.x || 0,
+          renderY: entityData.position?.y || 0,
+        });
+
+        if (!isLocalPlayer) {
+          // Create interpolation buffer for remote entities
+          interpolationBuffers.set(entityData.networkEntityId, []);
+        }
+      }
+
+      const entity = entities.get(entityData.networkEntityId);
+
+      if (isLocalPlayer) {
+        // Local player - don't overwrite predicted position
+        // Position is reconciled through input_ack
+        if (entityData.components) {
+          entity.components = entityData.components;
+        }
+      } else {
+        // Remote entity - add to interpolation buffer
+        const buffer = interpolationBuffers.get(entityData.networkEntityId);
+        if (buffer && entityData.position) {
+          buffer.push({
+            position: { ...entityData.position },
+            velocity: entityData.velocity ? { ...entityData.velocity } : null,
+            timestamp,
+          });
+
+          // Keep only recent snapshots
+          while (buffer.length > 10) {
+            buffer.shift();
+          }
+        }
+
+        // Update other data
+        if (entityData.components) {
+          entity.components = entityData.components;
+        }
+      }
+    }
+
+    function handleEntitySpawn(entityData) {
+      updateEntity(entityData, Date.now());
+    }
+
+    function handleEntityDestroy(networkEntityId) {
+      entities.delete(networkEntityId);
+      interpolationBuffers.delete(networkEntityId);
+    }
+
+    function handleInputAck(data) {
+      if (!localEntityId) return;
+
+      const entity = entities.get(localEntityId);
+      if (!entity) return;
+
+      lastAckSequence = data.sequence;
+      serverPosition = { ...data.position };
+
+      // Remove acknowledged inputs
+      while (inputBuffer.length > 0 && inputBuffer[0].sequence <= data.sequence) {
+        inputBuffer.shift();
+      }
+
+      // Reconciliation: reset to server position and replay unacked inputs
+      if (NETWORK_CONFIG.enableReconciliation && inputBuffer.length > 0) {
+        entity.renderX = serverPosition.x;
+        entity.renderY = serverPosition.y;
+
+        // Replay unacknowledged inputs
+        const dt = 1 / NETWORK_CONFIG.clientTickRate;
+        for (const input of inputBuffer) {
+          const velX = input.input.moveX * GAME_CONFIG.boxSpeed;
+          const velY = input.input.moveY * GAME_CONFIG.boxSpeed;
+          entity.renderX += velX * dt;
+          entity.renderY += velY * dt;
+
+          // Clamp to bounds
+          entity.renderX = Math.max(0, Math.min(GAME_CONFIG.worldWidth - GAME_CONFIG.boxWidth, entity.renderX));
+          entity.renderY = Math.max(0, Math.min(GAME_CONFIG.worldHeight - GAME_CONFIG.boxHeight, entity.renderY));
+        }
+      }
+    }
+
+    function handlePong(data) {
+      const now = Date.now();
+      latency = now - data.clientTime;
+      serverTimeOffset = data.serverTime - now + latency / 2;
+      latencyEl.textContent = `Latency: ${latency}ms`;
+    }
+
+    // =========================================================================
+    // Input Handling
+    // =========================================================================
+
+    const keysPressed = new Set();
+
+    function updateInputState() {
+      let moveX = 0;
+      let moveY = 0;
+
+      if (keysPressed.has('KeyA') || keysPressed.has('ArrowLeft')) moveX -= 1;
+      if (keysPressed.has('KeyD') || keysPressed.has('ArrowRight')) moveX += 1;
+      if (keysPressed.has('KeyW') || keysPressed.has('ArrowUp')) moveY -= 1;
+      if (keysPressed.has('KeyS') || keysPressed.has('ArrowDown')) moveY += 1;
+
+      inputState.moveX = moveX;
+      inputState.moveY = moveY;
+    }
+
+    document.addEventListener('keydown', (e) => {
+      keysPressed.add(e.code);
+      updateInputState();
+    });
+
+    document.addEventListener('keyup', (e) => {
+      keysPressed.delete(e.code);
+      updateInputState();
+    });
+
+    // =========================================================================
+    // Game Loop
+    // =========================================================================
+
+    function gameLoop(currentTime) {
+      const deltaTime = currentTime - lastUpdateTime;
+      lastUpdateTime = currentTime;
+
+      if (connected) {
+        // Fixed timestep updates
+        accumulator += deltaTime;
+
+        while (accumulator >= tickInterval) {
+          fixedUpdate();
+          accumulator -= tickInterval;
+        }
+
+        // Variable update (interpolation)
+        variableUpdate();
+      }
+
+      // Render
+      render();
+
+      requestAnimationFrame(gameLoop);
+    }
+
+    function fixedUpdate() {
+      if (!localEntityId) return;
+
+      const entity = entities.get(localEntityId);
+      if (!entity) return;
+
+      // Client-side prediction
+      if (NETWORK_CONFIG.enablePrediction) {
+        const dt = 1 / NETWORK_CONFIG.clientTickRate;
+        const velX = inputState.moveX * GAME_CONFIG.boxSpeed;
+        const velY = inputState.moveY * GAME_CONFIG.boxSpeed;
+
+        entity.renderX += velX * dt;
+        entity.renderY += velY * dt;
+
+        // Clamp to bounds
+        entity.renderX = Math.max(0, Math.min(GAME_CONFIG.worldWidth - GAME_CONFIG.boxWidth, entity.renderX));
+        entity.renderY = Math.max(0, Math.min(GAME_CONFIG.worldHeight - GAME_CONFIG.boxHeight, entity.renderY));
+      }
+
+      // Send input to server
+      if (inputState.moveX !== 0 || inputState.moveY !== 0) {
+        const sequence = ++inputSequence;
+        const input = { ...inputState };
+
+        // Store in buffer for reconciliation
+        inputBuffer.push({ sequence, input, timestamp: Date.now() });
+        while (inputBuffer.length > MAX_INPUT_BUFFER) {
+          inputBuffer.shift();
+        }
+
+        // Send to server
+        send({
+          type: 'input',
+          timestamp: Date.now(),
+          data: {
+            sequence,
+            inputs: input,
+            timestamp: Date.now(),
+          },
+        });
+      }
+    }
+
+    function variableUpdate() {
+      // Interpolate remote entities
+      if (!NETWORK_CONFIG.enableInterpolation) return;
+
+      const renderTime = Date.now() - NETWORK_CONFIG.interpolationDelay;
+
+      for (const [entityId, entity] of entities) {
+        if (entityId === localEntityId) continue;
+
+        const buffer = interpolationBuffers.get(entityId);
+        if (!buffer || buffer.length < 2) continue;
+
+        // Find snapshots to interpolate between
+        let from = buffer[0];
+        let to = buffer[1];
+
+        for (let i = 0; i < buffer.length - 1; i++) {
+          if (buffer[i].timestamp <= renderTime && buffer[i + 1].timestamp >= renderTime) {
+            from = buffer[i];
+            to = buffer[i + 1];
+            break;
+          }
+        }
+
+        // Interpolate
+        const duration = to.timestamp - from.timestamp;
+        if (duration > 0) {
+          const t = Math.max(0, Math.min(1, (renderTime - from.timestamp) / duration));
+          entity.renderX = from.position.x + (to.position.x - from.position.x) * t;
+          entity.renderY = from.position.y + (to.position.y - from.position.y) * t;
+        }
+      }
+    }
+
+    // =========================================================================
+    // Rendering
+    // =========================================================================
+
+    function render() {
+      // Clear canvas
+      ctx.fillStyle = '#0f0f23';
+      ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+      // Draw grid
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.05)';
+      ctx.lineWidth = 1;
+      const gridSize = 50;
+      for (let x = 0; x <= canvas.width; x += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(x, 0);
+        ctx.lineTo(x, canvas.height);
+        ctx.stroke();
+      }
+      for (let y = 0; y <= canvas.height; y += gridSize) {
+        ctx.beginPath();
+        ctx.moveTo(0, y);
+        ctx.lineTo(canvas.width, y);
+        ctx.stroke();
+      }
+
+      // Draw entities
+      for (const [entityId, entity] of entities) {
+        const isLocal = entityId === localEntityId;
+        const color = entity.components?.BoxVisual?.color || '#FFFFFF';
+        const width = entity.components?.BoxVisual?.width || GAME_CONFIG.boxWidth;
+        const height = entity.components?.BoxVisual?.height || GAME_CONFIG.boxHeight;
+
+        // Draw shadow
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.3)';
+        ctx.fillRect(entity.renderX + 3, entity.renderY + 3, width, height);
+
+        // Draw box
+        ctx.fillStyle = color;
+        ctx.fillRect(entity.renderX, entity.renderY, width, height);
+
+        // Draw border (thicker for local player)
+        ctx.strokeStyle = isLocal ? '#FFFFFF' : 'rgba(255, 255, 255, 0.3)';
+        ctx.lineWidth = isLocal ? 3 : 1;
+        ctx.strokeRect(entity.renderX, entity.renderY, width, height);
+
+        // Draw player name
+        const name = entity.components?.PlayerInfo?.playerName || entity.ownerId || 'Unknown';
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '12px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText(name, entity.renderX + width / 2, entity.renderY - 5);
+
+        // Draw "YOU" indicator for local player
+        if (isLocal) {
+          ctx.fillStyle = '#4ECDC4';
+          ctx.font = 'bold 10px sans-serif';
+          ctx.fillText('YOU', entity.renderX + width / 2, entity.renderY + height + 15);
+        }
+      }
+
+      // Draw connection status if not connected
+      if (!connected) {
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.7)';
+        ctx.fillRect(0, 0, canvas.width, canvas.height);
+        ctx.fillStyle = '#FFFFFF';
+        ctx.font = '24px sans-serif';
+        ctx.textAlign = 'center';
+        ctx.fillText('Press Connect to Play', canvas.width / 2, canvas.height / 2);
+      }
+    }
+
+    function updatePlayerList() {
+      let html = '';
+      for (const [entityId, entity] of entities) {
+        if (entity.entityType !== 'player') continue;
+        const color = entity.components?.BoxVisual?.color || '#FFFFFF';
+        const name = entity.components?.PlayerInfo?.playerName || 'Unknown';
+        const isLocal = entityId === localEntityId;
+        html += `
+          <div class="player-entry">
+            ${isLocal ? '(you) ' : ''}${name}
+            <div class="player-color" style="background: ${color}"></div>
+          </div>
+        `;
+      }
+      playerListEl.innerHTML = html;
+    }
+
+    // =========================================================================
+    // Initialize
+    // =========================================================================
+
+    connectBtn.addEventListener('click', connect);
+    playerNameInput.addEventListener('keypress', (e) => {
+      if (e.key === 'Enter') connect();
+    });
+
+    // Random default name
+    playerNameInput.value = 'Player' + Math.floor(Math.random() * 1000);
+
+    // Start game loop
+    requestAnimationFrame(gameLoop);
+
+    console.log('[Client] Bouncy Box client initialized');
+  </script>
+</body>
+</html>

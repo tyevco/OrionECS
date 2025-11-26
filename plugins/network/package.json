@@ -1,0 +1,70 @@
+{
+  "name": "@orion-ecs/network",
+  "version": "0.1.0",
+  "description": "Transport-agnostic multiplayer networking plugin for OrionECS with client-side prediction, server reconciliation, and entity interpolation",
+  "main": "dist/index.js",
+  "module": "dist/index.mjs",
+  "types": "dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    },
+    "./server": {
+      "types": "./dist/transports/WebSocketServerTransport.d.ts",
+      "import": "./dist/transports/WebSocketServerTransport.mjs",
+      "require": "./dist/transports/WebSocketServerTransport.js"
+    },
+    "./client": {
+      "types": "./dist/transports/WebSocketClientTransport.d.ts",
+      "import": "./dist/transports/WebSocketClientTransport.mjs",
+      "require": "./dist/transports/WebSocketClientTransport.js"
+    }
+  },
+  "files": [
+    "dist",
+    "README.md"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "dev": "tsup --watch",
+    "clean": "rm -rf dist",
+    "typecheck": "tsc --noEmit"
+  },
+  "keywords": [
+    "ecs",
+    "entity-component-system",
+    "game-development",
+    "multiplayer",
+    "networking",
+    "websocket",
+    "socket.io",
+    "client-side-prediction",
+    "server-reconciliation",
+    "entity-interpolation",
+    "authoritative-server"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "@orion-ecs/core": ">=2.0.0"
+  },
+  "devDependencies": {
+    "@types/ws": "^8.5.10",
+    "tsup": "^8.0.1",
+    "typescript": "^5.3.3",
+    "ws": "^8.16.0"
+  },
+  "optionalDependencies": {
+    "ws": "^8.16.0"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tyevco/OrionECS.git",
+    "directory": "plugins/network"
+  },
+  "bugs": {
+    "url": "https://github.com/tyevco/OrionECS/issues"
+  }
+}

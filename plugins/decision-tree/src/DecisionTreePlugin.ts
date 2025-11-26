@@ -59,7 +59,8 @@ export interface DecisionTreeAPI {
     evaluate(entity: EntityDef): boolean;
 
     /** Get the predicate registry for registering predicates */
-    readonly predicates: PredicateRegistry<Record<string, Record<string, unknown>>>;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- API needs to accept any predicate registry type
+    readonly predicates: PredicateRegistry<any>;
 }
 
 // =============================================================================
@@ -194,16 +195,20 @@ export class DecisionTreePlugin implements EnginePlugin<{ decisions: DecisionTre
         if (!this.predicateContext) {
             const engine = this.context?.getEngine() as unknown;
             this.predicateContext = {
-                getSingleton: (type) =>
-                    (engine as { getSingleton?: (type: unknown) => unknown })?.getSingleton?.(type),
-                getEntity: (id) =>
+                getSingleton: <T>(type: ComponentIdentifier<T>) =>
+                    (
+                        engine as {
+                            getSingleton?: <T>(type: ComponentIdentifier<T>) => T | undefined;
+                        }
+                    )?.getSingleton?.(type),
+                getEntity: (id: symbol) =>
                     (engine as { getEntity?: (id: symbol) => EntityDef | undefined })?.getEntity?.(
                         id
                     ),
                 deltaTime: 1 / 60,
             };
         }
-        return this.predicateContext;
+        return this.predicateContext as PredicateContext;
     }
 
     // ===========================================================================
@@ -211,6 +216,7 @@ export class DecisionTreePlugin implements EnginePlugin<{ decisions: DecisionTre
     // ===========================================================================
 
     private createAPI(): DecisionTreeAPI {
+        const predicateRegistry = this.predicateRegistry;
         return {
             register: (tree: TreeDefinition): void => {
                 this.trees.set(tree.id, tree);
@@ -274,7 +280,7 @@ export class DecisionTreePlugin implements EnginePlugin<{ decisions: DecisionTre
             },
 
             get predicates() {
-                return this.predicateRegistry;
+                return predicateRegistry;
             },
         };
     }

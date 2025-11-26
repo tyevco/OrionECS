@@ -397,7 +397,7 @@ describe('TimelinePlugin API', () => {
         engine.timeline.define(engine.timeline.create('test').build());
 
         const entity = engine.createEntity('test');
-        engine.timeline.play(entity, 'test');
+        engine.timeline.playById(entity, 'test');
 
         expect(entity.hasComponent(Timeline)).toBe(true);
     });
@@ -408,7 +408,7 @@ describe('TimelinePlugin API', () => {
         engine.timeline.define(engine.timeline.create('test').build());
 
         const entity = engine.createEntity('test');
-        engine.timeline.play(entity, 'test');
+        engine.timeline.playById(entity, 'test');
         expect(entity.hasComponent(Timeline)).toBe(true);
 
         engine.timeline.stop(entity);
@@ -421,7 +421,7 @@ describe('TimelinePlugin API', () => {
         engine.timeline.define(engine.timeline.create('test').build());
 
         const entity = engine.createEntity('test');
-        engine.timeline.play(entity, 'test');
+        engine.timeline.playById(entity, 'test');
 
         expect(engine.timeline.isPlaying(entity)).toBe(true);
 
@@ -435,12 +435,12 @@ describe('TimelinePlugin API', () => {
         expect(engine.timeline.isPlaying(entity)).toBe(true);
     });
 
-    test('play throws for unknown timeline', () => {
+    test('playById throws for unknown timeline', () => {
         const engine = createTestEngine();
         const entity = engine.createEntity('test');
 
         expect(() => {
-            engine.timeline.play(entity, 'nonexistent');
+            engine.timeline.playById(entity, 'nonexistent');
         }).toThrow('[TimelinePlugin] Unknown timeline: nonexistent');
     });
 });
@@ -466,6 +466,105 @@ describe('TimelinePlugin Custom Easing', () => {
         // Type system should know about 'bounce' and 'elastic'
         expect(engine.timeline.easing.has('bounce')).toBe(true);
         expect(engine.timeline.easing.has('elastic')).toBe(true);
+    });
+});
+
+// =============================================================================
+// Type-Safe Timeline Definition Tests
+// =============================================================================
+
+describe('TimelinePlugin Type-Safe Definitions', () => {
+    test('plugin.define() registers timeline at build time', () => {
+        const plugin = new TimelinePlugin()
+            .define('fadeOut', (b) =>
+                b.tween(Opacity, 'value', 0).from(1).to(0).duration(500).end().build()
+            )
+            .define('slideIn', (b) =>
+                b.tween(Position, 'x', 0).from(-100).to(0).duration(300).end().build()
+            );
+
+        const engine = new EngineBuilder().use(plugin).build();
+
+        // Both timelines should be registered
+        expect(engine.timeline.get('fadeOut')).toBeDefined();
+        expect(engine.timeline.get('slideIn')).toBeDefined();
+        expect(engine.timeline.list()).toContain('fadeOut');
+        expect(engine.timeline.list()).toContain('slideIn');
+    });
+
+    test('plugin.define() with easing works together', () => {
+        const plugin = new TimelinePlugin()
+            .easing('customBounce', (t) => t * t)
+            .define('bounceIn', (b) =>
+                b
+                    .tween(Position, 'y', 0)
+                    .from(0)
+                    .to(100)
+                    .ease('customBounce')
+                    .duration(400)
+                    .end()
+                    .build()
+            );
+
+        const engine = new EngineBuilder().use(plugin).build();
+
+        expect(engine.timeline.easing.has('customBounce')).toBe(true);
+        expect(engine.timeline.get('bounceIn')).toBeDefined();
+    });
+
+    test('play() uses type-safe timeline IDs', () => {
+        const plugin = new TimelinePlugin().define('testTimeline', (b) =>
+            b.emit('start', 0).build()
+        );
+
+        const engine = new EngineBuilder().use(plugin).build();
+        const entity = engine.createEntity('test');
+
+        // Type-safe play - 'testTimeline' is known at compile time
+        engine.timeline.play(entity, 'testTimeline');
+
+        expect(entity.hasComponent(Timeline)).toBe(true);
+        expect(entity.getComponent(Timeline).timelineId).toBe('testTimeline');
+    });
+
+    test('playById() accepts any string ID', () => {
+        const engine = createTestEngine();
+
+        // Define a timeline at runtime
+        engine.timeline.define(engine.timeline.create('runtimeDefined').emit('start', 0).build());
+
+        const entity = engine.createEntity('test');
+
+        // playById accepts string for runtime flexibility
+        engine.timeline.playById(entity, 'runtimeDefined');
+
+        expect(entity.hasComponent(Timeline)).toBe(true);
+        expect(entity.getComponent(Timeline).timelineId).toBe('runtimeDefined');
+    });
+
+    test('playById() throws for unknown timeline', () => {
+        const engine = createTestEngine();
+        const entity = engine.createEntity('test');
+
+        expect(() => {
+            engine.timeline.playById(entity, 'nonexistent');
+        }).toThrow('[TimelinePlugin] Unknown timeline: nonexistent');
+    });
+
+    test('chained definitions accumulate types', () => {
+        // This test verifies type accumulation works
+        const plugin = new TimelinePlugin()
+            .define('first', (b) => b.emit('first', 0).build())
+            .define('second', (b) => b.emit('second', 0).build())
+            .define('third', (b) => b.emit('third', 0).build());
+
+        const engine = new EngineBuilder().use(plugin).build();
+
+        // All three should be available
+        expect(engine.timeline.list()).toHaveLength(3);
+        expect(engine.timeline.get('first')).toBeDefined();
+        expect(engine.timeline.get('second')).toBeDefined();
+        expect(engine.timeline.get('third')).toBeDefined();
     });
 });
 

@@ -40,9 +40,13 @@ import type {
 
 /**
  * API exposed on the engine for timeline operations.
+ *
+ * @typeParam TEasing - Accumulated easing function types
+ * @typeParam TTimelines - Accumulated timeline definition types
  */
 export interface TimelineAPI<
     TEasing extends Record<string, Record<string, unknown>> = BuiltInEasing,
+    TTimelines extends Record<string, Record<string, unknown>> = Record<string, never>,
 > {
     /**
      * Create a new timeline builder.
@@ -50,7 +54,10 @@ export interface TimelineAPI<
     create(id: string): TimelineBuilder<TEasing>;
 
     /**
-     * Register a timeline definition.
+     * Register a timeline definition at runtime.
+     *
+     * Note: For type-safe timeline IDs, use `plugin.define()` before building
+     * the engine. This method is for runtime flexibility.
      */
     define(definition: TimelineDefinition): void;
 
@@ -72,8 +79,29 @@ export interface TimelineAPI<
     /**
      * Play a timeline on an entity.
      * Convenience method that adds a Timeline component.
+     *
+     * @param entity - The entity to play the timeline on
+     * @param timelineId - ID of a registered timeline (type-safe if defined via plugin)
+     * @param options - Optional playback options
      */
-    play(entity: EntityDef, timelineId: string, options?: { speed?: number; loop?: boolean }): void;
+    play<K extends keyof TTimelines & string>(
+        entity: EntityDef,
+        timelineId: K,
+        options?: { speed?: number; loop?: boolean }
+    ): void;
+
+    /**
+     * Play a timeline by string ID (for runtime-defined timelines).
+     *
+     * @param entity - The entity to play the timeline on
+     * @param timelineId - ID of a registered timeline
+     * @param options - Optional playback options
+     */
+    playById(
+        entity: EntityDef,
+        timelineId: string,
+        options?: { speed?: number; loop?: boolean }
+    ): void;
 
     /**
      * Stop a timeline on an entity.
@@ -120,17 +148,9 @@ export interface TimelineAPI<
  *
  * @example
  * ```typescript
- * // Create plugin
- * const timelinePlugin = new TimelinePlugin();
- *
- * // Build engine
- * const engine = new EngineBuilder()
- *   .use(timelinePlugin)
- *   .build();
- *
- * // Define a timeline
- * engine.timeline.define(
- *   engine.timeline.create('fadeOut')
+ * // Create plugin with type-safe timeline definitions
+ * const timelinePlugin = new TimelinePlugin()
+ *   .define('fadeOut', (b) => b
  *     .tween(Opacity, 'value', 0)
  *       .from(1)
  *       .to(0)
@@ -139,25 +159,41 @@ export interface TimelineAPI<
  *       .end()
  *     .emit('fadeComplete', 500)
  *     .build()
- * );
+ *   )
+ *   .define('slideIn', (b) => b
+ *     .tween(Position, 'x', 0)
+ *       .from(-100)
+ *       .to(0)
+ *       .duration(300)
+ *       .end()
+ *     .build()
+ *   );
  *
- * // Play on an entity
+ * // Build engine
+ * const engine = new EngineBuilder()
+ *   .use(timelinePlugin)
+ *   .build();
+ *
+ * // Play timeline - type-safe! Only 'fadeOut' or 'slideIn' allowed
  * engine.timeline.play(entity, 'fadeOut');
  *
- * // Or add component directly
+ * // Or add component directly (uses string ID)
  * entity.addComponent(Timeline, 'fadeOut');
  * ```
  *
  * @typeParam TEasing - Accumulated easing registry type
+ * @typeParam TTimelines - Accumulated timeline definition type
  */
-export class TimelinePlugin<TEasing extends Record<string, Record<string, unknown>> = BuiltInEasing>
-    implements EnginePlugin<{ timeline: TimelineAPI<TEasing> }>
+export class TimelinePlugin<
+    TEasing extends Record<string, Record<string, unknown>> = BuiltInEasing,
+    TTimelines extends Record<string, Record<string, unknown>> = Record<string, never>,
+> implements EnginePlugin<{ timeline: TimelineAPI<TEasing, TTimelines> }>
 {
     readonly name = 'TimelinePlugin';
     readonly version = '0.1.0';
 
     /** Type brand for compile-time type inference */
-    declare readonly __extensions: { timeline: TimelineAPI<TEasing> };
+    declare readonly __extensions: { timeline: TimelineAPI<TEasing, TTimelines> };
 
     /** Registered timeline definitions */
     private definitions = new Map<string, TimelineDefinition>();
@@ -179,7 +215,7 @@ export class TimelinePlugin<TEasing extends Record<string, Record<string, unknow
     }
 
     // ===========================================================================
-    // Custom Easing Registration (Type Accumulation)
+    // Type Accumulation Methods
     // ===========================================================================
 
     /**
@@ -195,9 +231,59 @@ export class TimelinePlugin<TEasing extends Record<string, Record<string, unknow
     easing<K extends string>(
         name: K,
         fn: EasingFn
-    ): TimelinePlugin<TEasing & Record<K, Record<string, never>>> {
+    ): TimelinePlugin<TEasing & Record<K, Record<string, never>>, TTimelines> {
         this.easingRegistry.register(name, fn);
-        return this as unknown as TimelinePlugin<TEasing & Record<K, Record<string, never>>>;
+        return this as unknown as TimelinePlugin<
+            TEasing & Record<K, Record<string, never>>,
+            TTimelines
+        >;
+    }
+
+    /**
+     * Define a timeline with type accumulation.
+     *
+     * Timelines defined via this method enable type-safe `play()` calls.
+     * The timeline ID becomes part of the type signature.
+     *
+     * @example
+     * ```typescript
+     * const plugin = new TimelinePlugin()
+     *   .define('fadeOut', (b) => b
+     *     .tween(Opacity, 'value', 0)
+     *       .from(1)
+     *       .to(0)
+     *       .ease('easeOutQuad')
+     *       .duration(500)
+     *       .end()
+     *     .build()
+     *   )
+     *   .define('slideIn', (b) => b
+     *     .tween(Position, 'x', 0)
+     *       .from(-100)
+     *       .to(0)
+     *       .duration(300)
+     *       .end()
+     *     .build()
+     *   );
+     *
+     * // Later: engine.timeline.play(entity, 'fadeOut') is type-safe
+     * ```
+     *
+     * @param id - Unique timeline identifier (becomes type-safe key)
+     * @param builder - Function that receives a TimelineBuilder and returns a TimelineDefinition
+     * @returns Plugin with accumulated timeline type
+     */
+    define<K extends string>(
+        id: K,
+        builder: (b: TimelineBuilder<TEasing>) => TimelineDefinition
+    ): TimelinePlugin<TEasing, TTimelines & Record<K, Record<string, never>>> {
+        const timelineBuilder = createTimeline<TEasing>(id);
+        const definition = builder(timelineBuilder);
+        this.definitions.set(id, definition);
+        return this as unknown as TimelinePlugin<
+            TEasing,
+            TTimelines & Record<K, Record<string, never>>
+        >;
     }
 
     // ===========================================================================
@@ -763,7 +849,26 @@ export class TimelinePlugin<TEasing extends Record<string, Record<string, unknow
     // API Creation
     // ===========================================================================
 
-    private createAPI(): TimelineAPI<TEasing> {
+    private createAPI(): TimelineAPI<TEasing, TTimelines> {
+        const playTimeline = (
+            entity: EntityDef,
+            timelineId: string,
+            options?: { speed?: number; loop?: boolean }
+        ): void => {
+            if (!this.definitions.has(timelineId)) {
+                throw new Error(`[TimelinePlugin] Unknown timeline: ${timelineId}`);
+            }
+
+            if (entity.hasComponent(Timeline)) {
+                const existing = entity.getComponent(Timeline);
+                existing.reset();
+                // Note: Can't change timelineId as it's readonly, so remove and re-add
+                entity.removeComponent(Timeline);
+            }
+
+            entity.addComponent(Timeline, timelineId, options);
+        };
+
         return {
             create: (id: string) => createTimeline<TEasing>(id),
 
@@ -779,24 +884,9 @@ export class TimelinePlugin<TEasing extends Record<string, Record<string, unknow
                 this.definitions.delete(id);
             },
 
-            play: (
-                entity: EntityDef,
-                timelineId: string,
-                options?: { speed?: number; loop?: boolean }
-            ) => {
-                if (!this.definitions.has(timelineId)) {
-                    throw new Error(`[TimelinePlugin] Unknown timeline: ${timelineId}`);
-                }
+            play: playTimeline as TimelineAPI<TEasing, TTimelines>['play'],
 
-                if (entity.hasComponent(Timeline)) {
-                    const existing = entity.getComponent(Timeline);
-                    existing.reset();
-                    // Note: Can't change timelineId as it's readonly, so remove and re-add
-                    entity.removeComponent(Timeline);
-                }
-
-                entity.addComponent(Timeline, timelineId, options);
-            },
+            playById: playTimeline,
 
             stop: (entity: EntityDef) => {
                 if (entity.hasComponent(Timeline)) {

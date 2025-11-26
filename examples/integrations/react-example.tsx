@@ -122,7 +122,7 @@ interface InventoryItem {
 class PlayerInfo {
   constructor(
     public name: string = 'Player',
-    public class: string = 'Warrior',
+    public playerClass: string = 'Warrior',
   ) {}
 }
 
@@ -493,7 +493,7 @@ const PlayerHUD: FC<PlayerHUDProps> = ({ playerEntity }) => {
     'div',
     { style: containerStyle },
     React.createElement('div', { style: titleStyle }, info?.name || 'Player'),
-    React.createElement('div', { style: { fontSize: '12px', color: '#94a3b8' } }, info?.class),
+    React.createElement('div', { style: { fontSize: '12px', color: '#94a3b8' } }, info?.playerClass),
     React.createElement(
       'div',
       { style: sectionStyle },

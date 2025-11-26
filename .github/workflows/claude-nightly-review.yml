@@ -1,0 +1,131 @@
+name: Claude Nightly Code Review
+
+on:
+  schedule:
+    # Run at 2:00 AM UTC every day
+    - cron: '0 2 * * *'
+  workflow_dispatch:
+    # Allow manual triggering for testing
+    inputs:
+      focus_area:
+        description: 'Optional: Focus area for the review (e.g., "security", "performance", "all")'
+        required: false
+        default: 'all'
+
+jobs:
+  nightly-review:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: write
+      id-token: write
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0  # Full history for comprehensive analysis
+
+      - name: Run Claude Nightly Code Review
+        id: claude-review
+        uses: anthropics/claude-code-action@v1
+        with:
+          claude_code_oauth_token: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+          prompt: |
+            # Nightly Code Review - Full Repository Analysis
+
+            You are conducting a comprehensive nightly code review of the OrionECS repository.
+            Focus area: ${{ github.event.inputs.focus_area || 'all' }}
+
+            ## Review Scope
+
+            Analyze the entire codebase looking for:
+
+            ### 1. Code Smells
+            - Dead code or unused exports
+            - Overly complex functions (high cyclomatic complexity)
+            - Code duplication
+            - Long parameter lists
+            - God classes or functions doing too much
+            - Magic numbers/strings without constants
+            - Poor naming conventions
+            - Inconsistent code style
+
+            ### 2. Potential Bugs
+            - Null/undefined reference risks
+            - Off-by-one errors
+            - Race conditions in async code
+            - Uncaught promise rejections
+            - Type coercion issues
+            - Missing error handling
+            - Incorrect loop conditions
+            - Memory leaks (event listeners, closures)
+
+            ### 3. Security Issues
+            - Input validation gaps
+            - Injection vulnerabilities
+            - Unsafe deserialization
+            - Exposed sensitive data
+            - Insecure defaults
+
+            ### 4. Performance Issues
+            - Unnecessary iterations or loops
+            - Missing memoization opportunities
+            - Inefficient data structures
+            - Redundant computations
+            - Memory-intensive patterns
+
+            ### 5. Architecture & Design
+            - SOLID principle violations
+            - Circular dependencies
+            - Tight coupling between modules
+            - Missing abstractions
+            - Inconsistent patterns across codebase
+
+            ### 6. Documentation & Maintainability
+            - Missing or outdated comments
+            - Undocumented public APIs
+            - Complex code without explanation
+            - Missing TypeScript types
+
+            ## Output Format
+
+            Create a GitHub issue with your findings using `gh issue create`. The issue should:
+
+            1. **Title**: "🔍 Nightly Code Review - [DATE]"
+            2. **Labels**: `code-review`, `automated`
+            3. **Body** should include:
+               - Executive summary (1-2 paragraphs)
+               - Findings organized by severity (Critical, High, Medium, Low)
+               - Each finding should include:
+                 - File path and line number(s)
+                 - Description of the issue
+                 - Suggested fix or improvement
+                 - Code snippet if helpful
+               - Metrics summary (files reviewed, issues found by category)
+
+            ## Guidelines
+
+            - Use the repository's CLAUDE.md for project-specific conventions
+            - Focus on actionable findings with clear remediation steps
+            - Prioritize issues that could cause bugs or security vulnerabilities
+            - Skip node_modules, dist, and other build artifacts
+            - Be specific - include file paths and line numbers
+            - Group related issues together
+            - If no significant issues are found, still create an issue with a brief "all clear" summary
+
+            ## Key Directories to Review
+
+            - `packages/core/src/` - Core ECS engine
+            - `plugins/*/src/` - All plugin implementations
+            - `packages/*/src/` - Supporting packages
+            - `examples/` - Example code (check for anti-patterns that users might copy)
+
+          claude_args: '--allowed-tools "Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh label create:*)"'
+
+      - name: Ensure labels exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "code-review" --description "Automated code review findings" --color "7057ff" --force || true
+          gh label create "automated" --description "Automatically generated" --color "bfdadc" --force || true

@@ -30,8 +30,8 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Build core package
-        run: npm run build --workspace=packages/core
+      - name: Build packages
+        run: npm run build
 
       - name: Generate API documentation
         run: |

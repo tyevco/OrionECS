@@ -79,6 +79,31 @@ export interface EntityDef {
 }
 
 // =============================================================================
+// Performance Monitoring Types
+// =============================================================================
+
+/**
+ * Performance profile data for a system.
+ *
+ * Contains timing and execution statistics collected during system execution.
+ * Used by profiling and debugging tools to analyze performance.
+ *
+ * @public
+ */
+export interface SystemProfile {
+    /** System name */
+    name: string;
+    /** Total execution time in milliseconds */
+    executionTime: number;
+    /** Number of entities processed in the last execution */
+    entityCount: number;
+    /** Total number of times this system has been called */
+    callCount: number;
+    /** Average execution time per call in milliseconds */
+    averageTime: number;
+}
+
+// =============================================================================
 // Component Types (simplified for plugin authors)
 // =============================================================================
 

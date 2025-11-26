@@ -1,0 +1,52 @@
+{
+  "name": "@orion-ecs/timeline",
+  "version": "0.1.0",
+  "description": "ECS-native timeline plugin for OrionECS - orchestrate component changes over time with type-safe tweens and sequences",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "jest"
+  },
+  "keywords": [
+    "ecs",
+    "orion-ecs",
+    "plugin",
+    "timeline",
+    "tween",
+    "animation",
+    "easing",
+    "interpolation",
+    "game-dev"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "@orion-ecs/core": "*"
+  },
+  "devDependencies": {
+    "@orion-ecs/core": "*",
+    "@orion-ecs/plugin-api": "*",
+    "@orion-ecs/testing": "*",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

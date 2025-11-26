@@ -3,7 +3,7 @@
   "entryPoints": ["src/index.ts"],
   "out": "docs",
   "name": "OrionECS API Documentation",
-  "readme": "../README.md",
+  "readme": "../../README.md",
   "includeVersion": true,
   "sort": ["source-order", "required-first", "kind"],
   "categorizeByGroup": true,

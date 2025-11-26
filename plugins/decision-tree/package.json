@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/decision-tree",
-  "version": "0.0.0",
+  "version": "0.3.0",
   "description": "ECS-native Decision Tree plugin for OrionECS - AI decision making through component mutations",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -37,6 +37,7 @@
   },
   "devDependencies": {
     "@orion-ecs/plugin-api": "*",
+    "@orion-ecs/testing": "*",
     "tsup": "^8.0.0",
     "typescript": "^5.3.0"
   },

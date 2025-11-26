@@ -11,8 +11,8 @@
  * - Integration scenarios
  */
 
-import type { EntityDef } from '../../../packages/core/src/definitions';
-import { TestEngineBuilder } from '../../../packages/testing/src/index';
+import type { EntityDef } from '@orion-ecs/core';
+import { TestEngineBuilder } from '@orion-ecs/testing';
 import {
     compare,
     StateMachine,

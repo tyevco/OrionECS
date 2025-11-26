@@ -38,6 +38,7 @@
     "@orion-ecs/graphics": "*"
   },
   "devDependencies": {
+    "@orion-ecs/plugin-api": "*",
     "tsup": "^8.0.0",
     "typescript": "^5.3.0"
   },

@@ -177,7 +177,9 @@ export class WebSocketClientTransport implements ClientTransport {
                     this._state = 'disconnected';
                     this.stopPingTimer();
 
-                    this.log(`Disconnected: code=${event.code}, reason=${event.reason}`);
+                    this.log(
+                        `Disconnected: code=${event.code}, reason=${this.sanitizeLog(event.reason || '')}`
+                    );
 
                     if (this.disconnectHandler) {
                         this.disconnectHandler(

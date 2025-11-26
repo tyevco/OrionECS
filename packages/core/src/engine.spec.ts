@@ -1,8 +1,11 @@
 import type {
+    ChildAddedEvent,
+    ChildRemovedEvent,
     EnginePlugin,
     EntityDef,
     EntityPrefab,
     ExtractPluginExtensions,
+    ParentChangedEvent,
     PluginContext,
     SystemMessage,
 } from './definitions';
@@ -4545,7 +4548,7 @@ describe('Engine v2 - Composition Architecture', () => {
 
     describe('Entity Hierarchy Observer Events', () => {
         test('should emit onChildAdded when adding child', () => {
-            let receivedEvent: any = null;
+            let receivedEvent: ChildAddedEvent | null = null;
 
             engine.on('onChildAdded', (event) => {
                 receivedEvent = event;
@@ -4557,13 +4560,13 @@ describe('Engine v2 - Composition Architecture', () => {
             parent.addChild(child);
 
             expect(receivedEvent).not.toBeNull();
-            expect(receivedEvent.parent).toBe(parent);
-            expect(receivedEvent.child).toBe(child);
-            expect(receivedEvent.timestamp).toBeDefined();
+            expect(receivedEvent!.parent).toBe(parent);
+            expect(receivedEvent!.child).toBe(child);
+            expect(receivedEvent!.timestamp).toBeDefined();
         });
 
         test('should emit onChildRemoved when removing child', () => {
-            let receivedEvent: any = null;
+            let receivedEvent: ChildRemovedEvent | null = null;
 
             const parent = engine.createEntity('Parent');
             const child = engine.createEntity('Child');
@@ -4576,13 +4579,13 @@ describe('Engine v2 - Composition Architecture', () => {
             parent.removeChild(child);
 
             expect(receivedEvent).not.toBeNull();
-            expect(receivedEvent.parent).toBe(parent);
-            expect(receivedEvent.child).toBe(child);
-            expect(receivedEvent.timestamp).toBeDefined();
+            expect(receivedEvent!.parent).toBe(parent);
+            expect(receivedEvent!.child).toBe(child);
+            expect(receivedEvent!.timestamp).toBeDefined();
         });
 
         test('should emit onParentChanged when setting parent', () => {
-            let receivedEvent: any = null;
+            let receivedEvent: ParentChangedEvent | null = null;
 
             engine.on('onParentChanged', (event) => {
                 receivedEvent = event;
@@ -4594,10 +4597,10 @@ describe('Engine v2 - Composition Architecture', () => {
             child.setParent(parent);
 
             expect(receivedEvent).not.toBeNull();
-            expect(receivedEvent.entity).toBe(child);
-            expect(receivedEvent.previousParent).toBeUndefined();
-            expect(receivedEvent.newParent).toBe(parent);
-            expect(receivedEvent.timestamp).toBeDefined();
+            expect(receivedEvent!.entity).toBe(child);
+            expect(receivedEvent!.previousParent).toBeUndefined();
+            expect(receivedEvent!.newParent).toBe(parent);
+            expect(receivedEvent!.timestamp).toBeDefined();
         });
 
         test('should emit onParentChanged with previous and new parent when reparenting', () => {
@@ -4607,7 +4610,7 @@ describe('Engine v2 - Composition Architecture', () => {
 
             parent1.addChild(child);
 
-            let receivedEvent: any = null;
+            let receivedEvent: ParentChangedEvent | null = null;
             engine.on('onParentChanged', (event) => {
                 receivedEvent = event;
             });
@@ -4615,9 +4618,9 @@ describe('Engine v2 - Composition Architecture', () => {
             child.setParent(parent2);
 
             expect(receivedEvent).not.toBeNull();
-            expect(receivedEvent.entity).toBe(child);
-            expect(receivedEvent.previousParent).toBe(parent1);
-            expect(receivedEvent.newParent).toBe(parent2);
+            expect(receivedEvent!.entity).toBe(child);
+            expect(receivedEvent!.previousParent).toBe(parent1);
+            expect(receivedEvent!.newParent).toBe(parent2);
         });
 
         test('should emit onChildRemoved and onChildAdded when reparenting', () => {
@@ -4627,8 +4630,8 @@ describe('Engine v2 - Composition Architecture', () => {
 
             parent1.addChild(child);
 
-            let childRemovedEvent: any = null;
-            let childAddedEvent: any = null;
+            let childRemovedEvent: ChildRemovedEvent | null = null;
+            let childAddedEvent: ChildAddedEvent | null = null;
 
             engine.on('onChildRemoved', (event) => {
                 childRemovedEvent = event;
@@ -4640,12 +4643,12 @@ describe('Engine v2 - Composition Architecture', () => {
             child.setParent(parent2);
 
             expect(childRemovedEvent).not.toBeNull();
-            expect(childRemovedEvent.parent).toBe(parent1);
-            expect(childRemovedEvent.child).toBe(child);
+            expect(childRemovedEvent!.parent).toBe(parent1);
+            expect(childRemovedEvent!.child).toBe(child);
 
             expect(childAddedEvent).not.toBeNull();
-            expect(childAddedEvent.parent).toBe(parent2);
-            expect(childAddedEvent.child).toBe(child);
+            expect(childAddedEvent!.parent).toBe(parent2);
+            expect(childAddedEvent!.child).toBe(child);
         });
 
         test('should emit onParentChanged when orphaning entity', () => {
@@ -4654,7 +4657,7 @@ describe('Engine v2 - Composition Architecture', () => {
 
             parent.addChild(child);
 
-            let receivedEvent: any = null;
+            let receivedEvent: ParentChangedEvent | null = null;
             engine.on('onParentChanged', (event) => {
                 receivedEvent = event;
             });
@@ -4662,9 +4665,9 @@ describe('Engine v2 - Composition Architecture', () => {
             child.setParent(null);
 
             expect(receivedEvent).not.toBeNull();
-            expect(receivedEvent.entity).toBe(child);
-            expect(receivedEvent.previousParent).toBe(parent);
-            expect(receivedEvent.newParent).toBeUndefined();
+            expect(receivedEvent!.entity).toBe(child);
+            expect(receivedEvent!.previousParent).toBe(parent);
+            expect(receivedEvent!.newParent).toBeUndefined();
         });
 
         test('should maintain backward compatibility with onEntityHierarchyChanged', () => {

@@ -1830,9 +1830,22 @@ export class System<C extends readonly any[] = any[]> {
 
     private getComponents(entity: Entity): C {
         const { all = [] } = this.query.options;
-        return all.map((componentType: ComponentIdentifier) =>
-            entity.getComponent(componentType)
-        ) as C;
+        const components = all.map((componentType: ComponentIdentifier) => {
+            const component = entity.getComponent(componentType);
+            if (component === null) {
+                // This indicates a race condition where the entity matched the query
+                // but the component was removed before we could retrieve it.
+                // Provide helpful context for debugging.
+                throw new Error(
+                    `System "${this.name}": Entity "${entity.name || entity.numericId}" ` +
+                        `is missing required component "${componentType.name}". ` +
+                        'This may indicate a component was removed during iteration.'
+                );
+            }
+            return component;
+        });
+
+        return components as unknown as C;
     }
 
     private updateProfile(executionTime: number, entityCount: number): void {

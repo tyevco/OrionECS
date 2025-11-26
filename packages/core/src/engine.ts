@@ -1376,8 +1376,6 @@ export class Engine {
         const variant = this.prefabManager.createVariant(baseName, overrides);
         if (newName) {
             variant.name = newName;
-        }
-        if (newName) {
             this.prefabManager.register(newName, variant);
         }
         return variant;
@@ -1475,8 +1473,14 @@ export class Engine {
                     try {
                         // Try to call addComponent with the values as constructor args
                         entity.addComponent(componentType, ...values);
-                    } catch {
+                    } catch (error) {
                         // If that fails, add empty component and assign properties
+                        if (this.debugMode) {
+                            console.warn(
+                                `[ECS Debug] Failed to create ${componentType.name} with constructor args, falling back to property assignment:`,
+                                error instanceof Error ? error.message : error
+                            );
+                        }
                         entity.addComponent(componentType);
                         const component = entity.getComponent(componentType as any) as any;
                         Object.assign(component, componentData);

@@ -109,9 +109,17 @@ export class NetworkAPI {
     }
 
     get latency(): number {
-        return this.plugin.role === 'client'
-            ? (this.plugin.transport as ClientTransport).latency
-            : 0;
+        if (this.plugin.role === 'client' && this.isClientTransport(this.plugin.transport)) {
+            return this.plugin.transport.latency;
+        }
+        return 0;
+    }
+
+    /**
+     * Type guard to check if transport is a ClientTransport
+     */
+    private isClientTransport(transport: NetworkTransport): transport is ClientTransport {
+        return 'latency' in transport && typeof (transport as ClientTransport).latency === 'number';
     }
 
     get serverTime(): number {

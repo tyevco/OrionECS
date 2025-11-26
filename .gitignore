@@ -214,6 +214,8 @@ FakesAssemblies/
 # Generated documentation
 core/docs/
 utils/docs/
+packages/*/docs/
+plugins/*/docs/
 
 # tsup bundled config files
 **/tsup.config.bundled_*.mjs

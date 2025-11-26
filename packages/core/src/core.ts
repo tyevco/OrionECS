@@ -8,8 +8,10 @@
  * @module Core
  */
 
+import type { ArchetypeManager } from './archetype';
 import type {
     ComponentIdentifier,
+    ComponentLifecycle,
     EntityDef,
     QueryOptions,
     SerializedEntity,
@@ -24,6 +26,36 @@ const ESTIMATED_COMPONENT_SIZE_BYTES = 32;
 const MAX_PERFORMANCE_SAMPLES = 60;
 const MAX_MESSAGE_HISTORY = 1000;
 const MAX_EVENT_HISTORY = 500;
+
+/**
+ * Type guard to check if a component has lifecycle hooks.
+ * @internal
+ */
+function hasOnCreate(
+    component: unknown
+): component is ComponentLifecycle & { onCreate: NonNullable<ComponentLifecycle['onCreate']> } {
+    return (
+        component !== null &&
+        typeof component === 'object' &&
+        'onCreate' in component &&
+        typeof (component as ComponentLifecycle).onCreate === 'function'
+    );
+}
+
+/**
+ * Type guard to check if a component has an onDestroy lifecycle hook.
+ * @internal
+ */
+function hasOnDestroy(
+    component: unknown
+): component is ComponentLifecycle & { onDestroy: NonNullable<ComponentLifecycle['onDestroy']> } {
+    return (
+        component !== null &&
+        typeof component === 'object' &&
+        'onDestroy' in component &&
+        typeof (component as ComponentLifecycle).onDestroy === 'function'
+    );
+}
 
 /**
  * Sentinel value used to indicate that a component is stored in archetypes
@@ -611,6 +643,10 @@ export class Entity implements EntityDef {
     private _changeVersion: number = 0;
     private static _nextId: number = 1;
 
+    // Serialization cache to reduce GC pressure
+    private _cachedSerialization: SerializedEntity | null = null;
+    private _cachedSerializationVersion: number = -1;
+
     // Dependency injection of managers
     constructor(
         private componentManager: any, // ComponentManager
@@ -653,6 +689,81 @@ export class Entity implements EntityDef {
 
     getComponentTypes(): ComponentIdentifier[] {
         return Array.from(this._componentIndices.keys());
+    }
+
+    /**
+     * Get the number of components on this entity.
+     * Used internally for efficient iteration during cloning.
+     */
+    get componentCount(): number {
+        return this._componentIndices.size;
+    }
+
+    /**
+     * Set the storage index for a component type.
+     * This is an internal method used by Engine.cloneEntity() and should not
+     * be called directly in application code.
+     *
+     * @internal
+     */
+    setComponentIndex(type: ComponentIdentifier, index: number): void {
+        this._componentIndices.set(type, index);
+    }
+
+    /**
+     * Get the storage index for a component type.
+     * Returns undefined if the entity doesn't have the component.
+     * This is an internal method used by ChangeTrackingManager.
+     *
+     * @internal
+     */
+    getComponentStorageIndex(type: ComponentIdentifier): number | undefined {
+        return this._componentIndices.get(type);
+    }
+
+    /**
+     * Iterate over all component types and their storage indices.
+     * This is an internal method used for serialization and change tracking.
+     *
+     * @internal
+     */
+    forEachComponentIndex(callback: (type: ComponentIdentifier, index: number) => void): void {
+        for (const [type, index] of this._componentIndices) {
+            callback(type, index);
+        }
+    }
+
+    /**
+     * Mark this entity as dirty and increment its change version.
+     * This is an internal method used after bulk component operations
+     * to ensure change tracking is properly updated.
+     *
+     * @internal
+     */
+    markDirty(): void {
+        this._dirty = true;
+        this._changeVersion++;
+    }
+
+    /**
+     * Clear the dirty flag on this entity.
+     * This is an internal method called after entity queries have been updated.
+     *
+     * @internal
+     */
+    clearDirty(): void {
+        this._dirty = false;
+    }
+
+    /**
+     * Get the archetype manager from this entity's component manager.
+     * Returns undefined if archetypes are not enabled.
+     * This is an internal method used by EntityManager.
+     *
+     * @internal
+     */
+    getArchetypeManager(): ArchetypeManager | undefined {
+        return this.componentManager.getArchetypeManager();
     }
 
     private static asEntity(entity: EntityDef): Entity {
@@ -741,8 +852,8 @@ export class Entity implements EntityDef {
             this._changeVersion++;
 
             // Call onCreate lifecycle hook if it exists
-            if (component && typeof (component as any).onCreate === 'function') {
-                (component as any).onCreate(this);
+            if (hasOnCreate(component)) {
+                component.onCreate(this);
             }
 
             this.eventEmitter.emit('onComponentAdded', this, type);
@@ -762,8 +873,8 @@ export class Entity implements EntityDef {
                 removedComponent = component;
 
                 // Call onDestroy lifecycle hook if it exists
-                if (component && typeof (component as any).onDestroy === 'function') {
-                    (component as any).onDestroy(this);
+                if (hasOnDestroy(component)) {
+                    component.onDestroy(this);
                 }
 
                 // Release component to pool
@@ -798,8 +909,8 @@ export class Entity implements EntityDef {
                 removedComponent = component;
                 if (component !== null) {
                     // Call onDestroy lifecycle hook if it exists
-                    if (typeof (component as any).onDestroy === 'function') {
-                        (component as any).onDestroy(this);
+                    if (hasOnDestroy(component)) {
+                        component.onDestroy(this);
                     }
 
                     this.componentManager.releaseComponent(type, component);
@@ -1337,7 +1448,28 @@ export class Entity implements EntityDef {
         return engine.cloneEntity(this);
     }
 
+    /**
+     * Compute a combined version that includes this entity and all children.
+     * Used for cache invalidation in serialize().
+     */
+    private getDeepChangeVersion(): number {
+        let version = this._changeVersion;
+        for (const child of this._children) {
+            version += child.getDeepChangeVersion();
+        }
+        return version;
+    }
+
     serialize(): SerializedEntity {
+        // Check cache validity - use deep version to account for child changes
+        const currentDeepVersion = this.getDeepChangeVersion();
+        if (
+            this._cachedSerialization !== null &&
+            this._cachedSerializationVersion === currentDeepVersion
+        ) {
+            return this._cachedSerialization;
+        }
+
         const components: { [componentName: string]: any } = {};
 
         // Check if archetypes are enabled
@@ -1365,13 +1497,17 @@ export class Entity implements EntityDef {
             }
         }
 
-        return {
+        // Build serialized result and cache it
+        this._cachedSerialization = {
             id: this._numericId.toString(),
             name: this._name,
             tags: Array.from(this._tags),
             components,
             children: Array.from(this._children).map((child) => child.serialize()),
         };
+        this._cachedSerializationVersion = currentDeepVersion;
+
+        return this._cachedSerialization;
     }
 
     reset(): void {
@@ -1383,6 +1519,9 @@ export class Entity implements EntityDef {
         this._children.clear();
         this._tags.clear();
         this._changeVersion = 0;
+        // Clear serialization cache
+        this._cachedSerialization = null;
+        this._cachedSerializationVersion = -1;
     }
 
     static create(componentManager: any, eventEmitter: any): Entity {
@@ -2122,7 +2261,7 @@ export class EntityManager {
         this.entitiesByNumericId.set(entity.numericId, entity);
 
         // Add to empty archetype if archetypes are enabled
-        const archetypeManager = (entity as any).componentManager.getArchetypeManager();
+        const archetypeManager = entity.getArchetypeManager();
         if (archetypeManager) {
             archetypeManager.addEntityToArchetype(
                 entity,
@@ -2165,7 +2304,7 @@ export class EntityManager {
         }
 
         // Remove from archetype if archetypes are enabled (cleanup any remaining archetype references)
-        const archetypeManager = (entity as any).componentManager.getArchetypeManager();
+        const archetypeManager = entity.getArchetypeManager();
         if (archetypeManager) {
             archetypeManager.removeEntity(entity);
         }

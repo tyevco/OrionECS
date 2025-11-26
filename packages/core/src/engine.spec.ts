@@ -4285,4 +4285,437 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(poolStats).toBeDefined();
         });
     });
+
+    describe('Entity Hierarchy Query Methods', () => {
+        let root: EntityDef;
+        let child1: EntityDef;
+        let child2: EntityDef;
+        let grandchild1: EntityDef;
+        let grandchild2: EntityDef;
+        let greatGrandchild: EntityDef;
+
+        beforeEach(() => {
+            // Create a test hierarchy:
+            //       root
+            //      /    \
+            //   child1  child2
+            //   /    \
+            // gc1    gc2
+            //  |
+            // ggc
+            root = engine.createEntity('Root');
+            child1 = engine.createEntity('Child1');
+            child2 = engine.createEntity('Child2');
+            grandchild1 = engine.createEntity('Grandchild1');
+            grandchild2 = engine.createEntity('Grandchild2');
+            greatGrandchild = engine.createEntity('GreatGrandchild');
+
+            root.addChild(child1);
+            root.addChild(child2);
+            child1.addChild(grandchild1);
+            child1.addChild(grandchild2);
+            grandchild1.addChild(greatGrandchild);
+
+            // Add tags for testing findChild/findChildren
+            child1.addTag('branch');
+            grandchild1.addTag('leaf');
+            grandchild2.addTag('leaf');
+            greatGrandchild.addTag('leaf');
+        });
+
+        describe('getDescendants', () => {
+            test('should return all descendants', () => {
+                const descendants = root.getDescendants();
+                expect(descendants).toHaveLength(5);
+                expect(descendants).toContain(child1);
+                expect(descendants).toContain(child2);
+                expect(descendants).toContain(grandchild1);
+                expect(descendants).toContain(grandchild2);
+                expect(descendants).toContain(greatGrandchild);
+            });
+
+            test('should respect maxDepth parameter', () => {
+                const directChildren = root.getDescendants(1);
+                expect(directChildren).toHaveLength(2);
+                expect(directChildren).toContain(child1);
+                expect(directChildren).toContain(child2);
+            });
+
+            test('should return grandchildren with maxDepth 2', () => {
+                const upToGrandchildren = root.getDescendants(2);
+                expect(upToGrandchildren).toHaveLength(4);
+                expect(upToGrandchildren).not.toContain(greatGrandchild);
+            });
+
+            test('should return empty array for leaf nodes', () => {
+                const descendants = greatGrandchild.getDescendants();
+                expect(descendants).toHaveLength(0);
+            });
+        });
+
+        describe('getAncestors', () => {
+            test('should return all ancestors in order', () => {
+                const ancestors = greatGrandchild.getAncestors();
+                expect(ancestors).toHaveLength(3);
+                expect(ancestors[0]).toBe(grandchild1); // Nearest first
+                expect(ancestors[1]).toBe(child1);
+                expect(ancestors[2]).toBe(root); // Furthest last
+            });
+
+            test('should return empty array for root', () => {
+                const ancestors = root.getAncestors();
+                expect(ancestors).toHaveLength(0);
+            });
+
+            test('should return single ancestor for direct child', () => {
+                const ancestors = child1.getAncestors();
+                expect(ancestors).toHaveLength(1);
+                expect(ancestors[0]).toBe(root);
+            });
+        });
+
+        describe('findChild', () => {
+            test('should find first child matching predicate recursively', () => {
+                const found = root.findChild((child) => child.hasTag('leaf'));
+                expect(found).toBeDefined();
+                // Should find grandchild1 or grandchild2 first (depends on iteration order)
+                expect(found?.hasTag('leaf')).toBe(true);
+            });
+
+            test('should return undefined when no match', () => {
+                const found = root.findChild((child) => child.name === 'NonExistent');
+                expect(found).toBeUndefined();
+            });
+
+            test('should respect recursive=false parameter', () => {
+                const found = root.findChild((child) => child.hasTag('leaf'), false);
+                expect(found).toBeUndefined(); // leaf tags are on grandchildren, not direct children
+            });
+
+            test('should find direct child with recursive=false', () => {
+                const found = root.findChild((child) => child.hasTag('branch'), false);
+                expect(found).toBe(child1);
+            });
+
+            test('should find by name', () => {
+                const found = root.findChild((child) => child.name === 'GreatGrandchild');
+                expect(found).toBe(greatGrandchild);
+            });
+        });
+
+        describe('findChildren', () => {
+            test('should find all children matching predicate', () => {
+                const leaves = root.findChildren((child) => child.hasTag('leaf'));
+                expect(leaves).toHaveLength(3);
+                expect(leaves).toContain(grandchild1);
+                expect(leaves).toContain(grandchild2);
+                expect(leaves).toContain(greatGrandchild);
+            });
+
+            test('should return empty array when no match', () => {
+                const found = root.findChildren((child) => child.name === 'NonExistent');
+                expect(found).toHaveLength(0);
+            });
+
+            test('should respect recursive=false parameter', () => {
+                const found = root.findChildren((child) => child.hasTag('branch'), false);
+                expect(found).toHaveLength(1);
+                expect(found[0]).toBe(child1);
+            });
+        });
+
+        describe('getRoot', () => {
+            test('should return root entity from any descendant', () => {
+                expect(greatGrandchild.getRoot()).toBe(root);
+                expect(grandchild1.getRoot()).toBe(root);
+                expect(child1.getRoot()).toBe(root);
+            });
+
+            test('should return itself for root entity', () => {
+                expect(root.getRoot()).toBe(root);
+            });
+        });
+
+        describe('getDepth', () => {
+            test('should return correct depth for all levels', () => {
+                expect(root.getDepth()).toBe(0);
+                expect(child1.getDepth()).toBe(1);
+                expect(child2.getDepth()).toBe(1);
+                expect(grandchild1.getDepth()).toBe(2);
+                expect(grandchild2.getDepth()).toBe(2);
+                expect(greatGrandchild.getDepth()).toBe(3);
+            });
+        });
+
+        describe('isAncestorOf', () => {
+            test('should return true for valid ancestor relationships', () => {
+                expect(root.isAncestorOf(child1)).toBe(true);
+                expect(root.isAncestorOf(grandchild1)).toBe(true);
+                expect(root.isAncestorOf(greatGrandchild)).toBe(true);
+                expect(child1.isAncestorOf(grandchild1)).toBe(true);
+                expect(grandchild1.isAncestorOf(greatGrandchild)).toBe(true);
+            });
+
+            test('should return false for invalid ancestor relationships', () => {
+                expect(child1.isAncestorOf(root)).toBe(false);
+                expect(grandchild1.isAncestorOf(child1)).toBe(false);
+                expect(child1.isAncestorOf(child2)).toBe(false); // Siblings
+            });
+
+            test('should return false for self', () => {
+                expect(root.isAncestorOf(root)).toBe(false);
+            });
+        });
+
+        describe('isDescendantOf', () => {
+            test('should return true for valid descendant relationships', () => {
+                expect(child1.isDescendantOf(root)).toBe(true);
+                expect(grandchild1.isDescendantOf(root)).toBe(true);
+                expect(greatGrandchild.isDescendantOf(root)).toBe(true);
+                expect(grandchild1.isDescendantOf(child1)).toBe(true);
+            });
+
+            test('should return false for invalid descendant relationships', () => {
+                expect(root.isDescendantOf(child1)).toBe(false);
+                expect(child1.isDescendantOf(grandchild1)).toBe(false);
+            });
+        });
+
+        describe('getSiblings', () => {
+            test('should return siblings without self by default', () => {
+                const siblings = child1.getSiblings();
+                expect(siblings).toHaveLength(1);
+                expect(siblings[0]).toBe(child2);
+            });
+
+            test('should include self when includeSelf=true', () => {
+                const siblings = child1.getSiblings(true);
+                expect(siblings).toHaveLength(2);
+                expect(siblings).toContain(child1);
+                expect(siblings).toContain(child2);
+            });
+
+            test('should return empty array for root (no parent)', () => {
+                const siblings = root.getSiblings();
+                expect(siblings).toHaveLength(0);
+            });
+
+            test('should return siblings for grandchildren', () => {
+                const siblings = grandchild1.getSiblings();
+                expect(siblings).toHaveLength(1);
+                expect(siblings[0]).toBe(grandchild2);
+            });
+        });
+
+        describe('getChildCount', () => {
+            test('should return correct child count', () => {
+                expect(root.getChildCount()).toBe(2);
+                expect(child1.getChildCount()).toBe(2);
+                expect(child2.getChildCount()).toBe(0);
+                expect(grandchild1.getChildCount()).toBe(1);
+            });
+        });
+
+        describe('hasChildren', () => {
+            test('should return true for entities with children', () => {
+                expect(root.hasChildren()).toBe(true);
+                expect(child1.hasChildren()).toBe(true);
+                expect(grandchild1.hasChildren()).toBe(true);
+            });
+
+            test('should return false for leaf entities', () => {
+                expect(child2.hasChildren()).toBe(false);
+                expect(grandchild2.hasChildren()).toBe(false);
+                expect(greatGrandchild.hasChildren()).toBe(false);
+            });
+        });
+
+        describe('hasParent', () => {
+            test('should return true for entities with parent', () => {
+                expect(child1.hasParent()).toBe(true);
+                expect(grandchild1.hasParent()).toBe(true);
+                expect(greatGrandchild.hasParent()).toBe(true);
+            });
+
+            test('should return false for root entity', () => {
+                expect(root.hasParent()).toBe(false);
+            });
+        });
+    });
+
+    describe('Entity Hierarchy Observer Events', () => {
+        test('should emit onChildAdded when adding child', () => {
+            let receivedEvent: any = null;
+
+            engine.on('onChildAdded', (event) => {
+                receivedEvent = event;
+            });
+
+            const parent = engine.createEntity('Parent');
+            const child = engine.createEntity('Child');
+
+            parent.addChild(child);
+
+            expect(receivedEvent).not.toBeNull();
+            expect(receivedEvent.parent).toBe(parent);
+            expect(receivedEvent.child).toBe(child);
+            expect(receivedEvent.timestamp).toBeDefined();
+        });
+
+        test('should emit onChildRemoved when removing child', () => {
+            let receivedEvent: any = null;
+
+            const parent = engine.createEntity('Parent');
+            const child = engine.createEntity('Child');
+            parent.addChild(child);
+
+            engine.on('onChildRemoved', (event) => {
+                receivedEvent = event;
+            });
+
+            parent.removeChild(child);
+
+            expect(receivedEvent).not.toBeNull();
+            expect(receivedEvent.parent).toBe(parent);
+            expect(receivedEvent.child).toBe(child);
+            expect(receivedEvent.timestamp).toBeDefined();
+        });
+
+        test('should emit onParentChanged when setting parent', () => {
+            let receivedEvent: any = null;
+
+            engine.on('onParentChanged', (event) => {
+                receivedEvent = event;
+            });
+
+            const parent = engine.createEntity('Parent');
+            const child = engine.createEntity('Child');
+
+            child.setParent(parent);
+
+            expect(receivedEvent).not.toBeNull();
+            expect(receivedEvent.entity).toBe(child);
+            expect(receivedEvent.previousParent).toBeUndefined();
+            expect(receivedEvent.newParent).toBe(parent);
+            expect(receivedEvent.timestamp).toBeDefined();
+        });
+
+        test('should emit onParentChanged with previous and new parent when reparenting', () => {
+            const parent1 = engine.createEntity('Parent1');
+            const parent2 = engine.createEntity('Parent2');
+            const child = engine.createEntity('Child');
+
+            parent1.addChild(child);
+
+            let receivedEvent: any = null;
+            engine.on('onParentChanged', (event) => {
+                receivedEvent = event;
+            });
+
+            child.setParent(parent2);
+
+            expect(receivedEvent).not.toBeNull();
+            expect(receivedEvent.entity).toBe(child);
+            expect(receivedEvent.previousParent).toBe(parent1);
+            expect(receivedEvent.newParent).toBe(parent2);
+        });
+
+        test('should emit onChildRemoved and onChildAdded when reparenting', () => {
+            const parent1 = engine.createEntity('Parent1');
+            const parent2 = engine.createEntity('Parent2');
+            const child = engine.createEntity('Child');
+
+            parent1.addChild(child);
+
+            let childRemovedEvent: any = null;
+            let childAddedEvent: any = null;
+
+            engine.on('onChildRemoved', (event) => {
+                childRemovedEvent = event;
+            });
+            engine.on('onChildAdded', (event) => {
+                childAddedEvent = event;
+            });
+
+            child.setParent(parent2);
+
+            expect(childRemovedEvent).not.toBeNull();
+            expect(childRemovedEvent.parent).toBe(parent1);
+            expect(childRemovedEvent.child).toBe(child);
+
+            expect(childAddedEvent).not.toBeNull();
+            expect(childAddedEvent.parent).toBe(parent2);
+            expect(childAddedEvent.child).toBe(child);
+        });
+
+        test('should emit onParentChanged when orphaning entity', () => {
+            const parent = engine.createEntity('Parent');
+            const child = engine.createEntity('Child');
+
+            parent.addChild(child);
+
+            let receivedEvent: any = null;
+            engine.on('onParentChanged', (event) => {
+                receivedEvent = event;
+            });
+
+            child.setParent(null);
+
+            expect(receivedEvent).not.toBeNull();
+            expect(receivedEvent.entity).toBe(child);
+            expect(receivedEvent.previousParent).toBe(parent);
+            expect(receivedEvent.newParent).toBeUndefined();
+        });
+
+        test('should maintain backward compatibility with onEntityHierarchyChanged', () => {
+            let legacyEventFired = false;
+
+            engine.on('onEntityHierarchyChanged', () => {
+                legacyEventFired = true;
+            });
+
+            const parent = engine.createEntity('Parent');
+            const child = engine.createEntity('Child');
+
+            parent.addChild(child);
+
+            expect(legacyEventFired).toBe(true);
+        });
+
+        test('should support system hierarchy callbacks', () => {
+            let childAddedCount = 0;
+            let childRemovedCount = 0;
+            let parentChangedCount = 0;
+
+            engine.createSystem(
+                'HierarchyWatcherSystem',
+                { all: [] },
+                {
+                    watchHierarchy: true,
+                    onChildAdded: () => {
+                        childAddedCount++;
+                    },
+                    onChildRemoved: () => {
+                        childRemovedCount++;
+                    },
+                    onParentChanged: () => {
+                        parentChangedCount++;
+                    },
+                }
+            );
+
+            const parent = engine.createEntity('Parent');
+            const child = engine.createEntity('Child');
+
+            parent.addChild(child);
+
+            expect(childAddedCount).toBe(1);
+            expect(parentChangedCount).toBe(1);
+
+            parent.removeChild(child);
+
+            expect(childRemovedCount).toBe(1);
+            expect(parentChangedCount).toBe(2); // Once for add, once for remove
+        });
+    });
 });

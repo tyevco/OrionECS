@@ -847,18 +847,55 @@ export class Entity implements EntityDef {
     setParent(parent: EntityDef | null): this {
         if (this._parent === parent) return this;
 
-        if (this._parent) {
-            this._parent._children.delete(this);
+        const previousParent = this._parent;
+        const newParent = parent ? Entity.asEntity(parent) : undefined;
+        const timestamp = Date.now();
+
+        // Remove from previous parent's children
+        if (previousParent) {
+            previousParent._children.delete(this);
         }
 
-        this._parent = parent ? Entity.asEntity(parent) : undefined;
+        // Update parent reference
+        this._parent = newParent;
 
-        if (this._parent) {
-            this._parent._children.add(this);
+        // Add to new parent's children
+        if (newParent) {
+            newParent._children.add(this);
         }
 
         this._changeVersion++;
+
+        // Emit enhanced hierarchy events
+        // 1. Parent changed event (always emitted)
+        this.eventEmitter.emit('onParentChanged', {
+            entity: this,
+            previousParent,
+            newParent,
+            timestamp,
+        });
+
+        // 2. Child removed event (if had previous parent)
+        if (previousParent) {
+            this.eventEmitter.emit('onChildRemoved', {
+                parent: previousParent,
+                child: this,
+                timestamp,
+            });
+        }
+
+        // 3. Child added event (if has new parent)
+        if (newParent) {
+            this.eventEmitter.emit('onChildAdded', {
+                parent: newParent,
+                child: this,
+                timestamp,
+            });
+        }
+
+        // 4. Legacy event for backward compatibility
         this.eventEmitter.emit('onEntityHierarchyChanged', this);
+
         return this;
     }
 
@@ -873,6 +910,384 @@ export class Entity implements EntityDef {
             childEntity.setParent(null);
         }
         return this;
+    }
+
+    // ========== Hierarchy Query Methods ==========
+
+    /**
+     * Get all descendants of this entity (children, grandchildren, etc.).
+     *
+     * Performs a depth-first traversal of the entity hierarchy, collecting all
+     * entities that are descendants of this entity.
+     *
+     * @param maxDepth - Optional maximum depth to traverse (undefined = unlimited).
+     *   A maxDepth of 1 returns only direct children, 2 includes grandchildren, etc.
+     * @returns Array of all descendant entities
+     *
+     * @example
+     * ```typescript
+     * const ship = engine.createEntity('Ship');
+     * const turret = engine.createEntity('Turret');
+     * const barrel = engine.createEntity('Barrel');
+     *
+     * ship.addChild(turret);
+     * turret.addChild(barrel);
+     *
+     * ship.getDescendants();      // [turret, barrel]
+     * ship.getDescendants(1);     // [turret] (direct children only)
+     * turret.getDescendants();    // [barrel]
+     * ```
+     *
+     * @public
+     */
+    getDescendants(maxDepth?: number): Entity[] {
+        const result: Entity[] = [];
+        const collectDescendants = (entity: Entity, currentDepth: number): void => {
+            if (maxDepth !== undefined && currentDepth >= maxDepth) return;
+            for (const child of entity._children) {
+                result.push(child);
+                collectDescendants(child, currentDepth + 1);
+            }
+        };
+        collectDescendants(this, 0);
+        return result;
+    }
+
+    /**
+     * Get all ancestors of this entity (parent, grandparent, etc.).
+     *
+     * Traverses up the hierarchy from this entity to the root, collecting all
+     * ancestor entities. The first element is the direct parent, last is the root.
+     *
+     * @returns Array of ancestor entities, ordered from nearest to furthest
+     *
+     * @example
+     * ```typescript
+     * const root = engine.createEntity('Root');
+     * const parent = engine.createEntity('Parent');
+     * const child = engine.createEntity('Child');
+     *
+     * root.addChild(parent);
+     * parent.addChild(child);
+     *
+     * child.getAncestors();   // [parent, root]
+     * parent.getAncestors();  // [root]
+     * root.getAncestors();    // []
+     * ```
+     *
+     * @public
+     */
+    getAncestors(): Entity[] {
+        const result: Entity[] = [];
+        let current = this._parent;
+        while (current) {
+            result.push(current);
+            current = current._parent;
+        }
+        return result;
+    }
+
+    /**
+     * Find the first child matching a predicate function.
+     *
+     * Searches through children (and optionally descendants) to find the first
+     * entity that matches the given predicate.
+     *
+     * @param predicate - Function that returns true for the desired entity
+     * @param recursive - If true, searches all descendants; if false, only direct children (default: true)
+     * @returns The first matching entity, or undefined if none found
+     *
+     * @example
+     * ```typescript
+     * // Find first child with a specific tag
+     * const weapon = ship.findChild(child => child.hasTag('weapon'));
+     *
+     * // Find first direct child with Health component
+     * const healthyChild = parent.findChild(
+     *   child => child.hasComponent(Health),
+     *   false  // Only search direct children
+     * );
+     * ```
+     *
+     * @public
+     */
+    findChild(predicate: (child: Entity) => boolean, recursive: boolean = true): Entity | undefined {
+        for (const child of this._children) {
+            if (predicate(child)) return child;
+            if (recursive) {
+                const found = child.findChild(predicate, true);
+                if (found) return found;
+            }
+        }
+        return undefined;
+    }
+
+    /**
+     * Find all children matching a predicate function.
+     *
+     * Searches through children (and optionally descendants) to find all
+     * entities that match the given predicate.
+     *
+     * @param predicate - Function that returns true for desired entities
+     * @param recursive - If true, searches all descendants; if false, only direct children (default: true)
+     * @returns Array of all matching entities
+     *
+     * @example
+     * ```typescript
+     * // Find all children with 'enemy' tag
+     * const enemies = parent.findChildren(child => child.hasTag('enemy'));
+     *
+     * // Find all direct children with low health
+     * const lowHealth = parent.findChildren(
+     *   child => {
+     *     if (!child.hasComponent(Health)) return false;
+     *     const health = child.getComponent(Health);
+     *     return health.current < health.max * 0.3;
+     *   },
+     *   false  // Only direct children
+     * );
+     * ```
+     *
+     * @public
+     */
+    findChildren(predicate: (child: Entity) => boolean, recursive: boolean = true): Entity[] {
+        const result: Entity[] = [];
+        for (const child of this._children) {
+            if (predicate(child)) result.push(child);
+            if (recursive) {
+                result.push(...child.findChildren(predicate, true));
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Get the root entity of this hierarchy.
+     *
+     * Traverses up the hierarchy to find the topmost ancestor (the entity
+     * with no parent). If this entity has no parent, returns itself.
+     *
+     * @returns The root entity of the hierarchy
+     *
+     * @example
+     * ```typescript
+     * const root = engine.createEntity('Root');
+     * const child = engine.createEntity('Child');
+     * const grandchild = engine.createEntity('Grandchild');
+     *
+     * root.addChild(child);
+     * child.addChild(grandchild);
+     *
+     * grandchild.getRoot();  // root
+     * child.getRoot();       // root
+     * root.getRoot();        // root (returns itself)
+     * ```
+     *
+     * @public
+     */
+    getRoot(): Entity {
+        let current: Entity = this;
+        while (current._parent) {
+            current = current._parent;
+        }
+        return current;
+    }
+
+    /**
+     * Get the depth of this entity in the hierarchy.
+     *
+     * Counts the number of ancestors between this entity and the root.
+     * Root entities have a depth of 0.
+     *
+     * @returns The depth level (0 = root, 1 = child of root, etc.)
+     *
+     * @example
+     * ```typescript
+     * const root = engine.createEntity('Root');
+     * const child = engine.createEntity('Child');
+     * const grandchild = engine.createEntity('Grandchild');
+     *
+     * root.addChild(child);
+     * child.addChild(grandchild);
+     *
+     * root.getDepth();       // 0
+     * child.getDepth();      // 1
+     * grandchild.getDepth(); // 2
+     * ```
+     *
+     * @public
+     */
+    getDepth(): number {
+        let depth = 0;
+        let current = this._parent;
+        while (current) {
+            depth++;
+            current = current._parent;
+        }
+        return depth;
+    }
+
+    /**
+     * Check if this entity is an ancestor of another entity.
+     *
+     * Returns true if the given entity is a descendant of this entity
+     * (i.e., this entity is somewhere in its parent chain).
+     *
+     * @param entity - The entity to check
+     * @returns True if this entity is an ancestor of the given entity
+     *
+     * @example
+     * ```typescript
+     * const root = engine.createEntity('Root');
+     * const child = engine.createEntity('Child');
+     * const grandchild = engine.createEntity('Grandchild');
+     *
+     * root.addChild(child);
+     * child.addChild(grandchild);
+     *
+     * root.isAncestorOf(grandchild);  // true
+     * root.isAncestorOf(child);       // true
+     * child.isAncestorOf(grandchild); // true
+     * child.isAncestorOf(root);       // false
+     * ```
+     *
+     * @public
+     */
+    isAncestorOf(entity: EntityDef): boolean {
+        let current = Entity.asEntity(entity)._parent;
+        while (current) {
+            if (current === this) return true;
+            current = current._parent;
+        }
+        return false;
+    }
+
+    /**
+     * Check if this entity is a descendant of another entity.
+     *
+     * Returns true if the given entity is an ancestor of this entity
+     * (i.e., this entity is somewhere in the given entity's descendant tree).
+     *
+     * @param entity - The entity to check
+     * @returns True if this entity is a descendant of the given entity
+     *
+     * @example
+     * ```typescript
+     * const root = engine.createEntity('Root');
+     * const child = engine.createEntity('Child');
+     * const grandchild = engine.createEntity('Grandchild');
+     *
+     * root.addChild(child);
+     * child.addChild(grandchild);
+     *
+     * grandchild.isDescendantOf(root);  // true
+     * grandchild.isDescendantOf(child); // true
+     * child.isDescendantOf(root);       // true
+     * root.isDescendantOf(child);       // false
+     * ```
+     *
+     * @public
+     */
+    isDescendantOf(entity: EntityDef): boolean {
+        return Entity.asEntity(entity).isAncestorOf(this);
+    }
+
+    /**
+     * Get all siblings of this entity (other children of the same parent).
+     *
+     * Returns an empty array if this entity has no parent.
+     *
+     * @param includeSelf - If true, includes this entity in the result (default: false)
+     * @returns Array of sibling entities
+     *
+     * @example
+     * ```typescript
+     * const parent = engine.createEntity('Parent');
+     * const child1 = engine.createEntity('Child1');
+     * const child2 = engine.createEntity('Child2');
+     * const child3 = engine.createEntity('Child3');
+     *
+     * parent.addChild(child1);
+     * parent.addChild(child2);
+     * parent.addChild(child3);
+     *
+     * child1.getSiblings();       // [child2, child3]
+     * child1.getSiblings(true);   // [child1, child2, child3]
+     * parent.getSiblings();       // [] (no parent)
+     * ```
+     *
+     * @public
+     */
+    getSiblings(includeSelf: boolean = false): Entity[] {
+        if (!this._parent) return [];
+        const siblings: Entity[] = [];
+        for (const sibling of this._parent._children) {
+            if (includeSelf || sibling !== this) {
+                siblings.push(sibling);
+            }
+        }
+        return siblings;
+    }
+
+    /**
+     * Get the number of direct children this entity has.
+     *
+     * @returns The count of direct children
+     *
+     * @example
+     * ```typescript
+     * const parent = engine.createEntity('Parent');
+     * parent.addChild(engine.createEntity('Child1'));
+     * parent.addChild(engine.createEntity('Child2'));
+     *
+     * parent.getChildCount();  // 2
+     * ```
+     *
+     * @public
+     */
+    getChildCount(): number {
+        return this._children.size;
+    }
+
+    /**
+     * Check if this entity has any children.
+     *
+     * @returns True if this entity has at least one child
+     *
+     * @example
+     * ```typescript
+     * const parent = engine.createEntity('Parent');
+     * parent.hasChildren();  // false
+     *
+     * parent.addChild(engine.createEntity('Child'));
+     * parent.hasChildren();  // true
+     * ```
+     *
+     * @public
+     */
+    hasChildren(): boolean {
+        return this._children.size > 0;
+    }
+
+    /**
+     * Check if this entity has a parent.
+     *
+     * @returns True if this entity has a parent
+     *
+     * @example
+     * ```typescript
+     * const parent = engine.createEntity('Parent');
+     * const child = engine.createEntity('Child');
+     *
+     * child.hasParent();  // false
+     * parent.addChild(child);
+     * child.hasParent();  // true
+     * ```
+     *
+     * @public
+     */
+    hasParent(): boolean {
+        return this._parent !== undefined;
     }
 
     queueFree(): void {
@@ -1150,6 +1565,29 @@ export class System<C extends readonly any[] = any[]> {
                 }
 
                 this.options.onSingletonRemoved?.(event);
+            });
+        }
+
+        // ========== Hierarchy Event Listeners ==========
+
+        // Subscribe to child added events
+        if (this.options.onChildAdded || this.options.watchHierarchy) {
+            this.eventEmitter.on('onChildAdded', (event: any) => {
+                this.options.onChildAdded?.(event);
+            });
+        }
+
+        // Subscribe to child removed events
+        if (this.options.onChildRemoved || this.options.watchHierarchy) {
+            this.eventEmitter.on('onChildRemoved', (event: any) => {
+                this.options.onChildRemoved?.(event);
+            });
+        }
+
+        // Subscribe to parent changed events
+        if (this.options.onParentChanged || this.options.watchHierarchy) {
+            this.eventEmitter.on('onParentChanged', (event: any) => {
+                this.options.onParentChanged?.(event);
             });
         }
     }

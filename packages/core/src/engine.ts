@@ -9,6 +9,7 @@
 
 import { CommandBuffer, type CommandExecutionResult } from './commands';
 import {
+    ARCHETYPE_STORAGE_INDEX,
     type Entity,
     EntityManager,
     EventEmitter,
@@ -763,7 +764,7 @@ export class Engine {
 
         // Deep copy all components
         for (const componentType of entity.getComponentTypes()) {
-            const originalComponent = entity.getComponent(componentType as any);
+            const originalComponent = entity.getComponent(componentType as ComponentIdentifier);
 
             // Deep copy the component data using JSON serialization
             const componentData = JSON.parse(JSON.stringify(originalComponent));
@@ -774,26 +775,27 @@ export class Engine {
             }
 
             // Create new component instance with copied data
-            const newComponent = Object.assign(new (componentType as any)(), componentData);
+            const newComponent = Object.assign(
+                new (componentType as new () => object)(),
+                componentData
+            );
 
             // Check if archetypes are enabled
             const archetypeManager = this.componentManager.getArchetypeManager();
             if (archetypeManager) {
                 // Use addComponent API for archetype compatibility
                 // We need to bypass the constructor and just set the properties
-                const tempComponent = new (componentType as any)();
+                const tempComponent = new (componentType as new () => object)();
                 Object.assign(tempComponent, componentData);
 
                 // Manually add to archetype system
-                const newComponentTypes = [
-                    ...(clone as any)._componentIndices.keys(),
-                    componentType,
-                ];
-                const components = new Map<ComponentIdentifier, any>();
+                const existingTypes = clone.getComponentTypes();
+                const newComponentTypes = [...existingTypes, componentType];
+                const components = new Map<ComponentIdentifier, unknown>();
 
                 // Gather existing components
-                if ((clone as any)._componentIndices.size > 0) {
-                    for (const compType of (clone as any)._componentIndices.keys()) {
+                if (clone.componentCount > 0) {
+                    for (const compType of existingTypes) {
                         const existingComp = archetypeManager.getComponent(clone, compType);
                         if (existingComp !== null) {
                             components.set(compType, existingComp);
@@ -803,18 +805,17 @@ export class Engine {
 
                 components.set(componentType, tempComponent);
                 archetypeManager.moveEntity(clone, newComponentTypes, components);
-                (clone as any)._componentIndices.set(componentType, -1);
+                clone.setComponentIndex(componentType, ARCHETYPE_STORAGE_INDEX);
             } else {
                 // Legacy mode: use sparse arrays
                 const componentArray = this.componentManager.getComponentArray(
                     componentType as ComponentIdentifier
                 );
                 const index = componentArray.add(newComponent);
-                (clone as any)._componentIndices.set(componentType, index);
+                clone.setComponentIndex(componentType, index);
             }
 
-            (clone as any)._dirty = true;
-            (clone as any)._changeVersion++;
+            clone.markDirty();
         }
 
         // Copy all tags
@@ -1891,7 +1892,7 @@ export class Engine {
         for (const entity of this.entityManager.getAllEntities()) {
             if (entity.isDirty) {
                 this.queryManager.updateQueries(entity);
-                (entity as any)._dirty = false;
+                entity.clearDirty();
             }
         }
 

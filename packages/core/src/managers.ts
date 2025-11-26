@@ -377,33 +377,41 @@ export class SystemManager {
             throw new Error(`Circular dependency detected in systems: ${cycleNames}`);
         }
 
-        // If no dependencies, sort by priority
-        const noDepsLength = result.length;
-        if (noDepsLength > 1) {
-            // Sort systems with no dependencies by priority
-            const withDeps: System<any>[] = [];
+        // Post-process: sort systems WITHOUT dependencies by priority
+        // Systems WITH dependencies must maintain their topological order.
+        // Systems WITHOUT dependencies (no runAfter/runBefore) can be in any order
+        // relative to each other without violating constraints, so we sort them by priority.
+        //
+        // Algorithm: Extract no-dependency systems, sort by priority, then place them back
+        // in the same positions they occupied in the topological result. This preserves:
+        // 1. Topological ordering for systems with dependencies
+        // 2. Priority ordering for systems without dependencies
+        // 3. Relative interleaving based on when each system was ready (in-degree became 0)
+        if (result.length > 1) {
+            // Extract systems with no explicit dependencies
             const noDeps: System<any>[] = [];
-
             for (const system of result) {
                 if (system.runAfter.length === 0 && system.runBefore.length === 0) {
                     noDeps.push(system);
-                } else {
-                    withDeps.push(system);
                 }
             }
 
-            // Sort no-dependency systems by priority
-            noDeps.sort((a, b) => b.priority - a.priority);
+            // Only proceed if there are multiple no-dependency systems to sort
+            if (noDeps.length > 1) {
+                // Sort no-dependency systems by priority (descending)
+                noDeps.sort((a, b) => b.priority - a.priority);
 
-            // Rebuild result maintaining topological order for systems with deps
-            // and priority order for systems without deps
-            return result.map((s) => {
-                if (s.runAfter.length === 0 && s.runBefore.length === 0) {
-                    const noDep = noDeps.shift();
-                    return noDep !== undefined ? noDep : s;
-                }
-                return s;
-            });
+                // Replace each no-dependency system position with next from sorted list
+                // This works because noDeps was extracted from result, so there's exactly
+                // one entry in noDeps for each position in result that matches the condition
+                let noDepsIndex = 0;
+                return result.map((s) => {
+                    if (s.runAfter.length === 0 && s.runBefore.length === 0) {
+                        return noDeps[noDepsIndex++];
+                    }
+                    return s;
+                });
+            }
         }
 
         return result;
@@ -954,8 +962,8 @@ export class ChangeTrackingManager {
     /**
      * Mark a component as dirty (changed)
      */
-    markComponentDirty(entity: any, componentType: ComponentIdentifier): void {
-        const index = (entity as any)._componentIndices.get(componentType);
+    markComponentDirty(entity: Entity, componentType: ComponentIdentifier): void {
+        const index = entity.getComponentStorageIndex(componentType);
         if (index !== undefined) {
             const archetypeManager = this.componentManager.getArchetypeManager();
 
@@ -1058,7 +1066,7 @@ export class ChangeTrackingManager {
     /**
      * Get all dirty components for an entity
      */
-    getDirtyComponents(entity: any): ComponentIdentifier[] {
+    getDirtyComponents(entity: Entity): ComponentIdentifier[] {
         const archetypeManager = this.componentManager.getArchetypeManager();
 
         if (archetypeManager) {
@@ -1070,14 +1078,12 @@ export class ChangeTrackingManager {
             // Legacy mode: use component arrays
             const dirtyComponents: ComponentIdentifier[] = [];
 
-            for (const [componentType, index] of (entity as any)._componentIndices) {
-                const componentArray = this.componentManager.getComponentArray(
-                    componentType as ComponentIdentifier
-                );
-                if (componentArray.isDirty(index as number)) {
-                    dirtyComponents.push(componentType as ComponentIdentifier);
+            entity.forEachComponentIndex((componentType, index) => {
+                const componentArray = this.componentManager.getComponentArray(componentType);
+                if (componentArray.isDirty(index)) {
+                    dirtyComponents.push(componentType);
                 }
-            }
+            });
 
             return dirtyComponents;
         }
@@ -1086,7 +1092,7 @@ export class ChangeTrackingManager {
     /**
      * Clear dirty flags for all components on an entity
      */
-    clearDirtyComponents(entity: any): void {
+    clearDirtyComponents(entity: Entity): void {
         const archetypeManager = this.componentManager.getArchetypeManager();
 
         if (archetypeManager) {
@@ -1095,12 +1101,10 @@ export class ChangeTrackingManager {
             this.dirtyComponentsMap.delete(entityId);
         } else {
             // Legacy mode: clear component arrays
-            for (const [componentType, index] of (entity as any)._componentIndices) {
-                const componentArray = this.componentManager.getComponentArray(
-                    componentType as ComponentIdentifier
-                );
-                componentArray.clearDirty(index as number);
-            }
+            entity.forEachComponentIndex((componentType, index) => {
+                const componentArray = this.componentManager.getComponentArray(componentType);
+                componentArray.clearDirty(index);
+            });
         }
     }
 

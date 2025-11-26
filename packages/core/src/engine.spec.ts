@@ -2506,6 +2506,67 @@ describe('Engine v2 - Composition Architecture', () => {
 
             expect(order).toEqual(['First', 'Second']);
         });
+
+        test('should sort no-dependency systems by priority when interleaved with dependency systems', () => {
+            const order: string[] = [];
+
+            // Create a mix of systems:
+            // - A and D have dependencies (must respect order)
+            // - B and C have no dependencies (should be sorted by priority)
+
+            // A runs first (no dependencies, priority 1)
+            engine.createSystem(
+                'A',
+                { all: [] },
+                {
+                    before: () => order.push('A'),
+                    priority: 1,
+                }
+            );
+
+            // B has no dependencies but higher priority (priority 100)
+            engine.createSystem(
+                'B',
+                { all: [] },
+                {
+                    before: () => order.push('B'),
+                    priority: 100,
+                }
+            );
+
+            // C has no dependencies with lower priority (priority 50)
+            engine.createSystem(
+                'C',
+                { all: [] },
+                {
+                    before: () => order.push('C'),
+                    priority: 50,
+                }
+            );
+
+            // D depends on A (has dependency)
+            engine.createSystem(
+                'D',
+                { all: [] },
+                {
+                    before: () => order.push('D'),
+                    priority: 200, // Even with highest priority, must run after A
+                    runAfter: ['A'],
+                }
+            );
+
+            engine.update(16);
+
+            // D must run after A (dependency constraint)
+            const aIndex = order.indexOf('A');
+            const dIndex = order.indexOf('D');
+            expect(dIndex).toBeGreaterThan(aIndex);
+
+            // B should run before C (priority: 100 > 50)
+            const bIndex = order.indexOf('B');
+            const cIndex = order.indexOf('C');
+            expect(bIndex).toBeLessThan(cIndex);
+        });
     });
 
     describe('Conditional System Execution', () => {

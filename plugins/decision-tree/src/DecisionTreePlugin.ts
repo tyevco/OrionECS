@@ -6,281 +6,276 @@
  */
 
 import type {
-  EnginePlugin,
-  PluginContext,
-  Entity,
-  ComponentIdentifier,
+    ComponentIdentifier,
+    EnginePlugin,
+    EntityDef,
+    PluginContext,
 } from '@orion-ecs/plugin-api';
-
-import {
-  type TreeDefinition,
-  type DecisionNode,
-  type DecisionTreePluginOptions,
-  type PredicateContext,
-  type PredicateFn,
-  PredicateRegistry,
-} from './types';
-
 import { DecisionTree } from './components';
+import {
+    type DecisionNode,
+    type DecisionTreePluginOptions,
+    type PredicateContext,
+    PredicateRegistry,
+    type TreeDefinition,
+} from './types';
 
 // =============================================================================
 // Plugin API
 // =============================================================================
 
 export interface DecisionTreeAPI {
-  /** Register a tree definition */
-  register(tree: TreeDefinition): void;
+    /** Register a tree definition */
+    register(tree: TreeDefinition): void;
 
-  /** Unregister a tree */
-  unregister(treeId: string): void;
+    /** Unregister a tree */
+    unregister(treeId: string): void;
 
-  /** Get a registered tree */
-  get(treeId: string): TreeDefinition | undefined;
+    /** Get a registered tree */
+    get(treeId: string): TreeDefinition | undefined;
 
-  /** List all registered tree IDs */
-  list(): string[];
+    /** List all registered tree IDs */
+    list(): string[];
 
-  /** Assign a tree to an entity */
-  assign(entity: Entity, treeId: string): void;
+    /** Assign a tree to an entity */
+    assign(entity: EntityDef, treeId: string): void;
 
-  /** Remove tree from an entity */
-  unassign(entity: Entity): void;
+    /** Remove tree from an entity */
+    unassign(entity: EntityDef): void;
 
-  /** Enable/disable tree for an entity */
-  setEnabled(entity: Entity, enabled: boolean): void;
+    /** Enable/disable tree for an entity */
+    setEnabled(entity: EntityDef, enabled: boolean): void;
 
-  /** Check if entity has a tree */
-  hasTree(entity: Entity): boolean;
+    /** Check if entity has a tree */
+    hasTree(entity: EntityDef): boolean;
 
-  /** Get tree ID for an entity */
-  getTreeId(entity: Entity): string | undefined;
+    /** Get tree ID for an entity */
+    getTreeId(entity: EntityDef): string | undefined;
 
-  /** Get last decision path (debug) */
-  getLastPath(entity: Entity): string[];
+    /** Get last decision path (debug) */
+    getLastPath(entity: EntityDef): string[];
 
-  /** Manually evaluate (debug) */
-  evaluate(entity: Entity): boolean;
+    /** Manually evaluate (debug) */
+    evaluate(entity: EntityDef): boolean;
 
-  /** Get the predicate registry for registering predicates */
-  readonly predicates: PredicateRegistry<any>;
+    /** Get the predicate registry for registering predicates */
+    readonly predicates: PredicateRegistry<Record<string, Record<string, unknown>>>;
 }
 
 // =============================================================================
 // Plugin Implementation
 // =============================================================================
 
-export class DecisionTreePlugin
-  implements EnginePlugin<{ decisions: DecisionTreeAPI }>
-{
-  name = 'DecisionTreePlugin';
-  version = '1.0.0';
+export class DecisionTreePlugin implements EnginePlugin<{ decisions: DecisionTreeAPI }> {
+    name = 'DecisionTreePlugin';
+    version = '1.0.0';
 
-  declare readonly __extensions: { decisions: DecisionTreeAPI };
+    declare readonly __extensions: { decisions: DecisionTreeAPI };
 
-  private trees = new Map<string, TreeDefinition>();
-  private predicateRegistry = new PredicateRegistry();
-  private context: PluginContext | null = null;
-  private predicateContext: PredicateContext | null = null;
-  private options: DecisionTreePluginOptions;
+    private trees = new Map<string, TreeDefinition>();
+    private predicateRegistry = new PredicateRegistry();
+    private context: PluginContext | null = null;
+    private predicateContext: PredicateContext | null = null;
+    private options: DecisionTreePluginOptions;
 
-  constructor(options: DecisionTreePluginOptions = {}) {
-    this.options = options;
-  }
+    constructor(options: DecisionTreePluginOptions = {}) {
+        this.options = options;
+    }
 
-  install(context: PluginContext): void {
-    this.context = context;
+    install(context: PluginContext): void {
+        this.context = context;
 
-    context.registerComponent(DecisionTree);
-    this.createDecisionSystem(context);
-    context.extend('decisions', this.createAPI());
-  }
+        context.registerComponent(DecisionTree);
+        this.createDecisionSystem(context);
+        context.extend('decisions', this.createAPI());
+    }
 
-  uninstall(): void {
-    this.trees.clear();
-    this.context = null;
-    this.predicateContext = null;
-  }
+    uninstall(): void {
+        this.trees.clear();
+        this.context = null;
+        this.predicateContext = null;
+    }
 
-  // ===========================================================================
-  // System
-  // ===========================================================================
+    // ===========================================================================
+    // System
+    // ===========================================================================
 
-  private createDecisionSystem(context: PluginContext): void {
-    const plugin = this;
+    private createDecisionSystem(context: PluginContext): void {
+        context.createSystem(
+            'DecisionTreeSystem',
+            { all: [DecisionTree] },
+            {
+                priority: this.options.systemPriority ?? 100,
 
-    context.createSystem(
-      'DecisionTreeSystem',
-      { all: [DecisionTree] },
-      {
-        priority: this.options.systemPriority ?? 100,
+                act: (entity: EntityDef, dt: DecisionTree) => {
+                    if (!dt.enabled) return;
 
-        act: (entity: Entity, dt: DecisionTree) => {
-          if (!dt.enabled) return;
+                    const tree = this.trees.get(dt.treeId);
+                    if (!tree) {
+                        if (this.options.enableTracing) {
+                            console.warn(`DecisionTree: Unknown tree "${dt.treeId}"`);
+                        }
+                        return;
+                    }
 
-          const tree = plugin.trees.get(dt.treeId);
-          if (!tree) {
-            if (plugin.options.enableTracing) {
-              console.warn(`DecisionTree: Unknown tree "${dt.treeId}"`);
-            }
-            return;
-          }
-
-          dt.lastPath = [];
-          dt.lastResult = plugin.evaluateNode(entity, tree.root, dt.lastPath);
-        },
-      },
-      this.options.useFixedUpdate ?? false
-    );
-  }
-
-  // ===========================================================================
-  // Tree Evaluation
-  // ===========================================================================
-
-  private evaluateNode(entity: Entity, node: DecisionNode, path: string[]): boolean {
-    switch (node.type) {
-      case 'selector':
-        if (node.name && this.options.enableTracing) path.push(`sel:${node.name}`);
-        for (const child of node.children) {
-          if (this.evaluateNode(entity, child, path)) return true;
-        }
-        return false;
-
-      case 'sequence':
-        if (node.name && this.options.enableTracing) path.push(`seq:${node.name}`);
-        for (const child of node.children) {
-          if (!this.evaluateNode(entity, child, path)) return false;
-        }
-        return true;
-
-      case 'predicate': {
-        const result = this.predicateRegistry.evaluate(
-          node.name,
-          entity,
-          node.args ?? {},
-          this.getPredicateContext()
+                    dt.lastPath = [];
+                    dt.lastResult = this.evaluateNode(entity, tree.root, dt.lastPath);
+                },
+            },
+            this.options.useFixedUpdate ?? false
         );
-        const finalResult = node.negate ? !result : result;
-        if (this.options.enableTracing) {
-          path.push(`${node.name}=${finalResult}`);
-        }
-        return finalResult;
-      }
-
-      case 'add': {
-        const args = node.args ?? [];
-        if (!entity.hasComponent(node.component)) {
-          entity.addComponent(node.component, ...args);
-        }
-        if (this.options.enableTracing) {
-          path.push(`+${this.getComponentName(node.component)}`);
-        }
-        return true;
-      }
-
-      case 'remove': {
-        if (entity.hasComponent(node.component)) {
-          entity.removeComponent(node.component);
-        }
-        if (this.options.enableTracing) {
-          path.push(`-${this.getComponentName(node.component)}`);
-        }
-        return true;
-      }
-
-      default:
-        return false;
     }
-  }
 
-  private getComponentName(component: ComponentIdentifier<unknown>): string {
-    return typeof component === 'function' ? component.name || 'Component' : String(component);
-  }
+    // ===========================================================================
+    // Tree Evaluation
+    // ===========================================================================
 
-  private getPredicateContext(): PredicateContext {
-    if (!this.predicateContext) {
-      const engine = this.context?.getEngine() as any;
-      this.predicateContext = {
-        getSingleton: (type) => engine?.getSingleton?.(type),
-        getEntity: (id) => engine?.getEntity?.(id),
-        deltaTime: 1 / 60,
-      };
+    private evaluateNode(entity: EntityDef, node: DecisionNode, path: string[]): boolean {
+        switch (node.type) {
+            case 'selector':
+                if (node.name && this.options.enableTracing) path.push(`sel:${node.name}`);
+                for (const child of node.children) {
+                    if (this.evaluateNode(entity, child, path)) return true;
+                }
+                return false;
+
+            case 'sequence':
+                if (node.name && this.options.enableTracing) path.push(`seq:${node.name}`);
+                for (const child of node.children) {
+                    if (!this.evaluateNode(entity, child, path)) return false;
+                }
+                return true;
+
+            case 'predicate': {
+                const result = this.predicateRegistry.evaluate(
+                    node.name,
+                    entity,
+                    node.args ?? {},
+                    this.getPredicateContext()
+                );
+                const finalResult = node.negate ? !result : result;
+                if (this.options.enableTracing) {
+                    path.push(`${node.name}=${finalResult}`);
+                }
+                return finalResult;
+            }
+
+            case 'add': {
+                const args = node.args ?? [];
+                if (!entity.hasComponent(node.component)) {
+                    entity.addComponent(node.component, ...args);
+                }
+                if (this.options.enableTracing) {
+                    path.push(`+${this.getComponentName(node.component)}`);
+                }
+                return true;
+            }
+
+            case 'remove': {
+                if (entity.hasComponent(node.component)) {
+                    entity.removeComponent(node.component);
+                }
+                if (this.options.enableTracing) {
+                    path.push(`-${this.getComponentName(node.component)}`);
+                }
+                return true;
+            }
+
+            default:
+                return false;
+        }
     }
-    return this.predicateContext;
-  }
 
-  // ===========================================================================
-  // API
-  // ===========================================================================
+    private getComponentName(component: ComponentIdentifier<unknown>): string {
+        return typeof component === 'function' ? component.name || 'Component' : String(component);
+    }
 
-  private createAPI(): DecisionTreeAPI {
-    const plugin = this;
-
-    return {
-      register(tree: TreeDefinition): void {
-        plugin.trees.set(tree.id, tree);
-      },
-
-      unregister(treeId: string): void {
-        plugin.trees.delete(treeId);
-      },
-
-      get(treeId: string): TreeDefinition | undefined {
-        return plugin.trees.get(treeId);
-      },
-
-      list(): string[] {
-        return Array.from(plugin.trees.keys());
-      },
-
-      assign(entity: Entity, treeId: string): void {
-        if (!plugin.trees.has(treeId)) {
-          throw new Error(`DecisionTree: Unknown tree "${treeId}"`);
+    private getPredicateContext(): PredicateContext {
+        if (!this.predicateContext) {
+            const engine = this.context?.getEngine() as unknown;
+            this.predicateContext = {
+                getSingleton: (type) =>
+                    (engine as { getSingleton?: (type: unknown) => unknown })?.getSingleton?.(type),
+                getEntity: (id) =>
+                    (engine as { getEntity?: (id: symbol) => EntityDef | undefined })?.getEntity?.(
+                        id
+                    ),
+                deltaTime: 1 / 60,
+            };
         }
-        if (entity.hasComponent(DecisionTree)) {
-          const dt = entity.getComponent(DecisionTree)!;
-          dt.treeId = treeId;
-          dt.enabled = true;
-          dt.lastPath = [];
-        } else {
-          entity.addComponent(DecisionTree, treeId);
-        }
-      },
+        return this.predicateContext;
+    }
 
-      unassign(entity: Entity): void {
-        entity.removeComponent(DecisionTree);
-      },
+    // ===========================================================================
+    // API
+    // ===========================================================================
 
-      setEnabled(entity: Entity, enabled: boolean): void {
-        const dt = entity.getComponent(DecisionTree);
-        if (dt) dt.enabled = enabled;
-      },
+    private createAPI(): DecisionTreeAPI {
+        return {
+            register: (tree: TreeDefinition): void => {
+                this.trees.set(tree.id, tree);
+            },
 
-      hasTree(entity: Entity): boolean {
-        return entity.hasComponent(DecisionTree);
-      },
+            unregister: (treeId: string): void => {
+                this.trees.delete(treeId);
+            },
 
-      getTreeId(entity: Entity): string | undefined {
-        return entity.getComponent(DecisionTree)?.treeId;
-      },
+            get: (treeId: string): TreeDefinition | undefined => {
+                return this.trees.get(treeId);
+            },
 
-      getLastPath(entity: Entity): string[] {
-        return entity.getComponent(DecisionTree)?.lastPath ?? [];
-      },
+            list: (): string[] => {
+                return Array.from(this.trees.keys());
+            },
 
-      evaluate(entity: Entity): boolean {
-        const dt = entity.getComponent(DecisionTree);
-        if (!dt) return false;
-        const tree = plugin.trees.get(dt.treeId);
-        if (!tree) return false;
-        dt.lastPath = [];
-        dt.lastResult = plugin.evaluateNode(entity, tree.root, dt.lastPath);
-        return dt.lastResult;
-      },
+            assign: (entity: EntityDef, treeId: string): void => {
+                if (!this.trees.has(treeId)) {
+                    throw new Error(`DecisionTree: Unknown tree "${treeId}"`);
+                }
+                if (entity.hasComponent(DecisionTree)) {
+                    const dt = entity.getComponent(DecisionTree)!;
+                    dt.treeId = treeId;
+                    dt.enabled = true;
+                    dt.lastPath = [];
+                } else {
+                    entity.addComponent(DecisionTree, treeId);
+                }
+            },
 
-      get predicates() {
-        return plugin.predicateRegistry;
-      },
-    };
-  }
+            unassign: (entity: EntityDef): void => {
+                entity.removeComponent(DecisionTree);
+            },
+
+            setEnabled: (entity: EntityDef, enabled: boolean): void => {
+                const dt = entity.getComponent(DecisionTree);
+                if (dt) dt.enabled = enabled;
+            },
+
+            hasTree: (entity: EntityDef): boolean => {
+                return entity.hasComponent(DecisionTree);
+            },
+
+            getTreeId: (entity: EntityDef): string | undefined => {
+                return entity.getComponent(DecisionTree)?.treeId;
+            },
+
+            getLastPath: (entity: EntityDef): string[] => {
+                return entity.getComponent(DecisionTree)?.lastPath ?? [];
+            },
+
+            evaluate: (entity: EntityDef): boolean => {
+                const dt = entity.getComponent(DecisionTree);
+                if (!dt) return false;
+                const tree = this.trees.get(dt.treeId);
+                if (!tree) return false;
+                dt.lastPath = [];
+                dt.lastResult = this.evaluateNode(entity, tree.root, dt.lastPath);
+                return dt.lastResult;
+            },
+
+            get predicates() {
+                return this.predicateRegistry;
+            },
+        };
+    }
 }

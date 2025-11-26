@@ -37,11 +37,62 @@ jobs:
             You are conducting a comprehensive nightly code review of the OrionECS repository.
             Focus area: ${{ github.event.inputs.focus_area || 'all' }}
 
+            ## Project Philosophy & Requirements
+
+            **CRITICAL**: OrionECS is a **strict type-safe ECS framework**. All reviews MUST enforce:
+
+            ### Type Safety (Highest Priority)
+            - **NO `any` types** - Every value must have explicit types
+            - **NO type assertions (`as`)** unless absolutely necessary with justification
+            - **NO implicit `any`** - Enable `noImplicitAny` compliance
+            - **Use generics** - Type parameters should flow through the system (like EngineAccumulator pattern)
+            - **Type inference** - Leverage TypeScript's inference where it strengthens safety
+            - **Discriminated unions** - Prefer over loose object types
+            - **Const assertions** - Use `as const` for literal types
+            - **Type guards** - Implement proper type narrowing with predicates
+            - **Template literal types** - For compile-time string validation
+
+            ### ECS Architecture Principles (Critical)
+            - **Composition over inheritance** - Entities are composition of components
+            - **Data-oriented design** - Components are pure data (POJOs), systems are pure logic
+            - **No behavior in components** - Components should not have methods (except constructors)
+            - **Systems query for intent** - Use component presence to express intent, not fields
+            - **Plugin architecture** - Extend via plugins, not by modifying core
+            - **Archetype optimization** - Respect cache locality patterns
+            - **Minimal API surface** - Core should be minimal, plugins add features
+
+            ### Anti-Patterns to Flag
+            - ❌ Components with business logic methods
+            - ❌ Systems that don't use queries (operating on single entities)
+            - ❌ Tight coupling between components
+            - ❌ God entities with too many components
+            - ❌ Type erasure or loss of type information
+            - ❌ Runtime type checking that could be compile-time
+            - ❌ Use of `any`, `unknown` without proper narrowing
+            - ❌ Type assertions to bypass the type system
+
             ## Review Scope
 
             Analyze the entire codebase looking for:
 
-            ### 1. Code Smells
+            ### 1. Type Safety Violations (CRITICAL)
+            - Any use of `any` type
+            - Type assertions (`as`) without clear justification
+            - Implicit `any` from missing types
+            - Lost type information through generic boundaries
+            - Runtime checks that should be compile-time
+            - Missing generic constraints
+            - Unsafe type narrowing or widening
+
+            ### 2. ECS Architecture Violations (HIGH)
+            - Components with methods (behavior in data)
+            - Systems not using the query system
+            - Entity-specific logic instead of component queries
+            - Inheritance hierarchies instead of composition
+            - Tight coupling between components
+            - Core modifications that should be plugins
+
+            ### 3. Code Smells
             - Dead code or unused exports
             - Overly complex functions (high cyclomatic complexity)
             - Code duplication
@@ -68,25 +119,43 @@ jobs:
             - Exposed sensitive data
             - Insecure defaults
 
-            ### 4. Performance Issues
+            ### 4. Potential Bugs
+            - Null/undefined reference risks
+            - Off-by-one errors
+            - Race conditions in async code
+            - Uncaught promise rejections
+            - Type coercion issues
+            - Missing error handling
+            - Incorrect loop conditions
+            - Memory leaks (event listeners, closures)
+
+            ### 5. Security Issues
+            - Input validation gaps
+            - Injection vulnerabilities
+            - Unsafe deserialization
+            - Exposed sensitive data
+            - Insecure defaults
+
+            ### 6. Performance Issues
             - Unnecessary iterations or loops
             - Missing memoization opportunities
             - Inefficient data structures
             - Redundant computations
             - Memory-intensive patterns
+            - Archetype inefficiencies (entities with frequently changing components)
 
-            ### 5. Architecture & Design
+            ### 7. Architecture & Design
             - SOLID principle violations
             - Circular dependencies
             - Tight coupling between modules
             - Missing abstractions
             - Inconsistent patterns across codebase
 
-            ### 6. Documentation & Maintainability
-            - Missing or outdated comments
-            - Undocumented public APIs
+            ### 8. Documentation & Maintainability
+            - Missing or outdated TSDoc comments
+            - Undocumented public APIs (should have TypeDoc coverage)
             - Complex code without explanation
-            - Missing TypeScript types
+            - Missing or weak TypeScript types
 
             ## Output Format
 
@@ -106,12 +175,15 @@ jobs:
 
             ## Guidelines
 
+            - **CRITICAL**: Prioritize type safety violations above all else - this is a type-safe framework
             - Use the repository's CLAUDE.md for project-specific conventions
+            - **ECS principles**: Flag any violations of composition-over-inheritance or data-vs-behavior separation
             - Focus on actionable findings with clear remediation steps
             - Prioritize issues that could cause bugs or security vulnerabilities
             - Skip node_modules, dist, and other build artifacts
             - Be specific - include file paths and line numbers
             - Group related issues together
+            - **Examples matter**: Flag anti-patterns in examples/ as HIGH priority (users will copy these)
             - If no significant issues are found, still create an issue with a brief "all clear" summary
 
             ## Key Directories to Review

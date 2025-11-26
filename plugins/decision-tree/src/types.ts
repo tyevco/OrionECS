@@ -158,7 +158,8 @@ export interface DecisionNodeJSON {
 export class PredicateRegistry<
     TPredicates extends Record<string, Record<string, unknown>> = BuiltInPredicates,
 > {
-    private predicates = new Map<string, PredicateFn<Record<string, unknown>>>();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Internal map needs to store predicates with varying arg types
+    private predicates = new Map<string, PredicateFn<any>>();
 
     constructor() {
         this.registerBuiltIns();
@@ -198,7 +199,8 @@ export class PredicateRegistry<
         name: K,
         fn: PredicateFn<TArgs>
     ): PredicateRegistry<TPredicates & { [P in K]: TArgs }> {
-        this.predicates.set(name, fn as PredicateFn<Record<string, unknown>>);
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any -- Type widening needed for internal storage
+        this.predicates.set(name, fn as PredicateFn<any>);
         return this as unknown as PredicateRegistry<TPredicates & { [P in K]: TArgs }>;
     }
 

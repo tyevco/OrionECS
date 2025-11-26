@@ -9,13 +9,7 @@
  * - Custom API extension for spatial operations
  */
 
-import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
-
-// Local type for entity definitions
-interface EntityDef {
-    id: symbol;
-    name?: string;
-}
+import type { EnginePlugin, PluginContext, EntityDef } from '@orion-ecs/plugin-api';
 
 // Spatial components
 export class SpatialPosition {

@@ -9,18 +9,9 @@
  * - Query performance analysis
  */
 
-import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
+import type { EnginePlugin, PluginContext, EntityDef } from '@orion-ecs/plugin-api';
 
-// Local type definitions for entities and profiles
-interface EntityDef {
-    id: symbol;
-    name?: string;
-    tags: Set<string>;
-    children: Set<EntityDef>;
-    parent?: EntityDef;
-    hasComponent?: (type: any) => boolean;
-}
-
+// Local type definition for system profiles
 interface SystemProfile {
     name: string;
     executionTime: number;

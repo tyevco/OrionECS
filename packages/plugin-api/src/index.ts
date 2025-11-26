@@ -10,6 +10,75 @@
  */
 
 // =============================================================================
+// Entity Types
+// =============================================================================
+
+/**
+ * Serialized entity data for snapshots and persistence.
+ *
+ * @public
+ */
+export interface SerializedEntity {
+    id: string;
+    name?: string;
+    tags: string[];
+    components: Array<{ type: string; data: any }>;
+    children: SerializedEntity[];
+}
+
+/**
+ * Entity interface representing a game object in the ECS.
+ *
+ * Entities are containers for components and can form hierarchies.
+ * They support tagging for categorization and querying.
+ *
+ * @public
+ */
+export interface EntityDef {
+    /** Unique identifier for this entity */
+    id: symbol;
+    /** Optional human-readable name */
+    name?: string;
+    /** Parent entity in the hierarchy */
+    parent?: EntityDef;
+    /** Child entities */
+    children: EntityDef[];
+    /** Tags for categorization and querying */
+    tags: Set<string>;
+    /** Queue this entity for deletion at end of frame */
+    queueFree(): void;
+    /** Add a component to this entity */
+    addComponent<T>(
+        type: new (...args: any[]) => T,
+        ...args: ConstructorParameters<typeof type>
+    ): this;
+    /** Remove a component from this entity */
+    removeComponent<T>(type: new (...args: any[]) => T): this;
+    /** Check if entity has a component */
+    hasComponent<T>(type: new (...args: any[]) => T): boolean;
+    /** Get a component from this entity */
+    getComponent<T>(type: new (...args: any[]) => T): T;
+    /** Add a tag to this entity */
+    addTag(tag: string): this;
+    /** Remove a tag from this entity */
+    removeTag(tag: string): this;
+    /** Check if entity has a tag */
+    hasTag(tag: string): boolean;
+    /** Set the parent entity */
+    setParent(parent: EntityDef | null): this;
+    /** Add a child entity */
+    addChild(child: EntityDef): this;
+    /** Remove a child entity */
+    removeChild(child: EntityDef): this;
+    /** Whether this entity has pending changes */
+    get isDirty(): boolean;
+    /** Whether this entity is queued for deletion */
+    get isMarkedForDeletion(): boolean;
+    /** Serialize this entity to a plain object */
+    serialize(): SerializedEntity;
+}
+
+// =============================================================================
 // Component Types (simplified for plugin authors)
 // =============================================================================
 

@@ -1011,7 +1011,10 @@ export class Entity implements EntityDef {
      *
      * @public
      */
-    findChild(predicate: (child: Entity) => boolean, recursive: boolean = true): Entity | undefined {
+    findChild(
+        predicate: (child: Entity) => boolean,
+        recursive: boolean = true
+    ): Entity | undefined {
         for (const child of this._children) {
             if (predicate(child)) return child;
             if (recursive) {
@@ -1086,11 +1089,14 @@ export class Entity implements EntityDef {
      * @public
      */
     getRoot(): Entity {
-        let current: Entity = this;
-        while (current._parent) {
-            current = current._parent;
+        if (!this._parent) {
+            return this;
         }
-        return current;
+        let root: Entity = this._parent;
+        while (root._parent) {
+            root = root._parent;
+        }
+        return root;
     }
 
     /**

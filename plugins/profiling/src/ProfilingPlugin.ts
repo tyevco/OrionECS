@@ -10,16 +10,7 @@
  * - System execution profiling
  */
 
-import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
-
-// Local type for system profiles
-interface SystemProfile {
-    name: string;
-    executionTime: number;
-    entityCount: number;
-    callCount: number;
-    averageTime: number;
-}
+import type { EnginePlugin, PluginContext, SystemProfile } from '@orion-ecs/plugin-api';
 
 /**
  * Frame profile data

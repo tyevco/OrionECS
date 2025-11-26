@@ -9,16 +9,7 @@
  * - Query performance analysis
  */
 
-import type { EnginePlugin, PluginContext, EntityDef } from '@orion-ecs/plugin-api';
-
-// Local type definition for system profiles
-interface SystemProfile {
-    name: string;
-    executionTime: number;
-    entityCount: number;
-    callCount: number;
-    averageTime: number;
-}
+import type { EnginePlugin, PluginContext, EntityDef, SystemProfile } from '@orion-ecs/plugin-api';
 
 // =============================================================================
 // Debug API Interface

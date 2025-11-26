@@ -215,6 +215,7 @@ FakesAssemblies/
 core/docs/
 utils/docs/
 packages/*/docs/
+packages/*/docs-md/
 plugins/*/docs/
 
 # tsup bundled config files

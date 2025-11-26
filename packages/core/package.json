@@ -26,7 +26,8 @@
     "docs:generate": "typedoc",
     "docs:watch": "typedoc --watch",
     "docs:serve": "npx http-server docs -p 8080 -o",
-    "docs:json": "typedoc --json docs/api.json"
+    "docs:json": "typedoc --json docs/api.json",
+    "docs:markdown": "typedoc --options typedoc.single-page.json"
   },
   "keywords": [
     "ecs",

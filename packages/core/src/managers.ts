@@ -252,6 +252,9 @@ export class SystemManager {
     private fixedUpdateInterval: number;
     private maxFixedIterations: number;
     private groups: Map<string, SystemGroup> = new Map();
+    // Cache for sorted groups to avoid allocations in hot path
+    private sortedGroupsCache: SystemGroup[] | null = null;
+    private groupsCacheValid: boolean = false;
 
     constructor(fixedUpdateFPS: number = 60, maxFixedIterations: number = 10) {
         this.fixedUpdateInterval = 1000 / fixedUpdateFPS;
@@ -264,6 +267,7 @@ export class SystemManager {
         }
         const group = new SystemGroup(name, priority);
         this.groups.set(name, group);
+        this.groupsCacheValid = false; // Invalidate sorted groups cache
         return group;
     }
 
@@ -431,21 +435,33 @@ export class SystemManager {
         }
     }
 
+    /**
+     * Get groups sorted by priority, using cached result when possible.
+     * This avoids array allocations in the hot execution path.
+     */
+    private getSortedGroups(): SystemGroup[] {
+        if (!this.groupsCacheValid || this.sortedGroupsCache === null) {
+            this.sortedGroupsCache = Array.from(this.groups.values()).sort(
+                (a: SystemGroup, b: SystemGroup) => b.priority - a.priority
+            );
+            this.groupsCacheValid = true;
+        }
+        return this.sortedGroupsCache;
+    }
+
     executeVariableSystems(deltaTime: number = 16): void {
         this.ensureSorted();
 
         // First, execute systems in groups (sorted by group priority)
-        const sortedGroups = Array.from(this.groups.values())
-            .slice()
-            .sort((a: SystemGroup, b: SystemGroup) => b.priority - a.priority);
+        const sortedGroups = this.getSortedGroups();
 
         for (const group of sortedGroups) {
             if (!group.enabled) continue;
 
             // Execute systems in this group that are variable update systems (sorted by system priority)
+            // Note: filter() already creates a new array, so slice() is unnecessary
             const groupSystems = group.systems
                 .filter((s: System<any>) => this.systems.includes(s))
-                .slice()
                 .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
 
             for (const system of groupSystems) {
@@ -472,17 +488,16 @@ export class SystemManager {
             iterations < this.maxFixedIterations
         ) {
             // First, execute systems in groups (sorted by group priority)
-            const sortedGroups = Array.from(this.groups.values())
-                .slice()
-                .sort((a: SystemGroup, b: SystemGroup) => b.priority - a.priority);
+            const sortedGroups = this.getSortedGroups();
 
             for (const group of sortedGroups) {
                 if (!group.enabled) continue;
 
                 // Execute systems in this group that are fixed update systems (sorted by system priority)
+                // Note: This still creates arrays per iteration, but groups are typically small
+                // and the outer loop is the more critical hot path
                 const groupSystems = group.systems
                     .filter((s: System<any>) => this.fixedUpdateSystems.includes(s))
-                    .slice()
                     .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
 
                 for (const system of groupSystems) {
@@ -681,7 +696,6 @@ export class QueryManager {
     }
 }
 
-/**
 /**
  * Manages prefab registration and instantiation
  */
@@ -885,7 +899,7 @@ export class ChangeTrackingManager {
     private batchMode: boolean = false;
     private proxyTrackingEnabled: boolean = false;
     private reactiveComponents: WeakMap<any, any> = new WeakMap();
-    private debounceTimers: Map<string, number> = new Map();
+    private debounceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
     private debounceMs: number = 0;
     // Track dirty components per entity (for archetype mode)
     private dirtyComponentsMap: Map<number, Set<ComponentIdentifier>> = new Map();
@@ -991,7 +1005,7 @@ export class ChangeTrackingManager {
                 this.debounceTimers.delete(key);
             }, this.debounceMs);
 
-            this.debounceTimers.set(key, timer as any);
+            this.debounceTimers.set(key, timer);
         } else {
             this.eventEmitter.emit('onComponentChanged', event);
         }
@@ -1034,7 +1048,10 @@ export class ChangeTrackingManager {
         });
 
         this.reactiveComponents.set(component, proxy);
-        this.reactiveComponents.set(proxy, proxy); // Map proxy to itself
+        // Map proxy to itself for idempotence - ensures that passing a proxy
+        // back into createReactiveProxy returns the same proxy instead of
+        // creating a nested proxy wrapper
+        this.reactiveComponents.set(proxy, proxy);
         return proxy;
     }
 

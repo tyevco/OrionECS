@@ -260,10 +260,20 @@ export class Archetype {
     /**
      * Get components for iteration (optimized for queries)
      * @param componentTypes - Component types to retrieve
+     * @param debugMode - If true, logs warnings for missing component types
      * @returns Arrays of components in the same order as requested types
      */
-    getComponentArrays(componentTypes: ComponentIdentifier[]): any[][] {
-        return componentTypes.map((type) => this.componentArrays.get(type) || []);
+    getComponentArrays(componentTypes: ComponentIdentifier[], debugMode = false): any[][] {
+        return componentTypes.map((type) => {
+            const array = this.componentArrays.get(type);
+            if (!array && debugMode) {
+                console.warn(
+                    `[ECS Debug] Archetype "${this.id}" does not contain component type "${type.name}". ` +
+                        'This may indicate a query/archetype mismatch.'
+                );
+            }
+            return array || [];
+        });
     }
 
     /**

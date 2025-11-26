@@ -52,6 +52,33 @@ class Health {
     ) {}
 }
 
+// Mock plugin for testing plugin accumulation
+class MockPlugin {
+    name = 'MockPlugin';
+    version = '1.0.0';
+    installed = false;
+
+    install(context: any): void {
+        this.installed = true;
+        context.extend('mockApi', {
+            getValue: () => 42,
+        });
+    }
+}
+
+class AnotherMockPlugin {
+    name = 'AnotherMockPlugin';
+    version = '1.0.0';
+    installed = false;
+
+    install(context: any): void {
+        this.installed = true;
+        context.extend('anotherApi', {
+            getMessage: () => 'hello',
+        });
+    }
+}
+
 describe('Testing Utilities', () => {
     describe('TestEngineBuilder', () => {
         it('should create an engine with test-friendly defaults', () => {
@@ -69,6 +96,35 @@ describe('Testing Utilities', () => {
                 .build();
 
             expect(engine).toBeInstanceOf(Engine);
+        });
+
+        it('should properly accumulate plugins', () => {
+            const plugin1 = new MockPlugin();
+            const plugin2 = new AnotherMockPlugin();
+
+            const engine = new TestEngineBuilder().use(plugin1).use(plugin2).build();
+
+            expect(engine).toBeInstanceOf(Engine);
+            // Both plugins should be installed
+            expect(plugin1.installed).toBe(true);
+            expect(plugin2.installed).toBe(true);
+            // Plugin APIs should be available on the engine
+            expect((engine as any).mockApi.getValue()).toBe(42);
+            expect((engine as any).anotherApi.getMessage()).toBe('hello');
+        });
+
+        it('should maintain TestEngineBuilder type after use() calls', () => {
+            const plugin = new MockPlugin();
+
+            // The key test: after calling use(), we should still be able to
+            // call TestEngineBuilder-inherited methods like withDebugMode
+            const engine = new TestEngineBuilder()
+                .use(plugin)
+                .withDebugMode(false) // This should work because use() returns TestEngineBuilder
+                .build();
+
+            expect(engine).toBeInstanceOf(Engine);
+            expect(plugin.installed).toBe(true);
         });
     });
 

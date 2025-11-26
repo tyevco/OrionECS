@@ -9,7 +9,9 @@ import type {
     ComponentArgs,
     ComponentIdentifier,
     Engine,
+    EnginePlugin,
     Entity,
+    ExtractPluginExtensions,
     SystemProfile,
 } from '@orion-ecs/core';
 import { EngineBuilder } from '@orion-ecs/core';
@@ -17,6 +19,8 @@ import { EngineBuilder } from '@orion-ecs/core';
 /**
  * TestEngineBuilder provides a preconfigured engine builder optimized for testing.
  * Automatically sets up deterministic behavior and fast test execution.
+ *
+ * @typeParam TExtensions - Accumulated type extensions from registered plugins.
  *
  * @example
  * ```typescript
@@ -30,8 +34,21 @@ import { EngineBuilder } from '@orion-ecs/core';
  * // - Deterministic behavior
  * // - Automatic cleanup after tests
  * ```
+ *
+ * @example With plugins
+ * ```typescript
+ * const engine = new TestEngineBuilder()
+ *   .use(new PhysicsPlugin())
+ *   .use(new DebugPlugin())
+ *   .build();
+ *
+ * // Full type safety for plugin APIs
+ * engine.physics.setGravity(0, -9.8);
+ * ```
  */
-export class TestEngineBuilder extends EngineBuilder {
+export class TestEngineBuilder<
+    TExtensions extends object = object,
+> extends EngineBuilder<TExtensions> {
     constructor() {
         super();
         // Set test-friendly defaults
@@ -41,9 +58,34 @@ export class TestEngineBuilder extends EngineBuilder {
     }
 
     /**
+     * Register a plugin with the test engine builder.
+     * Plugins are installed when build() is called.
+     *
+     * @param plugin - The plugin to register
+     * @returns A new builder type with accumulated extension types for method chaining
+     *
+     * @example
+     * ```typescript
+     * const engine = new TestEngineBuilder()
+     *   .use(new PhysicsPlugin())
+     *   .use(new DebugPlugin())
+     *   .build();
+     *
+     * // Plugin APIs are available with full type checking
+     * engine.physics.applyForce(entity, force);
+     * ```
+     */
+    use<TPlugin extends EnginePlugin<any>>(
+        plugin: TPlugin
+    ): TestEngineBuilder<TExtensions & ExtractPluginExtensions<TPlugin>> {
+        super.use(plugin);
+        return this as unknown as TestEngineBuilder<TExtensions & ExtractPluginExtensions<TPlugin>>;
+    }
+
+    /**
      * Builds the test engine with test-friendly defaults
      */
-    build(): Engine {
+    build(): Engine & TExtensions {
         return super.build();
     }
 

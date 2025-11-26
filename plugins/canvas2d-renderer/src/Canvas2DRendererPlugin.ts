@@ -10,7 +10,7 @@
  * Based on the prototypedestination project's rendering systems.
  */
 
-import type { EnginePlugin, PluginContext, EntityDef } from '@orion-ecs/plugin-api';
+import type { EnginePlugin, EntityDef, PluginContext } from '@orion-ecs/plugin-api';
 import type { Color, Mesh } from '../../../packages/graphics/src/index';
 import type { Bounds } from '../../../packages/math/src/index';
 
@@ -105,7 +105,11 @@ export interface ICanvas2DAPI {
     /** Gets the global alpha */
     getGlobalAlpha(): number;
     /** Converts screen coordinates to world coordinates for a camera */
-    screenToWorld(screenX: number, screenY: number, camera: EntityDef): { x: number; y: number } | null;
+    screenToWorld(
+        screenX: number,
+        screenY: number,
+        camera: EntityDef
+    ): { x: number; y: number } | null;
 }
 
 // =============================================================================
@@ -184,7 +188,7 @@ export class Canvas2DAPI implements ICanvas2DAPI {
     public screenToWorld(
         screenX: number,
         screenY: number,
-        camera: Entity
+        camera: EntityDef
     ): { x: number; y: number } | null {
         if (!this.canvas) return null;
 

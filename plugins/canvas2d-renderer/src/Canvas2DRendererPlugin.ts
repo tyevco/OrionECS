@@ -10,9 +10,12 @@
  * Based on the prototypedestination project's rendering systems.
  */
 
-import type { EnginePlugin, Entity, PluginContext } from '../../../packages/core/src/index';
+import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
 import type { Color, Mesh } from '../../../packages/graphics/src/index';
 import type { Bounds } from '../../../packages/math/src/index';
+
+// Local Entity type for compatibility
+type Entity = any;
 
 // Re-export utility types for consumers
 export type { Bounds, Mesh, Color };
@@ -82,10 +85,40 @@ export class Sprite {
     ) {}
 }
 
+// =============================================================================
+// Canvas2D API Interface
+// =============================================================================
+
 /**
- * Canvas2D Rendering API
+ * Canvas2D Rendering API interface for type-safe engine extension.
  */
-export class Canvas2DAPI {
+export interface ICanvas2DAPI {
+    /** Sets the canvas element to render to */
+    setCanvas(canvas: HTMLCanvasElement): void;
+    /** Gets the current canvas element */
+    getCanvas(): HTMLCanvasElement | undefined;
+    /** Gets the 2D rendering context */
+    getContext(): CanvasRenderingContext2D | undefined;
+    /** Sets whether to clear the canvas before rendering */
+    setClearBeforeRender(clear: boolean): void;
+    /** Gets whether the canvas is cleared before rendering */
+    getClearBeforeRender(): boolean;
+    /** Sets the global alpha (transparency) for rendering */
+    setGlobalAlpha(alpha: number): void;
+    /** Gets the global alpha */
+    getGlobalAlpha(): number;
+    /** Converts screen coordinates to world coordinates for a camera */
+    screenToWorld(screenX: number, screenY: number, camera: Entity): { x: number; y: number } | null;
+}
+
+// =============================================================================
+// Canvas2D API Implementation
+// =============================================================================
+
+/**
+ * Canvas2D Rendering API implementation class.
+ */
+export class Canvas2DAPI implements ICanvas2DAPI {
     private canvas?: HTMLCanvasElement;
     private context?: CanvasRenderingContext2D;
     private clearBeforeRender: boolean = true;
@@ -192,12 +225,19 @@ export class Canvas2DAPI {
     }
 }
 
+// =============================================================================
+// Plugin Implementation
+// =============================================================================
+
 /**
- * Canvas2D Renderer Plugin
+ * Canvas2D Renderer Plugin with type-safe engine extension.
  */
-export class Canvas2DRendererPlugin implements EnginePlugin {
+export class Canvas2DRendererPlugin implements EnginePlugin<{ canvas2d: ICanvas2DAPI }> {
     name = 'Canvas2DRendererPlugin';
     version = '1.0.0';
+
+    /** Type brand for compile-time type inference */
+    declare readonly __extensions: { canvas2d: ICanvas2DAPI };
 
     private api = new Canvas2DAPI();
     private canvas?: HTMLCanvasElement;

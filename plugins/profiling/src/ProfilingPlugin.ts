@@ -10,7 +10,16 @@
  * - System execution profiling
  */
 
-import type { EnginePlugin, PluginContext, SystemProfile } from '../../../packages/core/src/index';
+import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
+
+// Local type for system profiles
+interface SystemProfile {
+    name: string;
+    executionTime: number;
+    entityCount: number;
+    callCount: number;
+    averageTime: number;
+}
 
 /**
  * Frame profile data
@@ -54,10 +63,57 @@ interface ProfilingSession {
     memorySnapshots: MemorySnapshot[];
 }
 
+// =============================================================================
+// Profiler API Interface
+// =============================================================================
+
 /**
- * Profiler API that will be added to the engine
+ * Profiler API interface for type-safe engine extension.
  */
-export class ProfilerAPI {
+export interface IProfilerAPI {
+    /** Start recording performance data */
+    startRecording(): void;
+    /** Stop recording and return the session data */
+    stopRecording(): ProfilingSession | null;
+    /** Record a frame (called during engine update) */
+    recordFrame(): void;
+    /** Export profiling data to Chrome DevTools trace format */
+    exportChromeTrace(session?: ProfilingSession): string;
+    /** Detect potential memory leaks */
+    detectMemoryLeaks(): Array<{
+        type: string;
+        count: number;
+        trend: 'increasing' | 'stable' | 'decreasing';
+        severity: 'low' | 'medium' | 'high';
+    }>;
+    /** Set a performance budget for a system */
+    setBudget(systemName: string, maxTimeMs: number): void;
+    /** Remove a performance budget */
+    removeBudget(systemName: string): void;
+    /** Get all performance budgets */
+    getBudgets(): PerformanceBudget[];
+    /** Set callback for budget exceeded events */
+    onBudgetExceededCallback(callback: (system: string, time: number) => void): void;
+    /** Get profiling statistics */
+    getStats(): {
+        isRecording: boolean;
+        frameCount: number;
+        averageFrameTime: number;
+        budgetViolations: number;
+        memorySnapshots: number;
+    };
+    /** Print profiling summary */
+    printSummary(): void;
+}
+
+// =============================================================================
+// Profiler API Implementation
+// =============================================================================
+
+/**
+ * Profiler API implementation class.
+ */
+export class ProfilerAPI implements IProfilerAPI {
     private engine: any;
     private recording: boolean = false;
     private currentSession: ProfilingSession | null = null;
@@ -404,12 +460,19 @@ export class ProfilerAPI {
     }
 }
 
+// =============================================================================
+// Plugin Implementation
+// =============================================================================
+
 /**
- * The Profiling Plugin
+ * Profiling Plugin with type-safe engine extension.
  */
-export class ProfilingPlugin implements EnginePlugin {
+export class ProfilingPlugin implements EnginePlugin<{ profiler: IProfilerAPI }> {
     name = 'ProfilingPlugin';
     version = '1.0.0';
+
+    /** Type brand for compile-time type inference */
+    declare readonly __extensions: { profiler: IProfilerAPI };
 
     private profilerAPI?: ProfilerAPI;
     private unsubscribeUpdate?: () => void;

@@ -9,12 +9,64 @@
  * - Query performance analysis
  */
 
-import type { EnginePlugin, PluginContext, EntityDef, SystemProfile, QueryStats } from '../../../packages/core/src/index';
+import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
+
+// Local type definitions for entities and profiles
+interface EntityDef {
+    id: symbol;
+    name?: string;
+    tags: Set<string>;
+    children: Set<EntityDef>;
+    parent?: EntityDef;
+    hasComponent?: (type: any) => boolean;
+}
+
+interface SystemProfile {
+    name: string;
+    executionTime: number;
+    entityCount: number;
+    callCount: number;
+    averageTime: number;
+}
+
+// =============================================================================
+// Debug API Interface
+// =============================================================================
 
 /**
- * Debug API that will be added to the engine
+ * Debug API interface for type-safe engine extension.
  */
-export class DebugAPI {
+export interface IDebugAPI {
+    /** Print entity hierarchy as a tree structure */
+    printHierarchy(rootEntity?: EntityDef): string;
+    /** Print component usage statistics */
+    printComponentStats(): string;
+    /** Get system execution timeline for analysis */
+    getSystemTimeline(): any[];
+    /** Export timeline to Chrome DevTools trace format */
+    exportChromeTrace(): string;
+    /** Analyze query performance */
+    analyzeQuery(query: any): string;
+    /** Get detailed debug information about the engine state */
+    getDebugInfo(): {
+        entityCount: number;
+        systemCount: number;
+        queryCount: number;
+        componentTypes: number;
+        memoryStats: any;
+    };
+    /** Print comprehensive debug summary */
+    printDebugSummary(): string;
+}
+
+// =============================================================================
+// Debug API Implementation
+// =============================================================================
+
+/**
+ * Debug API implementation class.
+ */
+export class DebugAPI implements IDebugAPI {
     private engine: any;
 
     constructor(engine: any) {
@@ -305,12 +357,19 @@ export class DebugAPI {
     }
 }
 
+// =============================================================================
+// Plugin Implementation
+// =============================================================================
+
 /**
- * The Debug Visualizer Plugin
+ * Debug Visualizer Plugin with type-safe engine extension.
  */
-export class DebugVisualizerPlugin implements EnginePlugin {
+export class DebugVisualizerPlugin implements EnginePlugin<{ debug: IDebugAPI }> {
     name = 'DebugVisualizerPlugin';
     version = '1.0.0';
+
+    /** Type brand for compile-time type inference */
+    declare readonly __extensions: { debug: IDebugAPI };
 
     private debugAPI?: DebugAPI;
 

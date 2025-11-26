@@ -34,11 +34,7 @@ jobs:
         run: npm run build
 
       - name: Generate API documentation
-        run: |
-          npm run docs:generate --workspace=packages/core
-          npm run docs:generate --workspace=packages/math
-          npm run docs:generate --workspace=packages/graphics
-          npm run docs:generate --workspace=packages/testing
+        run: npm run docs:generate
 
       - name: Build examples
         run: npm run build --workspace=examples
@@ -51,15 +47,9 @@ jobs:
           mkdir -p ./deploy/examples
           cp -r ./examples/dist/* ./deploy/examples/ 2>/dev/null || :
 
-          # Copy API documentation
+          # Copy unified API documentation (all packages in one viewer)
           mkdir -p ./deploy/api
-          cp -r ./packages/core/docs/* ./deploy/api/
-          mkdir -p ./deploy/api/math
-          cp -r ./packages/math/docs/* ./deploy/api/math/
-          mkdir -p ./deploy/api/graphics
-          cp -r ./packages/graphics/docs/* ./deploy/api/graphics/
-          mkdir -p ./deploy/api/testing
-          cp -r ./packages/testing/docs/* ./deploy/api/testing/
+          cp -r ./api-docs/* ./deploy/api/
 
           echo "Creating landing page..."
           cat > ./deploy/index.html << 'EOF'
@@ -182,34 +172,13 @@ jobs:
 
                 <div class="section">
                   <h2><span>📚</span> API Documentation</h2>
-                  <p>Complete API reference for all OrionECS packages</p>
+                  <p>Unified API reference for all OrionECS packages with cross-navigation</p>
                   <div class="links">
                     <a href="./api/" class="link">
-                      <span class="icon">⚙️</span>
+                      <span class="icon">📖</span>
                       <div class="text">
-                        <div class="title">Core API</div>
-                        <div class="desc">Engine, entities, systems, queries, and components</div>
-                      </div>
-                    </a>
-                    <a href="./api/math/" class="link">
-                      <span class="icon">🔢</span>
-                      <div class="text">
-                        <div class="title">Math API</div>
-                        <div class="desc">Vector2, Bounds, and geometric operations</div>
-                      </div>
-                    </a>
-                    <a href="./api/graphics/" class="link">
-                      <span class="icon">🎨</span>
-                      <div class="text">
-                        <div class="title">Graphics API</div>
-                        <div class="desc">Color, Mesh, Vertex, and rendering utilities</div>
-                      </div>
-                    </a>
-                    <a href="./api/testing/" class="link">
-                      <span class="icon">🧪</span>
-                      <div class="text">
-                        <div class="title">Testing API</div>
-                        <div class="desc">TestEngineBuilder, assertions, and mocks</div>
+                        <div class="title">Full API Reference</div>
+                        <div class="desc">All packages: Core, Math, Graphics, Testing, Plugin API</div>
                       </div>
                     </a>
                   </div>

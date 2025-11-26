@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/state-machine",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "ECS-native finite state machine plugin for OrionECS with type-safe transitions and predicates",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -37,6 +37,7 @@
   "devDependencies": {
     "@orion-ecs/core": "*",
     "@orion-ecs/plugin-api": "*",
+    "@orion-ecs/testing": "*",
     "@types/jest": "^30.0.0",
     "jest": "^30.0.0",
     "ts-jest": "^29.0.0",

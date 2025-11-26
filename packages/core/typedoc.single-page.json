@@ -1,0 +1,43 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPoints": ["src/index.ts"],
+  "out": "docs-md",
+  "name": "OrionECS API Documentation",
+  "readme": "none",
+  "plugin": ["typedoc-plugin-markdown"],
+  "includeVersion": true,
+  "sort": ["source-order", "required-first", "kind"],
+  "categorizeByGroup": true,
+  "exclude": [
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.bench.ts"
+  ],
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": false,
+  "treatWarningsAsErrors": false,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "skipErrorChecking": false,
+  "cleanOutputDir": true,
+  "visibilityFilters": {
+    "protected": true,
+    "private": false,
+    "inherited": true,
+    "external": false
+  },
+  "outputFileStrategy": "modules",
+  "flattenOutputFiles": true,
+  "entryFileName": "API",
+  "mergeReadme": false,
+  "hidePageHeader": false,
+  "hidePageTitle": false,
+  "hideBreadcrumbs": true,
+  "hideGroupHeadings": false,
+  "expandObjects": true,
+  "expandParameters": true
+}

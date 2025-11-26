@@ -283,7 +283,7 @@ export function parseTreeJSON(
       }
 
       default:
-        throw new Error(`Unknown node type: ${(node as unknown).type}`);
+        throw new Error(`Unknown node type: ${(node as { type?: string }).type}`);
     }
   }
 

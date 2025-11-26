@@ -18,10 +18,12 @@ export {
 } from './commands';
 // Export core building blocks
 export {
+    ARCHETYPE_STORAGE_INDEX,
     ComponentArray,
     Entity,
     EntityManager,
     EventEmitter,
+    EventSubscriptionManager,
     MessageBus,
     PerformanceMonitor,
     Pool,

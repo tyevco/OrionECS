@@ -541,6 +541,103 @@ export class SystemManager {
     getProfiles(): SystemProfile[] {
         return this.getAllSystems().map((system) => system.profile);
     }
+
+    /**
+     * Get a system by name
+     * @param name - The name of the system to find
+     * @returns The system if found, undefined otherwise
+     */
+    getSystem(name: string): System<any> | undefined {
+        return (
+            this.systems.find((s) => s.name === name) ||
+            this.fixedUpdateSystems.find((s) => s.name === name)
+        );
+    }
+
+    /**
+     * Remove a system from the manager and clean up its resources.
+     * This will call the system's destroy() method to unsubscribe from events.
+     *
+     * @param name - The name of the system to remove
+     * @returns true if the system was found and removed, false otherwise
+     */
+    removeSystem(name: string): boolean {
+        // Find and remove from variable update systems
+        const variableIndex = this.systems.findIndex((s) => s.name === name);
+        if (variableIndex !== -1) {
+            const system = this.systems[variableIndex];
+
+            // Remove from group if assigned
+            if (system.group) {
+                const group = this.groups.get(system.group);
+                if (group) {
+                    const groupIndex = group.systems.findIndex((s: System<any>) => s.name === name);
+                    if (groupIndex !== -1) {
+                        group.systems.splice(groupIndex, 1);
+                    }
+                }
+            }
+
+            // Destroy system (cleanup event listeners)
+            system.destroy();
+
+            // Remove from array
+            this.systems.splice(variableIndex, 1);
+            this.systemsSorted = false;
+            return true;
+        }
+
+        // Find and remove from fixed update systems
+        const fixedIndex = this.fixedUpdateSystems.findIndex((s) => s.name === name);
+        if (fixedIndex !== -1) {
+            const system = this.fixedUpdateSystems[fixedIndex];
+
+            // Remove from group if assigned
+            if (system.group) {
+                const group = this.groups.get(system.group);
+                if (group) {
+                    const groupIndex = group.systems.findIndex((s: System<any>) => s.name === name);
+                    if (groupIndex !== -1) {
+                        group.systems.splice(groupIndex, 1);
+                    }
+                }
+            }
+
+            // Destroy system (cleanup event listeners)
+            system.destroy();
+
+            // Remove from array
+            this.fixedUpdateSystems.splice(fixedIndex, 1);
+            this.fixedSystemsSorted = false;
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * Remove all systems and clean up their resources.
+     */
+    removeAllSystems(): void {
+        // Destroy all variable update systems
+        for (const system of this.systems) {
+            system.destroy();
+        }
+        this.systems = [];
+        this.systemsSorted = true;
+
+        // Destroy all fixed update systems
+        for (const system of this.fixedUpdateSystems) {
+            system.destroy();
+        }
+        this.fixedUpdateSystems = [];
+        this.fixedSystemsSorted = true;
+
+        // Clear systems from all groups
+        for (const group of this.groups.values()) {
+            group.systems = [];
+        }
+    }
 }
 
 /**
@@ -1019,5 +1116,20 @@ export class ChangeTrackingManager {
         } finally {
             this.setBatchMode(wasBatchMode);
         }
+    }
+
+    /**
+     * Clean up all pending timers and resources.
+     * Call this when disposing the ChangeTrackingManager.
+     */
+    dispose(): void {
+        // Clear all pending debounce timers
+        for (const timer of this.debounceTimers.values()) {
+            clearTimeout(timer);
+        }
+        this.debounceTimers.clear();
+
+        // Clear dirty components tracking
+        this.dirtyComponentsMap.clear();
     }
 }

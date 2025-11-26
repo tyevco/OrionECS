@@ -1133,6 +1133,74 @@ export class Engine {
         return this.systemManager.getAllSystems();
     }
 
+    /**
+     * Get a system by name.
+     *
+     * @param name - The name of the system to find
+     * @returns The system if found, undefined otherwise
+     *
+     * @example
+     * ```typescript
+     * const movementSystem = engine.getSystem('Movement');
+     * if (movementSystem) {
+     *   movementSystem.enabled = false;
+     * }
+     * ```
+     *
+     * @public
+     */
+    getSystem(name: string): System<any> | undefined {
+        return this.systemManager.getSystem(name);
+    }
+
+    /**
+     * Remove a system from the engine and clean up its resources.
+     *
+     * This will:
+     * 1. Remove the system from execution
+     * 2. Call the system's destroy() method to unsubscribe from all events
+     * 3. Remove the system from any assigned groups
+     *
+     * @param name - The name of the system to remove
+     * @returns true if the system was found and removed, false otherwise
+     *
+     * @example
+     * ```typescript
+     * // Remove a system that's no longer needed
+     * const removed = engine.removeSystem('DebugOverlay');
+     * if (removed) {
+     *   console.log('Debug overlay system removed');
+     * }
+     * ```
+     *
+     * @public
+     */
+    removeSystem(name: string): boolean {
+        const removed = this.systemManager.removeSystem(name);
+        if (removed) {
+            this.eventEmitter.emit('onSystemRemoved', name);
+        }
+        return removed;
+    }
+
+    /**
+     * Remove all systems from the engine and clean up their resources.
+     *
+     * This is useful for complete engine reset or shutdown scenarios.
+     *
+     * @example
+     * ```typescript
+     * // Clean shutdown
+     * engine.stop();
+     * engine.removeAllSystems();
+     * ```
+     *
+     * @public
+     */
+    removeAllSystems(): void {
+        this.systemManager.removeAllSystems();
+    }
+
     // ========== Query Management ==========
 
     createQuery<All extends readonly ComponentIdentifier[]>(

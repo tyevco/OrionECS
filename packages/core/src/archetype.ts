@@ -267,22 +267,35 @@ export class Archetype {
     }
 
     /**
-     * Get memory usage statistics
+     * Get memory usage statistics.
+     *
+     * Note: Memory estimates are **approximate** and platform-dependent.
+     * The estimatedBytes value uses heuristics based on typical JavaScript
+     * object sizes in V8 and may vary significantly across:
+     * - Different JavaScript engines (V8, SpiderMonkey, JavaScriptCore)
+     * - 32-bit vs 64-bit environments
+     * - Component complexity and property count
+     *
+     * For accurate memory profiling, use browser DevTools or Node.js --inspect.
      */
     getMemoryStats(): {
         entityCount: number;
         componentTypeCount: number;
+        /** Approximate memory usage in bytes (see method docs for accuracy notes) */
         estimatedBytes: number;
     } {
-        const ENTITY_REFERENCE_SIZE = 8; // symbol + reference
-        const COMPONENT_SIZE = 32; // Estimated average component size
+        // These are estimates for V8 in 64-bit environments
+        // Actual sizes vary by engine and platform
+        const ENTITY_REFERENCE_SIZE = 8; // Pointer size (64-bit)
+        const COMPONENT_SIZE_ESTIMATE = 32; // Average component with ~3-4 properties
+        const MAP_ENTRY_OVERHEAD = 16; // Map/Set entry overhead per item
 
         const entityCount = this.entities.length;
         const componentTypeCount = this.componentTypes.length;
         const estimatedBytes =
             entityCount * ENTITY_REFERENCE_SIZE + // Entity array
-            entityCount * componentTypeCount * COMPONENT_SIZE + // Component arrays
-            entityCount * 16; // Index map overhead
+            entityCount * componentTypeCount * COMPONENT_SIZE_ESTIMATE + // Component arrays
+            entityCount * MAP_ENTRY_OVERHEAD; // Index map overhead
 
         return {
             entityCount,

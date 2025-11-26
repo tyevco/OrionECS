@@ -96,6 +96,7 @@ export class EngineBuilder<TExtensions extends object = object> {
     private maxSnapshots: number = 10;
     private plugins: EnginePlugin[] = [];
     private enableArchetypeSystem: boolean = true; // Enable archetypes by default
+    private profilingEnabled: boolean = true; // Enable profiling by default for backward compatibility
     private changeTrackingOptions: any = {
         enableProxyTracking: false,
         batchMode: false,
@@ -212,6 +213,46 @@ export class EngineBuilder<TExtensions extends object = object> {
      */
     withArchetypes(enabled: boolean): this {
         this.enableArchetypeSystem = enabled;
+        return this;
+    }
+
+    /**
+     * Enable or disable system profiling for performance monitoring.
+     *
+     * When enabled (default), the engine tracks execution time, entity count, and call count
+     * for each system. This data is available via `engine.getSystemProfiles()` and is useful
+     * for debugging and optimization.
+     *
+     * Disable profiling in production builds to eliminate the overhead of `performance.now()`
+     * calls during system execution. The overhead is small but can add up with many systems.
+     *
+     * @param enabled - Whether to enable system profiling (default: true)
+     * @returns This builder instance for method chaining
+     *
+     * @example
+     * ```typescript
+     * // Development build with profiling
+     * const devEngine = new EngineBuilder()
+     *   .withProfiling(true)
+     *   .withDebugMode(true)
+     *   .build();
+     *
+     * // Production build without profiling overhead
+     * const prodEngine = new EngineBuilder()
+     *   .withProfiling(false)
+     *   .build();
+     * ```
+     *
+     * @example Accessing profiling data
+     * ```typescript
+     * const profiles = engine.getSystemProfiles();
+     * for (const profile of profiles) {
+     *   console.log(`${profile.name}: ${profile.averageTime.toFixed(2)}ms avg`);
+     * }
+     * ```
+     */
+    withProfiling(enabled: boolean): this {
+        this.profilingEnabled = enabled;
         return this;
     }
 
@@ -366,7 +407,8 @@ export class EngineBuilder<TExtensions extends object = object> {
             this.changeTrackingManager,
             this.eventEmitter,
             this.performanceMonitor,
-            this.debugMode
+            this.debugMode,
+            this.profilingEnabled
         );
 
         // Install all registered plugins
@@ -457,7 +499,8 @@ export class Engine {
         private changeTrackingManager: ChangeTrackingManager,
         private eventEmitter: EventEmitter,
         private performanceMonitor: PerformanceMonitor,
-        private debugMode: boolean
+        private debugMode: boolean,
+        private profilingEnabled: boolean = true
     ) {
         // Subscribe to entity changes to update queries
         this.eventEmitter.on('onComponentAdded', (entity: Entity) => {
@@ -1066,7 +1109,13 @@ export class Engine {
         isFixedUpdate: boolean = false
     ): System<ComponentTypes<All>> {
         const query = this.queryManager.createQuery<ComponentTypes<All>>(queryOptions);
-        const system = new System<ComponentTypes<All>>(name, query, options, this.eventEmitter);
+        const system = new System<ComponentTypes<All>>(
+            name,
+            query,
+            options,
+            this.eventEmitter,
+            this.profilingEnabled
+        );
 
         // Update new query with all existing entities
         for (const entity of this.entityManager.getAllEntities()) {
@@ -1899,6 +1948,26 @@ export class Engine {
      */
     areArchetypesEnabled(): boolean {
         return this.componentManager.areArchetypesEnabled();
+    }
+
+    /**
+     * Check if system profiling is enabled.
+     *
+     * When profiling is enabled, the engine tracks execution time, entity count,
+     * and call count for each system. This data is available via `getSystemProfiles()`.
+     *
+     * @returns true if profiling is enabled, false otherwise
+     *
+     * @example
+     * ```typescript
+     * if (engine.isProfilingEnabled()) {
+     *   const profiles = engine.getSystemProfiles();
+     *   // Display profiling data
+     * }
+     * ```
+     */
+    isProfilingEnabled(): boolean {
+        return this.profilingEnabled;
     }
 
     // ========== Plugin System ==========

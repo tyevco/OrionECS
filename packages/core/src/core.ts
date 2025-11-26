@@ -1028,12 +1028,14 @@ export class System<C extends readonly any[] = any[]> {
     private timeSinceLastRun: number = 0;
     private runEveryInterval?: number;
     private hasRunEveryExecuted: boolean = false;
+    private _profilingEnabled: boolean = true;
 
     constructor(
         public name: string,
         query: Query<C>,
         private options: SystemType<C>,
-        private eventEmitter?: any // EventEmitter
+        private eventEmitter?: any, // EventEmitter
+        profilingEnabled: boolean = true
     ) {
         this.query = query;
         this._priority = options.priority || 0;
@@ -1041,6 +1043,7 @@ export class System<C extends readonly any[] = any[]> {
         this._group = options.group;
         this._runAfter = options.runAfter || [];
         this._runBefore = options.runBefore || [];
+        this._profilingEnabled = profilingEnabled;
 
         if (options.tags) {
             options.tags.forEach((tag) => {
@@ -1259,7 +1262,8 @@ export class System<C extends readonly any[] = any[]> {
             return;
         }
 
-        const startTime = performance.now();
+        // Only capture start time if profiling is enabled
+        const startTime = this._profilingEnabled ? performance.now() : 0;
 
         if (this.options.before) {
             this.options.before();
@@ -1278,8 +1282,11 @@ export class System<C extends readonly any[] = any[]> {
             this.options.after();
         }
 
-        const executionTime = performance.now() - startTime;
-        this.updateProfile(executionTime, entities.length);
+        // Only update profile if profiling is enabled
+        if (this._profilingEnabled) {
+            const executionTime = performance.now() - startTime;
+            this.updateProfile(executionTime, entities.length);
+        }
 
         // Mark as run for runOnce
         if (this.shouldRunOnce) {

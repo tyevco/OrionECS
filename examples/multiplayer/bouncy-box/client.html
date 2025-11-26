@@ -207,6 +207,43 @@
     };
 
     // =========================================================================
+    // Security Helpers
+    // =========================================================================
+
+    /**
+     * Escape HTML to prevent XSS attacks
+     */
+    function escapeHtml(str) {
+      if (typeof str !== 'string') return '';
+      return str
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#039;');
+    }
+
+    /**
+     * Sanitize string for safe logging (remove newlines to prevent log injection)
+     */
+    function sanitizeLog(str) {
+      if (typeof str !== 'string') return String(str);
+      return str.replace(/[\r\n]/g, '');
+    }
+
+    /**
+     * Validate CSS color value
+     */
+    function sanitizeColor(color) {
+      if (typeof color !== 'string') return '#FFFFFF';
+      // Only allow valid hex colors
+      if (/^#[0-9A-Fa-f]{6}$/.test(color) || /^#[0-9A-Fa-f]{3}$/.test(color)) {
+        return color;
+      }
+      return '#FFFFFF';
+    }
+
+    // =========================================================================
     // Client State
     // =========================================================================
 
@@ -344,8 +381,8 @@
           handleJoinAccepted(message.data);
           break;
         case 'join_rejected':
-          console.log('[Client] Join rejected:', message.data.reason);
-          statusEl.textContent = 'Join rejected: ' + message.data.reason;
+          console.log('[Client] Join rejected:', sanitizeLog(message.data.reason));
+          statusEl.textContent = 'Join rejected: ' + escapeHtml(message.data.reason);
           break;
         case 'world_snapshot':
           handleWorldSnapshot(message.data);
@@ -360,10 +397,10 @@
           handleEntityDestroy(message.data.networkEntityId);
           break;
         case 'player_joined':
-          console.log('[Client] Player joined:', message.data.playerName);
+          console.log('[Client] Player joined:', sanitizeLog(message.data.playerName));
           break;
         case 'player_left':
-          console.log('[Client] Player left:', message.data.clientId);
+          console.log('[Client] Player left:', sanitizeLog(message.data.clientId));
           break;
         case 'pong':
           handlePong(message.data);
@@ -376,7 +413,7 @@
       localEntityId = data.networkEntityId;
       connected = true;
       statusEl.textContent = 'Playing';
-      console.log('[Client] Joined as', clientId, 'entity:', localEntityId);
+      console.log('[Client] Joined as', sanitizeLog(clientId), 'entity:', sanitizeLog(localEntityId));
     }
 
     function handleWorldSnapshot(data) {
@@ -703,8 +740,8 @@
       let html = '';
       for (const [entityId, entity] of entities) {
         if (entity.entityType !== 'player') continue;
-        const color = entity.components?.BoxVisual?.color || '#FFFFFF';
-        const name = entity.components?.PlayerInfo?.playerName || 'Unknown';
+        const color = sanitizeColor(entity.components?.BoxVisual?.color);
+        const name = escapeHtml(entity.components?.PlayerInfo?.playerName || 'Unknown');
         const isLocal = entityId === localEntityId;
         html += `
           <div class="player-entry">

@@ -329,7 +329,7 @@ export class WebSocketClientTransport implements ClientTransport {
             if (message.type === 'join_accepted') {
                 const joinData = message.data as { clientId: string };
                 this._connectionId = joinData.clientId;
-                this.log(`Assigned connection ID: ${this._connectionId}`);
+                this.log(`Assigned connection ID: ${this.sanitizeLog(this._connectionId)}`);
             }
 
             if (this.messageHandler) {
@@ -388,6 +388,13 @@ export class WebSocketClientTransport implements ClientTransport {
         if (this.debug) {
             console.log('[WebSocketClientTransport]', ...args);
         }
+    }
+
+    /**
+     * Sanitize string for safe logging (remove newlines to prevent log injection)
+     */
+    private sanitizeLog(str: string): string {
+        return str.replace(/[\r\n]/g, '');
     }
 }
 

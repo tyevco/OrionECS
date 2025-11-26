@@ -43,8 +43,8 @@
     "plugins/profiling",
     "plugins/resource-manager",
     "plugins/state-machine",
-    "plugins/decision-tree",
     "plugins/timeline",
+    "plugins/network",
     "tutorials/*"
   ],
   "devDependencies": {

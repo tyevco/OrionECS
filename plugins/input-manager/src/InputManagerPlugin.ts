@@ -11,7 +11,7 @@
  */
 
 import type { Vector2 } from '@orion-ecs/math';
-import type { EnginePlugin, PluginContext } from '../../../packages/core/src/index';
+import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
 
 // Import utilities
 let Vector2Class: typeof Vector2;
@@ -61,10 +61,48 @@ export interface KeyboardEventData {
     repeat: boolean;
 }
 
+// =============================================================================
+// Input API Interface
+// =============================================================================
+
 /**
- * Input Manager API
+ * Input Manager API interface for type-safe engine extension.
  */
-export class InputAPI {
+export interface IInputAPI {
+    /** Initializes the input manager with a target element */
+    initialize(element: HTMLElement): void;
+    /** Clears frame-specific input state (call at end of frame) */
+    clearFrameState(): void;
+    /** Gets the current mouse position */
+    getMousePosition(): Vector2 | null;
+    /** Checks if a mouse button is currently pressed */
+    isMouseButtonDown(button: MouseButton): boolean;
+    /** Checks if currently dragging */
+    getIsDragging(): boolean;
+    /** Gets the current drag state */
+    getDragState(): DragEventData | null;
+    /** Checks if a key is currently held down */
+    isKeyDown(code: string): boolean;
+    /** Checks if a key was pressed this frame */
+    wasKeyPressed(code: string): boolean;
+    /** Checks if a key was released this frame */
+    wasKeyReleased(code: string): boolean;
+    /** Gets all currently pressed keys */
+    getPressedKeys(): string[];
+    /** Subscribes to an input event */
+    on(event: string, callback: Function): () => void;
+    /** Cleans up event listeners */
+    cleanup(): void;
+}
+
+// =============================================================================
+// Input API Implementation
+// =============================================================================
+
+/**
+ * Input Manager API implementation class.
+ */
+export class InputAPI implements IInputAPI {
     private element?: HTMLElement;
 
     // Mouse state
@@ -453,12 +491,19 @@ export class InputAPI {
     }
 }
 
+// =============================================================================
+// Plugin Implementation
+// =============================================================================
+
 /**
- * Input Manager Plugin
+ * Input Manager Plugin with type-safe engine extension.
  */
-export class InputManagerPlugin implements EnginePlugin {
+export class InputManagerPlugin implements EnginePlugin<{ input: IInputAPI }> {
     name = 'InputManagerPlugin';
     version = '1.0.0';
+
+    /** Type brand for compile-time type inference */
+    declare readonly __extensions: { input: IInputAPI };
 
     private api = new InputAPI();
 

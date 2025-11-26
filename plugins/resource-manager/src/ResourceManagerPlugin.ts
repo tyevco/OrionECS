@@ -9,7 +9,7 @@
  * - Resource usage statistics and monitoring
  */
 
-import type { EnginePlugin, PluginContext } from '../../../packages/core/src/index';
+import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
 
 /**
  * Base resource interface
@@ -113,10 +113,51 @@ export class AudioResource implements Resource {
     }
 }
 
+// =============================================================================
+// Resource Manager API Interface
+// =============================================================================
+
 /**
- * Resource Manager API that will be added to the engine
+ * Resource Manager API interface for type-safe engine extension.
  */
-export class ResourceManagerAPI {
+export interface IResourceManagerAPI {
+    /** Register a resource type */
+    register<T extends Resource>(resourceType: ResourceType<T>): void;
+    /** Get a resource with automatic loading and reference counting */
+    get<T extends Resource>(resourceType: ResourceType<T>, key: string, ...args: any[]): Promise<T>;
+    /** Get a resource synchronously (must be already loaded) */
+    getSync<T extends Resource>(resourceType: ResourceType<T>, key: string): T | null;
+    /** Release a resource (decrement reference count) */
+    release<T extends Resource>(resource: T): Promise<void>;
+    /** Preload resources without incrementing reference count */
+    preload<T extends Resource>(resourceType: ResourceType<T>, keys: string[], ...args: any[]): Promise<void>;
+    /** Get resource usage statistics */
+    getStats(): {
+        totalTypes: number;
+        totalResources: number;
+        byType: Array<{
+            type: string;
+            count: number;
+            totalRefs: number;
+            averageRefs: number;
+        }>;
+    };
+    /** Print resource statistics */
+    printStats(): void;
+    /** Clear all resources (force unload) */
+    clearAll(): Promise<void>;
+    /** Cleanup unused resources (with refCount = 0) */
+    cleanupUnused(): Promise<number>;
+}
+
+// =============================================================================
+// Resource Manager API Implementation
+// =============================================================================
+
+/**
+ * Resource Manager API implementation class.
+ */
+export class ResourceManagerAPI implements IResourceManagerAPI {
     private resources = new Map<string, Map<string, ResourceEntry<any>>>();
     private registeredTypes = new Map<string, ResourceType<any>>();
 
@@ -357,12 +398,19 @@ export class ResourceManagerAPI {
     }
 }
 
+// =============================================================================
+// Plugin Implementation
+// =============================================================================
+
 /**
- * The Resource Manager Plugin
+ * Resource Manager Plugin with type-safe engine extension.
  */
-export class ResourceManagerPlugin implements EnginePlugin {
+export class ResourceManagerPlugin implements EnginePlugin<{ resources: IResourceManagerAPI }> {
     name = 'ResourceManagerPlugin';
     version = '1.0.0';
+
+    /** Type brand for compile-time type inference */
+    declare readonly __extensions: { resources: IResourceManagerAPI };
 
     private resourceAPI = new ResourceManagerAPI();
 

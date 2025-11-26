@@ -9,7 +9,13 @@
  * - Custom API extension for spatial operations
  */
 
-import type { EnginePlugin, PluginContext, EntityDef } from '../../../packages/core/src/index';
+import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
+
+// Local type for entity definitions
+interface EntityDef {
+    id: symbol;
+    name?: string;
+}
 
 // Spatial components
 export class SpatialPosition {
@@ -43,10 +49,41 @@ interface GridCell {
     entities: Set<EntityDef>;
 }
 
+// =============================================================================
+// Spatial API Interface
+// =============================================================================
+
 /**
- * Spatial API that will be added to the engine
+ * Spatial API interface for type-safe engine extension.
  */
-export class SpatialAPI {
+export interface ISpatialAPI {
+    /** Create or update spatial partition configuration */
+    createPartition(options: SpatialPartitionOptions): void;
+    /** Update entity position in spatial grid */
+    updateEntity(entity: EntityDef, x: number, y: number): void;
+    /** Remove entity from spatial grid */
+    removeEntity(entity: EntityDef): void;
+    /** Query entities within a radius of a point */
+    queryRadius(position: { x: number; y: number }, radius: number): EntityDef[];
+    /** Query entities within a rectangular area */
+    queryRect(x: number, y: number, width: number, height: number): EntityDef[];
+    /** Get statistics about the spatial partition */
+    getStats(): {
+        totalCells: number;
+        occupiedCells: number;
+        totalEntities: number;
+        averageEntitiesPerCell: number;
+    };
+}
+
+// =============================================================================
+// Spatial API Implementation
+// =============================================================================
+
+/**
+ * Spatial API implementation class.
+ */
+export class SpatialAPI implements ISpatialAPI {
     private grid: Map<string, GridCell> = new Map();
     private cellSize: number = 100;
     private bounds = { x: 0, y: 0, width: 10000, height: 10000 };
@@ -229,12 +266,19 @@ export class SpatialAPI {
     }
 }
 
+// =============================================================================
+// Plugin Implementation
+// =============================================================================
+
 /**
- * The Spatial Partition Plugin
+ * Spatial Partition Plugin with type-safe engine extension.
  */
-export class SpatialPartitionPlugin implements EnginePlugin {
+export class SpatialPartitionPlugin implements EnginePlugin<{ spatial: ISpatialAPI }> {
     name = 'SpatialPartitionPlugin';
     version = '1.0.0';
+
+    /** Type brand for compile-time type inference */
+    declare readonly __extensions: { spatial: ISpatialAPI };
 
     private spatialAPI = new SpatialAPI();
     private unsubscribe?: () => void;

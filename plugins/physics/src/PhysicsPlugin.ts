@@ -7,7 +7,7 @@
  * - Extends the engine with custom APIs
  */
 
-import type { EnginePlugin, PluginContext } from '../../../packages/core/src/index';
+import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
 
 // Physics components
 export class RigidBody {
@@ -33,8 +33,37 @@ export class Position {
     ) {}
 }
 
-// Physics API that will be added to the engine
-export class PhysicsAPI {
+// =============================================================================
+// Physics API Interface
+// =============================================================================
+
+/**
+ * Physics API that will be added to the engine.
+ * Provides gravity, time scaling, and force/impulse application.
+ */
+export interface IPhysicsAPI {
+    /** Set the global gravity vector */
+    setGravity(x: number, y: number): void;
+    /** Get the current gravity vector */
+    getGravity(): { x: number; y: number };
+    /** Set the physics time scale (0 = paused, 1 = normal) */
+    setTimeScale(scale: number): void;
+    /** Get the current time scale */
+    getTimeScale(): number;
+    /** Apply a force to a rigid body (affected by mass) */
+    applyForce(rigidBody: RigidBody, forceX: number, forceY: number): void;
+    /** Apply an impulse to a rigid body (instant velocity change) */
+    applyImpulse(rigidBody: RigidBody, impulseX: number, impulseY: number): void;
+}
+
+// =============================================================================
+// Physics API Implementation
+// =============================================================================
+
+/**
+ * Physics API implementation class.
+ */
+export class PhysicsAPI implements IPhysicsAPI {
     private gravity = { x: 0, y: 9.8 };
     private timeScale = 1;
 
@@ -69,10 +98,19 @@ export class PhysicsAPI {
     }
 }
 
-// The actual plugin
-export class PhysicsPlugin implements EnginePlugin {
+// =============================================================================
+// Plugin Implementation
+// =============================================================================
+
+/**
+ * Physics Plugin with type-safe engine extension.
+ */
+export class PhysicsPlugin implements EnginePlugin<{ physics: IPhysicsAPI }> {
     name = 'PhysicsPlugin';
     version = '1.0.0';
+
+    /** Type brand for compile-time type inference */
+    declare readonly __extensions: { physics: IPhysicsAPI };
 
     private physicsAPI = new PhysicsAPI();
     private unsubscribe?: () => void;

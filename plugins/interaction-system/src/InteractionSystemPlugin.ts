@@ -12,8 +12,11 @@
  * Based on the prototypedestination project's MouseMonitor system.
  */
 
-import type { EnginePlugin, Entity, PluginContext } from '../../../packages/core/src/index';
+import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
 import { Bounds, type Vector2 } from '../../../packages/math/src/index';
+
+// Local Entity type for compatibility
+type Entity = any;
 
 /**
  * Makes an entity clickable
@@ -84,10 +87,36 @@ export class InteractionBounds {
     ) {}
 }
 
+// =============================================================================
+// Interaction API Interface
+// =============================================================================
+
 /**
- * Interaction System API
+ * Interaction System API interface for type-safe engine extension.
  */
-export class InteractionAPI {
+export interface IInteractionAPI {
+    /** Gets all currently selected entities */
+    getSelectedEntities(): Entity[];
+    /** Selects an entity */
+    selectEntity(entity: Entity): void;
+    /** Deselects an entity */
+    deselectEntity(entity: Entity): void;
+    /** Clears all selections */
+    clearSelection(): void;
+    /** Gets all currently hovered entities */
+    getHoveredEntities(): Entity[];
+    /** Marks an entity as hovered (internal use) */
+    _setHovered(entity: Entity, hovered: boolean): void;
+}
+
+// =============================================================================
+// Interaction API Implementation
+// =============================================================================
+
+/**
+ * Interaction System API implementation class.
+ */
+export class InteractionAPI implements IInteractionAPI {
     private selectedEntities: Set<Entity> = new Set();
     private hoveredEntities: Set<Entity> = new Set();
 
@@ -154,12 +183,19 @@ export class InteractionAPI {
     }
 }
 
+// =============================================================================
+// Plugin Implementation
+// =============================================================================
+
 /**
- * Interaction System Plugin
+ * Interaction System Plugin with type-safe engine extension.
  */
-export class InteractionSystemPlugin implements EnginePlugin {
+export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInteractionAPI }> {
     name = 'InteractionSystemPlugin';
     version = '1.0.0';
+
+    /** Type brand for compile-time type inference */
+    declare readonly __extensions: { interaction: IInteractionAPI };
 
     private api = new InteractionAPI();
     private currentDrag: { entity: Entity; startPos: Vector2 } | null = null;

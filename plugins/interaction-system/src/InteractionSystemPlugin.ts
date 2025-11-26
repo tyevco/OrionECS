@@ -12,16 +12,8 @@
  * Based on the prototypedestination project's MouseMonitor system.
  */
 
-import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
+import type { EnginePlugin, PluginContext, EntityDef } from '@orion-ecs/plugin-api';
 import { Bounds, type Vector2 } from '../../../packages/math/src/index';
-
-// Entity definition for type safety
-interface EntityDef {
-    id: symbol;
-    name?: string;
-    getComponent<T>(type: new (...args: any[]) => T): T | undefined;
-    hasComponent<T>(type: new (...args: any[]) => T): boolean;
-}
 
 /**
  * Makes an entity clickable

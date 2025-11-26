@@ -10,17 +10,9 @@
  * Based on the prototypedestination project's rendering systems.
  */
 
-import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
+import type { EnginePlugin, PluginContext, EntityDef } from '@orion-ecs/plugin-api';
 import type { Color, Mesh } from '../../../packages/graphics/src/index';
 import type { Bounds } from '../../../packages/math/src/index';
-
-// Entity definition for type safety
-interface EntityDef {
-    id: symbol;
-    name?: string;
-    getComponent<T>(type: new (...args: any[]) => T): T | undefined;
-    hasComponent<T>(type: new (...args: any[]) => T): boolean;
-}
 
 // Re-export utility types for consumers
 export type { Bounds, Mesh, Color };

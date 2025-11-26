@@ -212,6 +212,7 @@ FakesAssemblies/
 **/.turbo
 
 # Generated documentation
+/api-docs/
 core/docs/
 utils/docs/
 packages/*/docs/

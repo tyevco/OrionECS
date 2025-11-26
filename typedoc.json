@@ -1,0 +1,61 @@
+{
+  "$schema": "https://typedoc.org/schema.json",
+  "entryPointStrategy": "resolve",
+  "entryPoints": [
+    "packages/core/src/index.ts",
+    "packages/math/src/index.ts",
+    "packages/graphics/src/index.ts",
+    "packages/testing/src/index.ts",
+    "packages/plugin-api/src/index.ts",
+    "plugins/canvas2d-renderer/src/index.ts",
+    "plugins/debug-visualizer/src/index.ts",
+    "plugins/decision-tree/src/index.ts",
+    "plugins/input-manager/src/index.ts",
+    "plugins/interaction-system/src/index.ts",
+    "plugins/physics/src/index.ts",
+    "plugins/profiling/src/index.ts",
+    "plugins/resource-manager/src/index.ts",
+    "plugins/spatial-partition/src/index.ts",
+    "plugins/state-machine/src/index.ts"
+  ],
+  "tsconfig": "tsconfig.docs.json",
+  "out": "api-docs",
+  "name": "OrionECS API Documentation",
+  "readme": "README.md",
+  "includeVersion": true,
+  "sort": ["source-order", "required-first", "kind"],
+  "categorizeByGroup": true,
+  "searchInComments": true,
+  "searchInDocuments": true,
+  "navigation": {
+    "includeCategories": true,
+    "includeGroups": true,
+    "includeFolders": true
+  },
+  "exclude": [
+    "**/node_modules/**",
+    "**/*.spec.ts",
+    "**/*.test.ts",
+    "**/*.bench.ts",
+    "**/benchmarks/**"
+  ],
+  "skipErrorChecking": true,
+  "excludePrivate": true,
+  "excludeProtected": false,
+  "excludeInternal": false,
+  "treatWarningsAsErrors": false,
+  "validation": {
+    "notExported": true,
+    "invalidLink": true,
+    "notDocumented": false
+  },
+  "cleanOutputDir": true,
+  "githubPages": true,
+  "hideGenerator": false,
+  "visibilityFilters": {
+    "protected": true,
+    "private": false,
+    "inherited": true,
+    "external": false
+  }
+}

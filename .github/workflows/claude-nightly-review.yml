@@ -70,6 +70,8 @@ jobs:
             - ❌ Runtime type checking that could be compile-time
             - ❌ Use of `any`, `unknown` without proper narrowing
             - ❌ Type assertions to bypass the type system
+            - ❌ **Global state in static variables** - Use `engine.setSingleton()` instead
+            - ❌ Module-level mutable state - State should live in ECS (singletons or components)
 
             ## Review Scope
 
@@ -91,6 +93,8 @@ jobs:
             - Inheritance hierarchies instead of composition
             - Tight coupling between components
             - Core modifications that should be plugins
+            - **Static or module-level state** - Should use `engine.setSingleton()` for global state
+            - Mutable state outside the ECS (globals, statics, module variables)
 
             ### 3. Code Smells
             - Dead code or unused exports

@@ -30,7 +30,8 @@
     "build": "tsup",
     "dev": "tsup --watch",
     "clean": "rm -rf dist",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "test": "jest"
   },
   "keywords": [
     "ecs",
@@ -51,7 +52,12 @@
     "@orion-ecs/core": ">=2.0.0"
   },
   "devDependencies": {
+    "@orion-ecs/core": "*",
+    "@orion-ecs/testing": "*",
+    "@types/jest": "^30.0.0",
     "@types/ws": "^8.5.10",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.0.0",
     "tsup": "^8.0.1",
     "typescript": "^5.3.3",
     "ws": "^8.16.0"

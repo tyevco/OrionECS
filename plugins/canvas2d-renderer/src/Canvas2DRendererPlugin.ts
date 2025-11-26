@@ -14,8 +14,13 @@ import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
 import type { Color, Mesh } from '../../../packages/graphics/src/index';
 import type { Bounds } from '../../../packages/math/src/index';
 
-// Local Entity type for compatibility
-type Entity = any;
+// Entity definition for type safety
+interface EntityDef {
+    id: symbol;
+    name?: string;
+    getComponent<T>(type: new (...args: any[]) => T): T | undefined;
+    hasComponent<T>(type: new (...args: any[]) => T): boolean;
+}
 
 // Re-export utility types for consumers
 export type { Bounds, Mesh, Color };
@@ -108,7 +113,7 @@ export interface ICanvas2DAPI {
     /** Gets the global alpha */
     getGlobalAlpha(): number;
     /** Converts screen coordinates to world coordinates for a camera */
-    screenToWorld(screenX: number, screenY: number, camera: Entity): { x: number; y: number } | null;
+    screenToWorld(screenX: number, screenY: number, camera: EntityDef): { x: number; y: number } | null;
 }
 
 // =============================================================================

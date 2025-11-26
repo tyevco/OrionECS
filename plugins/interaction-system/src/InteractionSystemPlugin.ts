@@ -12,7 +12,7 @@
  * Based on the prototypedestination project's MouseMonitor system.
  */
 
-import type { EnginePlugin, PluginContext, EntityDef } from '@orion-ecs/plugin-api';
+import type { EnginePlugin, EntityDef, PluginContext } from '@orion-ecs/plugin-api';
 import { Bounds, type Vector2 } from '../../../packages/math/src/index';
 
 /**
@@ -24,7 +24,7 @@ export class Clickable {
         public layer: number = 0
     ) {}
 
-    public onClick?: (entity: Entity, position: Vector2) => void;
+    public onClick?: (entity: EntityDef, position: Vector2) => void;
 }
 
 /**
@@ -37,9 +37,9 @@ export class Draggable {
         public dragButton: number = 0 // 0 = left, 1 = middle, 2 = right
     ) {}
 
-    public onDragStart?: (entity: Entity, position: Vector2) => void;
-    public onDrag?: (entity: Entity, delta: Vector2) => void;
-    public onDragEnd?: (entity: Entity, position: Vector2) => void;
+    public onDragStart?: (entity: EntityDef, position: Vector2) => void;
+    public onDrag?: (entity: EntityDef, delta: Vector2) => void;
+    public onDragEnd?: (entity: EntityDef, position: Vector2) => void;
 
     // Internal state
     public isDragging: boolean = false;
@@ -55,8 +55,8 @@ export class Selectable {
     ) {}
 
     public selected: boolean = false;
-    public onSelect?: (entity: Entity) => void;
-    public onDeselect?: (entity: Entity) => void;
+    public onSelect?: (entity: EntityDef) => void;
+    public onDeselect?: (entity: EntityDef) => void;
 }
 
 /**
@@ -69,8 +69,8 @@ export class Hoverable {
     ) {}
 
     public hovered: boolean = false;
-    public onHoverEnter?: (entity: Entity) => void;
-    public onHoverExit?: (entity: Entity) => void;
+    public onHoverEnter?: (entity: EntityDef) => void;
+    public onHoverExit?: (entity: EntityDef) => void;
 }
 
 /**
@@ -294,7 +294,7 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
         const clickables = engine.queryEntities({ all: [Clickable, InteractionBounds] });
 
         // Sort by layer (higher layer = checked first)
-        clickables.sort((a: Entity, b: Entity) => {
+        clickables.sort((a: EntityDef, b: EntityDef) => {
             const aClickable = a.getComponent(Clickable)!;
             const bClickable = b.getComponent(Clickable)!;
             return bClickable.layer - aClickable.layer;
@@ -335,7 +335,7 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
         const draggables = engine.queryEntities({ all: [Draggable, InteractionBounds] });
 
         // Sort by layer
-        draggables.sort((a: Entity, b: Entity) => {
+        draggables.sort((a: EntityDef, b: EntityDef) => {
             const aDraggable = a.getComponent(Draggable)!;
             const bDraggable = b.getComponent(Draggable)!;
             return bDraggable.layer - aDraggable.layer;
@@ -413,7 +413,7 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
         const engine = context.getEngine();
         const hoverables = engine.queryEntities({ all: [Hoverable, InteractionBounds] });
 
-        const currentlyHovered = new Set<Entity>();
+        const currentlyHovered = new Set<EntityDef>();
 
         // Check which entities are hovered
         for (const entity of hoverables) {

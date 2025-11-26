@@ -6,7 +6,7 @@
   "type": "module",
   "scripts": {
     "dev": "vite",
-    "build": "echo \"Examples build skipped (use dev mode)\" && exit 0",
+    "build": "vite build",
     "preview": "vite preview",
     "test": "echo \"No tests for examples\" && exit 0"
   },

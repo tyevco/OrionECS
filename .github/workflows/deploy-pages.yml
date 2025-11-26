@@ -46,7 +46,12 @@ jobs:
       - name: Prepare deployment directory
         run: |
           mkdir -p ./deploy
-          cp -r ./examples/dist/* ./deploy/ 2>/dev/null || :
+
+          # Copy examples (games and integrations)
+          mkdir -p ./deploy/examples
+          cp -r ./examples/dist/* ./deploy/examples/ 2>/dev/null || :
+
+          # Copy API documentation
           mkdir -p ./deploy/api
           cp -r ./packages/core/docs/* ./deploy/api/
           mkdir -p ./deploy/api/math
@@ -55,77 +60,169 @@ jobs:
           cp -r ./packages/graphics/docs/* ./deploy/api/graphics/
           mkdir -p ./deploy/api/testing
           cp -r ./packages/testing/docs/* ./deploy/api/testing/
-          echo "Creating index redirect..."
+
+          echo "Creating landing page..."
           cat > ./deploy/index.html << 'EOF'
           <!DOCTYPE html>
           <html lang="en">
           <head>
             <meta charset="UTF-8">
             <meta name="viewport" content="width=device-width, initial-scale=1.0">
-            <title>OrionECS - Documentation</title>
+            <title>OrionECS - Entity Component System Framework</title>
             <style>
+              * { margin: 0; padding: 0; box-sizing: border-box; }
               body {
                 font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-                max-width: 800px;
-                margin: 60px auto;
-                padding: 0 20px;
-                line-height: 1.6;
+                background: linear-gradient(135deg, #1a1a2e 0%, #16213e 50%, #0f3460 100%);
+                min-height: 100vh;
+                color: #e4e4e4;
               }
-              h1 { color: #2c3e50; }
-              .links { margin-top: 40px; }
-              .link-card {
-                display: block;
-                padding: 20px;
-                margin: 15px 0;
-                background: #f8f9fa;
-                border-left: 4px solid #007bff;
+              .container { max-width: 1200px; margin: 0 auto; padding: 40px 20px; }
+              header { text-align: center; margin-bottom: 50px; }
+              h1 { font-size: 3rem; color: #00d4ff; margin-bottom: 10px; text-shadow: 0 0 30px rgba(0,212,255,0.3); }
+              .subtitle { font-size: 1.2rem; color: #94a3b8; }
+              .sections { display: grid; grid-template-columns: repeat(auto-fit, minmax(350px, 1fr)); gap: 30px; }
+              .section {
+                background: rgba(255,255,255,0.05);
+                border-radius: 16px;
+                padding: 30px;
+                border: 1px solid rgba(255,255,255,0.1);
+                backdrop-filter: blur(10px);
+              }
+              .section h2 { color: #00d4ff; margin-bottom: 20px; font-size: 1.5rem; display: flex; align-items: center; gap: 10px; }
+              .section p { color: #94a3b8; margin-bottom: 20px; line-height: 1.6; }
+              .links { display: flex; flex-direction: column; gap: 12px; }
+              .link {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                padding: 14px 18px;
+                background: rgba(0,212,255,0.1);
+                border-radius: 8px;
                 text-decoration: none;
-                color: inherit;
+                color: #e4e4e4;
                 transition: all 0.3s;
+                border: 1px solid transparent;
               }
-              .link-card:hover {
-                background: #e9ecef;
+              .link:hover {
+                background: rgba(0,212,255,0.2);
+                border-color: rgba(0,212,255,0.3);
                 transform: translateX(5px);
               }
-              .link-card h2 {
-                margin: 0 0 10px 0;
-                color: #007bff;
+              .link .icon { font-size: 1.3rem; }
+              .link .text { flex: 1; }
+              .link .title { font-weight: 600; color: #fff; }
+              .link .desc { font-size: 0.85rem; color: #94a3b8; }
+              .badge {
+                background: #00d4ff;
+                color: #1a1a2e;
+                padding: 2px 8px;
+                border-radius: 4px;
+                font-size: 0.7rem;
+                font-weight: 700;
               }
-              .link-card p {
-                margin: 0;
-                color: #6c757d;
-              }
+              footer { text-align: center; margin-top: 50px; padding: 20px; color: #64748b; }
+              footer a { color: #00d4ff; text-decoration: none; }
+              footer a:hover { text-decoration: underline; }
             </style>
           </head>
           <body>
-            <h1>OrionECS Documentation</h1>
-            <p>Welcome to the OrionECS documentation site. Choose a section below:</p>
+            <div class="container">
+              <header>
+                <h1>OrionECS</h1>
+                <p class="subtitle">A comprehensive Entity Component System framework for TypeScript</p>
+              </header>
 
-            <div class="links">
-              <a href="./api/" class="link-card">
-                <h2>📚 Core API Reference</h2>
-                <p>Complete API documentation for OrionECS engine, entities, systems, and queries</p>
-              </a>
+              <div class="sections">
+                <div class="section">
+                  <h2><span>🎮</span> Examples & Games</h2>
+                  <p>Interactive demonstrations and playable games built with OrionECS</p>
+                  <div class="links">
+                    <a href="./examples/" class="link">
+                      <span class="icon">🚀</span>
+                      <div class="text">
+                        <div class="title">All Examples</div>
+                        <div class="desc">Browse all games and integration demos</div>
+                      </div>
+                    </a>
+                    <a href="./examples/games/asteroids.html" class="link">
+                      <span class="icon">🎯</span>
+                      <div class="text">
+                        <div class="title">Asteroids</div>
+                        <div class="desc">Classic arcade game with physics and pooling</div>
+                      </div>
+                      <span class="badge">GAME</span>
+                    </a>
+                    <a href="./examples/games/platformer.html" class="link">
+                      <span class="icon">🏃</span>
+                      <div class="text">
+                        <div class="title">Platformer</div>
+                        <div class="desc">Physics-based platformer with enemy AI</div>
+                      </div>
+                      <span class="badge">GAME</span>
+                    </a>
+                    <a href="./examples/games/tower-defense.html" class="link">
+                      <span class="icon">🏰</span>
+                      <div class="text">
+                        <div class="title">Tower Defense</div>
+                        <div class="desc">Turrets, waves, and projectile targeting</div>
+                      </div>
+                      <span class="badge">GAME</span>
+                    </a>
+                    <a href="./examples/games/void-vanguard.html" class="link">
+                      <span class="icon">👾</span>
+                      <div class="text">
+                        <div class="title">Void Vanguard</div>
+                        <div class="desc">Space shooter with state machine plugin</div>
+                      </div>
+                      <span class="badge">FSM</span>
+                    </a>
+                  </div>
+                </div>
 
-              <a href="./api/math/" class="link-card">
-                <h2>🔢 Math API Reference</h2>
-                <p>Mathematical utilities: Vector2, Bounds, and geometric operations</p>
-              </a>
+                <div class="section">
+                  <h2><span>📚</span> API Documentation</h2>
+                  <p>Complete API reference for all OrionECS packages</p>
+                  <div class="links">
+                    <a href="./api/" class="link">
+                      <span class="icon">⚙️</span>
+                      <div class="text">
+                        <div class="title">Core API</div>
+                        <div class="desc">Engine, entities, systems, queries, and components</div>
+                      </div>
+                    </a>
+                    <a href="./api/math/" class="link">
+                      <span class="icon">🔢</span>
+                      <div class="text">
+                        <div class="title">Math API</div>
+                        <div class="desc">Vector2, Bounds, and geometric operations</div>
+                      </div>
+                    </a>
+                    <a href="./api/graphics/" class="link">
+                      <span class="icon">🎨</span>
+                      <div class="text">
+                        <div class="title">Graphics API</div>
+                        <div class="desc">Color, Mesh, Vertex, and rendering utilities</div>
+                      </div>
+                    </a>
+                    <a href="./api/testing/" class="link">
+                      <span class="icon">🧪</span>
+                      <div class="text">
+                        <div class="title">Testing API</div>
+                        <div class="desc">TestEngineBuilder, assertions, and mocks</div>
+                      </div>
+                    </a>
+                  </div>
+                </div>
+              </div>
 
-              <a href="./api/graphics/" class="link-card">
-                <h2>🎨 Graphics API Reference</h2>
-                <p>Graphics primitives: Color, Mesh, Vertex, and rendering utilities</p>
-              </a>
-
-              <a href="./api/testing/" class="link-card">
-                <h2>🧪 Testing API Reference</h2>
-                <p>Testing utilities: TestEngineBuilder, assertions, mocks, and test helpers</p>
-              </a>
-
-              <a href="https://github.com/tyevco/OrionECS" class="link-card">
-                <h2>📖 GitHub Repository</h2>
-                <p>Source code, examples, and comprehensive guides</p>
-              </a>
+              <footer>
+                <p>
+                  <a href="https://github.com/tyevco/OrionECS" target="_blank">GitHub</a> ·
+                  <a href="https://www.npmjs.com/package/@orion-ecs/core" target="_blank">npm</a> ·
+                  MIT License
+                </p>
+              </footer>
             </div>
           </body>
           </html>

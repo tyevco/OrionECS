@@ -37,6 +37,8 @@ const MAX_SNAPSHOTS = 10;
  * provide type-safe access via generics.
  */
 export class ComponentManager {
+    // Internal storage uses 'any' for heterogeneous component types.
+    // Type safety is enforced via generic accessor methods at the API boundary.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private componentArrays: Map<ComponentIdentifier, ComponentArray<any>> = new Map();
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -46,6 +48,7 @@ export class ComponentManager {
     private componentPools: Map<ComponentIdentifier, Pool<any>> = new Map();
     private archetypeManager?: ArchetypeManager;
     private archetypesEnabled: boolean = false;
+    // Singleton storage - type safety enforced via generic accessor methods
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private singletonComponents: Map<ComponentIdentifier, any> = new Map();
 
@@ -257,6 +260,8 @@ export class ComponentManager {
  * Note: Internal arrays use 'any' for heterogeneous system storage.
  */
 export class SystemManager {
+    // System arrays store heterogeneous component type tuples.
+    // Using 'any' for internal storage due to TypeScript's variance rules with readonly types.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private systems: System<any>[] = [];
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -290,6 +295,7 @@ export class SystemManager {
         return group;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     createSystem<C extends readonly any[] = any[]>(
         system: System<C>,
         isFixedUpdate: boolean = false
@@ -500,7 +506,9 @@ export class SystemManager {
                 groupSystems = this.groupVariableSystemsCache.get(group.name)!;
             } else {
                 groupSystems = group.systems
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     .filter((s: System<any>) => this.systems.includes(s))
+                    // eslint-disable-next-line @typescript-eslint/no-explicit-any
                     .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
                 this.groupVariableSystemsCache.set(group.name, groupSystems);
             }
@@ -547,7 +555,9 @@ export class SystemManager {
                     groupSystems = this.groupFixedSystemsCache.get(group.name)!;
                 } else {
                     groupSystems = group.systems
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         .filter((s: System<any>) => this.fixedUpdateSystems.includes(s))
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
                         .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
                     this.groupFixedSystemsCache.set(group.name, groupSystems);
                 }
@@ -640,7 +650,10 @@ export class SystemManager {
             if (system.group) {
                 const group = this.groups.get(system.group);
                 if (group) {
-                    const groupIndex = group.systems.findIndex((s: System<any>) => s.name === name);
+                    const groupIndex = group.systems.findIndex(
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        (s: System<any>) => s.name === name
+                    );
                     if (groupIndex !== -1) {
                         group.systems.splice(groupIndex, 1);
                     }
@@ -667,7 +680,10 @@ export class SystemManager {
             if (system.group) {
                 const group = this.groups.get(system.group);
                 if (group) {
-                    const groupIndex = group.systems.findIndex((s: System<any>) => s.name === name);
+                    const groupIndex = group.systems.findIndex(
+                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                        (s: System<any>) => s.name === name
+                    );
                     if (groupIndex !== -1) {
                         group.systems.splice(groupIndex, 1);
                     }
@@ -724,6 +740,7 @@ export class SystemManager {
  * Note: Internal arrays use 'any' for heterogeneous query storage.
  */
 export class QueryManager {
+    // Using 'any' for internal storage due to TypeScript's variance rules with readonly types.
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private queries: Query<any>[] = [];
     private componentManager?: ComponentManager;
@@ -837,7 +854,7 @@ export class PrefabManager {
     createVariant(
         baseName: string,
         overrides: {
-            components?: { [componentName: string]: unknown };
+            components?: Record<string, unknown>;
             tags?: string[];
             children?: EntityPrefab[];
         }

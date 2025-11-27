@@ -14,6 +14,7 @@ import type {
     ComponentLifecycle,
     EntityDef,
     QueryOptions,
+    QueryStats,
     SerializedEntity,
     SystemMessage,
     SystemProfile,
@@ -483,16 +484,19 @@ export class ComponentArray<T> {
  *
  * @public
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export class Query<C extends readonly any[] = any[]> {
+export class Query<C extends readonly unknown[] = unknown[]> {
     private matchingEntities: Set<Entity> = new Set();
     private cachedArray: Entity[] = [];
     private cacheVersion: number = 0;
     private currentVersion: number = 0;
 
     // Archetype-based iteration support
-    private archetypeManager?: ArchetypeManager;
-    private matchingArchetypes?: Archetype[];
+    // Using ArchetypeManager type would cause circular import, so using structural typing
+    private archetypeManager?: {
+        getMatchingArchetypes(options: QueryOptions<ComponentIdentifier[]>): unknown[];
+        getComponent(entity: Entity, type: ComponentIdentifier): unknown;
+    };
+    private matchingArchetypes?: unknown[];
     private archetypesCacheValid: boolean = false;
 
     // Performance tracking
@@ -503,8 +507,11 @@ export class Query<C extends readonly any[] = any[]> {
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(
-        public options: QueryOptions<any>,
-        archetypeManager?: ArchetypeManager
+        public options: QueryOptions<ComponentIdentifier[]>,
+        archetypeManager?: {
+            getMatchingArchetypes(options: QueryOptions<ComponentIdentifier[]>): unknown[];
+            getComponent(entity: Entity, type: ComponentIdentifier): unknown;
+        }
     ) {
         this.archetypeManager = archetypeManager;
     }
@@ -512,7 +519,10 @@ export class Query<C extends readonly any[] = any[]> {
     /**
      * Set the archetype manager for this query (enables archetype-based iteration)
      */
-    setArchetypeManager(manager: ArchetypeManager): void {
+    setArchetypeManager(manager: {
+        getMatchingArchetypes(options: QueryOptions<ComponentIdentifier[]>): unknown[];
+        getComponent(entity: Entity, type: ComponentIdentifier): unknown;
+    }): void {
         this.archetypeManager = manager;
         this.archetypesCacheValid = false;
     }
@@ -617,9 +627,14 @@ export class Query<C extends readonly any[] = any[]> {
             if (this.matchingArchetypes) {
                 // Iterate over archetypes (cache-friendly iteration)
                 for (const archetype of this.matchingArchetypes) {
+                    // Archetype structural type for component array access
+                    const typedArchetype = archetype as {
+                        getComponentArrays(types: ComponentIdentifier[]): unknown[][];
+                        getEntities(): Entity[];
+                    };
                     // Get component arrays in the query's specified order (not archetype's sorted order)
-                    const componentArrays = archetype.getComponentArrays(all);
-                    const entities = archetype.getEntities();
+                    const componentArrays = typedArchetype.getComponentArrays(all);
+                    const entities = typedArchetype.getEntities();
 
                     // Check if we need to filter by tags (tags are not part of archetype matching)
                     const needsTagFiltering = tags.length > 0 || withoutTags.length > 0;
@@ -636,7 +651,11 @@ export class Query<C extends readonly any[] = any[]> {
                         }
 
                         // Extract components in query order
-                        const components = componentArrays.map((arr: any[]) => arr[i]);
+                        // Type assertion is required because component types are only known at runtime
+                        // based on the 'all' array in QueryOptions - TypeScript cannot verify at compile time
+                        const components: unknown[] = componentArrays.map(
+                            (arr: unknown[]) => arr[i]
+                        );
                         callback(entity, ...(components as unknown as C));
                     }
                 }
@@ -646,9 +665,11 @@ export class Query<C extends readonly any[] = any[]> {
 
         // Fallback to traditional entity-based iteration
         for (const entity of this.matchingEntities) {
+            // Type assertion is required because component types are only known at runtime
+            // based on the 'all' array in QueryOptions - TypeScript cannot verify at compile time
             const componentArgs = all.map((componentType: ComponentIdentifier) =>
                 entity.getComponent(componentType)
-            ) as C;
+            ) as unknown as C;
             callback(entity, ...componentArgs);
         }
     }
@@ -656,7 +677,7 @@ export class Query<C extends readonly any[] = any[]> {
     /**
      * Get performance statistics for this query
      */
-    getStats(): any {
+    getStats(): QueryStats {
         return {
             query: this,
             executionCount: this._executionCount,
@@ -693,13 +714,12 @@ export class Query<C extends readonly any[] = any[]> {
 /**
  * Fluent query builder for constructing complex queries
  */
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-export class QueryBuilder<C extends readonly any[] = any[]> {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private options: QueryOptions<any> = {};
+export class QueryBuilder<C extends readonly unknown[] = unknown[]> {
+    private options: QueryOptions<ComponentIdentifier[]> = {};
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    constructor(private createQueryFn: (options: QueryOptions<any>) => Query<C>) {}
+    constructor(
+        private createQueryFn: (options: QueryOptions<ComponentIdentifier[]>) => Query<C>
+    ) {}
 
     /**
      * Add components that entities must have
@@ -1837,7 +1857,7 @@ export class SystemGroup {
  *
  * @public
  */
-export class System<C extends readonly any[] = any[]> {
+export class System<C extends readonly unknown[] = unknown[]> {
     private query: Query<C>;
     private _enabled: boolean = true;
     private _priority: number = 0;
@@ -2203,9 +2223,16 @@ export class System<C extends readonly any[] = any[]> {
         }
     }
 
+    /**
+     * Get components for an entity matching this system's query.
+     *
+     * Type assertion is required because component types are only known at runtime
+     * based on the 'all' array in QueryOptions. TypeScript cannot verify at compile
+     * time that the returned array matches the generic type C.
+     */
     private getComponents(entity: Entity): C {
         const { all = [] } = this.query.options;
-        const components = all.map((componentType: ComponentIdentifier) => {
+        const components: unknown[] = all.map((componentType: ComponentIdentifier) => {
             const component = entity.getComponent(componentType);
             if (component === null) {
                 // This indicates a race condition where the entity matched the query
@@ -2475,6 +2502,7 @@ export class EntityManager {
 
         // Subscribe to entity changes to maintain tag index
         // Store unsubscribe functions for proper cleanup
+        // Event callbacks receive unknown args, so we need to validate the entity type
         this._eventUnsubscribers.push(
             eventEmitter.on('onComponentAdded', (...args: unknown[]) => {
                 const entity = args[0] as Entity;

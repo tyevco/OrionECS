@@ -32,9 +32,14 @@ type Logger = PluginApiLogger;
 /**
  * Type representing a component class constructor.
  *
+ * Using `any[]` for constructor args is necessary because TypeScript cannot express
+ * "any tuple of arguments" in a covariant way with `unknown[]`. Type safety at the
+ * call site is ensured via `ConstructorParameters<T>` when adding components.
+ *
  * @typeParam T - The instance type of the component
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ComponentIdentifier<T = unknown> = new (...args: any[]) => T;
 
 /**
@@ -43,7 +48,7 @@ export type ComponentIdentifier<T = unknown> = new (...args: any[]) => T;
  * @typeParam T - The component identifier type
  * @public
  */
-export type ComponentArgs<T> = T extends new (...args: infer A) => any ? A : never;
+export type ComponentArgs<T> = T extends new (...args: infer A) => unknown ? A : never;
 
 /**
  * Extract the instance type from a ComponentIdentifier.
@@ -480,12 +485,16 @@ export interface EntityDef {
     children: EntityDef[];
     tags: Set<string>;
     queueFree(): void;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     addComponent<T>(
         type: new (...args: any[]) => T,
         ...args: ConstructorParameters<typeof type>
     ): this;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     removeComponent<T>(type: new (...args: any[]) => T): this;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     hasComponent<T>(type: new (...args: any[]) => T): boolean;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getComponent<T>(type: new (...args: any[]) => T): T;
     addTag(tag: string): this;
     removeTag(tag: string): this;
@@ -563,13 +572,15 @@ export interface SerializedEntity {
     id: string;
     name?: string;
     tags: string[];
-    components: { [componentName: string]: any };
+    /** Serialized component data keyed by component class name */
+    components: Record<string, unknown>;
     children?: SerializedEntity[];
 }
 
 export interface SerializedWorld {
     entities: SerializedEntity[];
-    singletons?: { [componentName: string]: any };
+    /** Serialized singleton component data keyed by component class name */
+    singletons?: Record<string, unknown>;
     timestamp: number;
 }
 
@@ -581,7 +592,7 @@ export interface SerializedWorld {
  *
  * @public
  */
-export type EntityPrefabFactory = (...args: any[]) => Omit<EntityPrefab, 'factory' | 'parent'>;
+export type EntityPrefabFactory = (...args: unknown[]) => Omit<EntityPrefab, 'factory' | 'parent'>;
 
 /**
  * Template definition for creating entities with predefined components and configuration.
@@ -630,7 +641,7 @@ export type EntityPrefabFactory = (...args: any[]) => Omit<EntityPrefab, 'factor
  */
 export interface EntityPrefab {
     name: string;
-    components: { type: ComponentIdentifier; args: any[] }[];
+    components: { type: ComponentIdentifier; args: unknown[] }[];
     tags: string[];
     children?: EntityPrefab[];
     factory?: EntityPrefabFactory; // Optional factory for parameterized prefabs
@@ -638,7 +649,7 @@ export interface EntityPrefab {
 }
 
 export interface EntityPrefabOverride {
-    components?: { [componentName: string]: any };
+    components?: { [componentName: string]: unknown };
     tags?: string[];
     children?: EntityPrefab[];
 }
@@ -653,7 +664,8 @@ export interface SystemProfile {
 }
 
 export interface QueryStats {
-    query: any; // Query instance
+    /** The query instance these stats belong to */
+    query: unknown; // Query instance (use unknown to avoid circular import)
     executionCount: number;
     totalTimeMs: number;
     averageTimeMs: number;
@@ -735,16 +747,16 @@ export interface PluginContext {
     hasSingleton<T>(type: ComponentIdentifier<T>): boolean;
     removeSingleton<T>(type: ComponentIdentifier<T>): T | undefined;
 
-    // System creation
+    // System creation - returns System<ComponentTypes<All>> but using unknown to avoid circular dependency
     createSystem<All extends readonly ComponentIdentifier[]>(
         name: string,
         queryOptions: QueryOptions<All>,
         options: SystemType<ComponentTypes<All>>,
         isFixedUpdate?: boolean
-    ): unknown; // System<ComponentTypes<All>>
+    ): unknown;
 
-    // Query creation
-    createQuery<All extends readonly ComponentIdentifier[]>(options: QueryOptions<All>): unknown; // Query<ComponentTypes<All>>
+    // Query creation - returns Query<ComponentTypes<All>> but using unknown to avoid circular dependency
+    createQuery<All extends readonly ComponentIdentifier[]>(options: QueryOptions<All>): unknown;
 
     // Prefab registration and management
     registerPrefab(name: string, prefab: EntityPrefab): void;
@@ -757,7 +769,7 @@ export interface PluginContext {
     variantOfPrefab(
         baseName: string,
         overrides: {
-            components?: { [componentName: string]: unknown };
+            components?: Record<string, unknown>;
             tags?: string[];
             children?: EntityPrefab[];
         },
@@ -780,8 +792,8 @@ export interface PluginContext {
     // Logger for secure, structured logging
     logger: Logger;
 
-    // Get engine instance for advanced use cases
-    getEngine(): unknown; // Engine
+    // Get engine instance for advanced use cases - returns Engine but using unknown to avoid circular dependency
+    getEngine(): unknown;
 }
 
 // Note: EnginePlugin, ExtractPluginExtensions, and InstalledPlugin are

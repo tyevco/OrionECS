@@ -59,7 +59,7 @@ export interface DecisionTreeAPI {
     evaluate(entity: EntityDef): boolean;
 
     /** Get the predicate registry for registering custom predicates */
-    readonly predicates: PredicateRegistry<Record<string, Record<string, unknown>>>;
+    readonly predicates: PredicateRegistry;
 }
 
 // =============================================================================

@@ -21,6 +21,7 @@ export {
     ARCHETYPE_STORAGE_INDEX,
     ComponentArray,
     Entity,
+    EntityIdGenerator,
     EntityManager,
     EventEmitter,
     EventSubscriptionManager,

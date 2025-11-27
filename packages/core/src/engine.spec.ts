@@ -122,6 +122,33 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(engine.getAllEntities()).toHaveLength(0);
         });
 
+        test('should isolate entity IDs between independent engine instances', () => {
+            // Create two separate engine instances
+            const engine1 = new EngineBuilder().build();
+            const engine2 = new EngineBuilder().build();
+
+            // Create entities in both engines
+            const entity1A = engine1.createEntity('Engine1_EntityA');
+            const entity1B = engine1.createEntity('Engine1_EntityB');
+            const entity2A = engine2.createEntity('Engine2_EntityA');
+            const entity2B = engine2.createEntity('Engine2_EntityB');
+
+            // Both engines should start with numeric ID 1
+            // This proves ID generation is per-engine, not global static
+            expect(entity1A.numericId).toBe(1);
+            expect(entity1B.numericId).toBe(2);
+            expect(entity2A.numericId).toBe(1);
+            expect(entity2B.numericId).toBe(2);
+
+            // IDs should be independent - creating more entities in engine1
+            // should not affect engine2's next ID
+            const entity1C = engine1.createEntity('Engine1_EntityC');
+            const entity2C = engine2.createEntity('Engine2_EntityC');
+
+            expect(entity1C.numericId).toBe(3);
+            expect(entity2C.numericId).toBe(3);
+        });
+
         test('should create multiple empty entities', () => {
             const entities = engine.createEntities(10);
             expect(entities.length).toBe(10);

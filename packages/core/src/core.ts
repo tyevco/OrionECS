@@ -139,6 +139,55 @@ export class Pool<T> {
 }
 
 /**
+ * Generates unique numeric IDs for entities within a single engine instance.
+ *
+ * This class provides per-engine ID generation to ensure isolation between
+ * multiple engine instances. Each engine has its own EntityIdGenerator,
+ * preventing ID collisions and ensuring test isolation.
+ *
+ * @example
+ * ```typescript
+ * const generator = new EntityIdGenerator();
+ * const id1 = generator.next(); // 1
+ * const id2 = generator.next(); // 2
+ *
+ * // Reset for a new engine instance
+ * generator.reset();
+ * const id3 = generator.next(); // 1 (starts fresh)
+ * ```
+ *
+ * @public
+ */
+export class EntityIdGenerator {
+    private _nextId: number = 1;
+
+    /**
+     * Generate the next unique entity ID.
+     * @returns A unique numeric ID for an entity
+     */
+    next(): number {
+        return this._nextId++;
+    }
+
+    /**
+     * Get the current counter value without incrementing.
+     * Useful for debugging and testing.
+     * @returns The next ID that will be generated
+     */
+    peek(): number {
+        return this._nextId;
+    }
+
+    /**
+     * Reset the ID generator to its initial state.
+     * This is primarily useful for testing scenarios.
+     */
+    reset(): void {
+        this._nextId = 1;
+    }
+}
+
+/**
  * Sparse array optimized for component storage with built-in change tracking.
  *
  * ComponentArray uses a sparse array structure to efficiently store components
@@ -641,7 +690,6 @@ export class Entity implements EntityDef {
     private _children: Set<Entity> = new Set();
     private _tags: Set<string> = new Set();
     private _changeVersion: number = 0;
-    private static _nextId: number = 1;
 
     // Serialization cache to reduce GC pressure
     private _cachedSerialization: SerializedEntity | null = null;
@@ -650,10 +698,11 @@ export class Entity implements EntityDef {
     // Dependency injection of managers
     constructor(
         private componentManager: any, // ComponentManager
-        private eventEmitter: any // EventEmitter or callback
+        private eventEmitter: any, // EventEmitter or callback
+        idGenerator: EntityIdGenerator
     ) {
         this._id = Symbol();
-        this._numericId = Entity._nextId++;
+        this._numericId = idGenerator.next();
     }
 
     get id(): symbol {
@@ -1524,8 +1573,12 @@ export class Entity implements EntityDef {
         this._cachedSerializationVersion = -1;
     }
 
-    static create(componentManager: any, eventEmitter: any): Entity {
-        return new Entity(componentManager, eventEmitter);
+    static create(
+        componentManager: any,
+        eventEmitter: any,
+        idGenerator: EntityIdGenerator
+    ): Entity {
+        return new Entity(componentManager, eventEmitter, idGenerator);
     }
 }
 
@@ -2219,13 +2272,16 @@ export class EntityManager {
     private entitiesToDelete: Set<Entity> = new Set();
     /** Stores unsubscribe functions for event listeners to enable cleanup */
     private _eventUnsubscribers: Array<() => void> = [];
+    /** Per-engine entity ID generator to ensure isolation between engine instances */
+    private readonly idGenerator: EntityIdGenerator;
 
     constructor(
         componentManager: any,
         private eventEmitter: EventEmitter
     ) {
+        this.idGenerator = new EntityIdGenerator();
         this.entityPool = new Pool(
-            () => Entity.create(componentManager, eventEmitter),
+            () => Entity.create(componentManager, eventEmitter, this.idGenerator),
             (entity) => entity.reset()
         );
 

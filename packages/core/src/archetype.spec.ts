@@ -3,7 +3,7 @@
  */
 
 import { Archetype, ArchetypeManager } from './archetype';
-import { Entity, EventEmitter } from './core';
+import { Entity, EntityIdGenerator, EventEmitter } from './core';
 import { ComponentManager } from './managers';
 
 // Test components
@@ -103,12 +103,14 @@ describe('Archetype', () => {
     describe('entity management', () => {
         let componentManager: ComponentManager;
         let eventEmitter: EventEmitter;
+        let idGenerator: EntityIdGenerator;
         let entity: Entity;
 
         beforeEach(() => {
             componentManager = new ComponentManager();
             eventEmitter = new EventEmitter();
-            entity = Entity.create(componentManager, eventEmitter);
+            idGenerator = new EntityIdGenerator();
+            entity = Entity.create(componentManager, eventEmitter, idGenerator);
         });
 
         it('should add entity with components', () => {
@@ -127,7 +129,7 @@ describe('Archetype', () => {
             components1.set(Position, new Position(10, 20));
             components1.set(Velocity, new Velocity(1, 2));
 
-            const entity2 = Entity.create(componentManager, eventEmitter);
+            const entity2 = Entity.create(componentManager, eventEmitter, idGenerator);
             const components2 = new Map();
             components2.set(Position, new Position(30, 40));
             components2.set(Velocity, new Velocity(3, 4));
@@ -173,7 +175,7 @@ describe('Archetype', () => {
         });
 
         it('should iterate over entities efficiently', () => {
-            const entity2 = Entity.create(componentManager, eventEmitter);
+            const entity2 = Entity.create(componentManager, eventEmitter, idGenerator);
 
             const components1 = new Map();
             components1.set(Position, new Position(10, 20));
@@ -213,11 +215,13 @@ describe('ArchetypeManager', () => {
     let archetypeManager: ArchetypeManager;
     let componentManager: ComponentManager;
     let eventEmitter: EventEmitter;
+    let idGenerator: EntityIdGenerator;
 
     beforeEach(() => {
         archetypeManager = new ArchetypeManager();
         componentManager = new ComponentManager();
         eventEmitter = new EventEmitter();
+        idGenerator = new EntityIdGenerator();
     });
 
     describe('getOrCreateArchetype', () => {
@@ -250,7 +254,7 @@ describe('ArchetypeManager', () => {
         let entity: Entity;
 
         beforeEach(() => {
-            entity = Entity.create(componentManager, eventEmitter);
+            entity = Entity.create(componentManager, eventEmitter, idGenerator);
         });
 
         it('should add entity to archetype', () => {
@@ -349,7 +353,7 @@ describe('ArchetypeManager', () => {
         });
 
         it('should provide memory statistics', () => {
-            const entity = Entity.create(componentManager, eventEmitter);
+            const entity = Entity.create(componentManager, eventEmitter, idGenerator);
             const archetype = archetypeManager.getOrCreateArchetype([Position]);
             const components = new Map();
             components.set(Position, new Position(10, 20));

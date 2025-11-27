@@ -8,7 +8,7 @@
  * @module Core
  */
 
-import type { ArchetypeManager } from './archetype';
+import type { Archetype, ArchetypeManager } from './archetype';
 import type {
     ComponentIdentifier,
     ComponentLifecycle,
@@ -490,8 +490,8 @@ export class Query<C extends readonly any[] = any[]> {
     private currentVersion: number = 0;
 
     // Archetype-based iteration support
-    private archetypeManager?: any; // ArchetypeManager
-    private matchingArchetypes?: any[]; // Archetype[]
+    private archetypeManager?: ArchetypeManager;
+    private matchingArchetypes?: Archetype[];
     private archetypesCacheValid: boolean = false;
 
     // Performance tracking
@@ -502,7 +502,7 @@ export class Query<C extends readonly any[] = any[]> {
 
     constructor(
         public options: QueryOptions<any>,
-        archetypeManager?: any
+        archetypeManager?: ArchetypeManager
     ) {
         this.archetypeManager = archetypeManager;
     }
@@ -510,7 +510,7 @@ export class Query<C extends readonly any[] = any[]> {
     /**
      * Set the archetype manager for this query (enables archetype-based iteration)
      */
-    setArchetypeManager(manager: any): void {
+    setArchetypeManager(manager: ArchetypeManager): void {
         this.archetypeManager = manager;
         this.archetypesCacheValid = false;
     }

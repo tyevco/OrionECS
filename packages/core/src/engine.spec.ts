@@ -4782,4 +4782,222 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(parentChangedCount).toBe(2); // Once for add, once for remove
         });
     });
+
+    describe('Engine Destroy and Cleanup', () => {
+        test('should properly destroy engine and clean up resources', () => {
+            const testEngine = new EngineBuilder().withDebugMode(true).build();
+            testEngine.registerComponent(Position);
+            testEngine.registerComponent(Velocity);
+
+            // Create some entities
+            const entity1 = testEngine.createEntity('Entity1');
+            entity1.addComponent(Position, 0, 0);
+            const entity2 = testEngine.createEntity('Entity2');
+            entity2.addComponent(Position, 1, 1);
+            entity2.addComponent(Velocity, 1, 1);
+
+            // Create a system
+            testEngine.createSystem(
+                'MovementSystem',
+                { all: [Position, Velocity] },
+                {
+                    act: (entity, position, velocity) => {
+                        position.x += velocity.x;
+                        position.y += velocity.y;
+                    },
+                }
+            );
+
+            testEngine.start();
+            testEngine.update(16);
+
+            // Destroy the engine
+            testEngine.destroy();
+
+            // Verify engine is destroyed
+            expect(testEngine.isDestroyed).toBe(true);
+
+            // Verify entities are cleared
+            expect(testEngine.getAllEntities()).toHaveLength(0);
+        });
+
+        test('should not allow double destroy', () => {
+            const testEngine = new EngineBuilder().build();
+            testEngine.registerComponent(Position);
+
+            testEngine.destroy();
+            expect(testEngine.isDestroyed).toBe(true);
+
+            // Calling destroy again should not throw
+            expect(() => testEngine.destroy()).not.toThrow();
+            expect(testEngine.isDestroyed).toBe(true);
+        });
+
+        test('should stop running engine on destroy', () => {
+            const testEngine = new EngineBuilder().build();
+            testEngine.registerComponent(Position);
+
+            testEngine.start();
+            expect(testEngine.isRunning).toBe(true);
+
+            testEngine.destroy();
+            expect(testEngine.isRunning).toBe(false);
+            expect(testEngine.isDestroyed).toBe(true);
+        });
+
+        test('should remove all systems on destroy', () => {
+            const testEngine = new EngineBuilder().build();
+            testEngine.registerComponent(Position);
+            testEngine.registerComponent(Velocity);
+
+            testEngine.createSystem('System1', { all: [Position] }, { act: () => {} });
+            testEngine.createSystem('System2', { all: [Velocity] }, { act: () => {} });
+
+            expect(testEngine.getSystem('System1')).toBeDefined();
+            expect(testEngine.getSystem('System2')).toBeDefined();
+
+            testEngine.destroy();
+
+            // Systems should be removed
+            expect(testEngine.getSystem('System1')).toBeUndefined();
+            expect(testEngine.getSystem('System2')).toBeUndefined();
+        });
+
+        test('should clean up hierarchy event listeners when system is removed', () => {
+            const testEngine = new EngineBuilder().build();
+            testEngine.registerComponent(Position);
+
+            let childAddedCount = 0;
+            let childRemovedCount = 0;
+            let parentChangedCount = 0;
+
+            // Create system with hierarchy listeners
+            testEngine.createSystem(
+                'HierarchyWatcher',
+                { all: [Position] },
+                {
+                    watchHierarchy: true,
+                    onChildAdded: () => {
+                        childAddedCount++;
+                    },
+                    onChildRemoved: () => {
+                        childRemovedCount++;
+                    },
+                    onParentChanged: () => {
+                        parentChangedCount++;
+                    },
+                    act: () => {},
+                }
+            );
+
+            const parent1 = testEngine.createEntity('Parent1');
+            parent1.addComponent(Position, 0, 0);
+            const child1 = testEngine.createEntity('Child1');
+            child1.addComponent(Position, 1, 1);
+
+            parent1.addChild(child1);
+            expect(childAddedCount).toBe(1);
+            expect(parentChangedCount).toBe(1);
+
+            // Remove the system
+            testEngine.removeSystem('HierarchyWatcher');
+
+            // Create new hierarchy changes - they should NOT trigger the old callbacks
+            const parent2 = testEngine.createEntity('Parent2');
+            parent2.addComponent(Position, 2, 2);
+            const child2 = testEngine.createEntity('Child2');
+            child2.addComponent(Position, 3, 3);
+
+            parent2.addChild(child2);
+
+            // Counts should not increase since the system was removed
+            expect(childAddedCount).toBe(1);
+            expect(childRemovedCount).toBe(0);
+            expect(parentChangedCount).toBe(1);
+
+            testEngine.destroy();
+        });
+
+        test('should clean up component change listeners when system is removed', () => {
+            const testEngine = new EngineBuilder().build();
+            testEngine.registerComponent(Position);
+
+            let componentAddedCount = 0;
+            let componentRemovedCount = 0;
+
+            // Create system with component listeners
+            testEngine.createSystem(
+                'ComponentWatcher',
+                { all: [Position] },
+                {
+                    onComponentAdded: () => {
+                        componentAddedCount++;
+                    },
+                    onComponentRemoved: () => {
+                        componentRemovedCount++;
+                    },
+                    act: () => {},
+                }
+            );
+
+            const entity1 = testEngine.createEntity('Entity1');
+            entity1.addComponent(Position, 0, 0);
+            expect(componentAddedCount).toBe(1);
+
+            entity1.removeComponent(Position);
+            expect(componentRemovedCount).toBe(1);
+
+            // Remove the system
+            testEngine.removeSystem('ComponentWatcher');
+
+            // Create new component changes - they should NOT trigger the old callbacks
+            const entity2 = testEngine.createEntity('Entity2');
+            entity2.addComponent(Position, 1, 1);
+
+            // Counts should not increase since the system was removed
+            expect(componentAddedCount).toBe(1);
+            expect(componentRemovedCount).toBe(1);
+
+            testEngine.destroy();
+        });
+
+        test('should emit onDestroy event when destroyed', () => {
+            const testEngine = new EngineBuilder().build();
+            testEngine.registerComponent(Position);
+
+            let destroyEventFired = false;
+            testEngine.on('onDestroy', () => {
+                destroyEventFired = true;
+            });
+
+            testEngine.destroy();
+
+            expect(destroyEventFired).toBe(true);
+        });
+
+        test('should clear message bus subscriptions on destroy', () => {
+            const testEngine = new EngineBuilder().build();
+            testEngine.registerComponent(Position);
+
+            let messageReceived = false;
+
+            testEngine.messageBus.subscribe('test-message', () => {
+                messageReceived = true;
+            });
+
+            // Publish before destroy
+            testEngine.messageBus.publish('test-message', { data: 'test' });
+            expect(messageReceived).toBe(true);
+
+            messageReceived = false;
+
+            testEngine.destroy();
+
+            // Publishing after destroy should not trigger callback
+            // (though in practice you shouldn't use the engine after destroy)
+            // This mainly tests that clear() was called
+            const history = testEngine.messageBus.getMessageHistory('test-message');
+            expect(history).toHaveLength(0);
+        });
+    });
 });

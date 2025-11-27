@@ -1777,23 +1777,26 @@ export class System<C extends readonly any[] = any[]> {
 
         // Subscribe to child added events
         if (this.options.onChildAdded || this.options.watchHierarchy) {
-            this.eventEmitter.on('onChildAdded', (event: any) => {
+            const unsubscribe = this.eventEmitter.on('onChildAdded', (event: any) => {
                 this.options.onChildAdded?.(event);
             });
+            this._eventUnsubscribers.push(unsubscribe);
         }
 
         // Subscribe to child removed events
         if (this.options.onChildRemoved || this.options.watchHierarchy) {
-            this.eventEmitter.on('onChildRemoved', (event: any) => {
+            const unsubscribe = this.eventEmitter.on('onChildRemoved', (event: any) => {
                 this.options.onChildRemoved?.(event);
             });
+            this._eventUnsubscribers.push(unsubscribe);
         }
 
         // Subscribe to parent changed events
         if (this.options.onParentChanged || this.options.watchHierarchy) {
-            this.eventEmitter.on('onParentChanged', (event: any) => {
+            const unsubscribe = this.eventEmitter.on('onParentChanged', (event: any) => {
                 this.options.onParentChanged?.(event);
             });
+            this._eventUnsubscribers.push(unsubscribe);
         }
     }
 
@@ -2051,6 +2054,15 @@ export class MessageBus {
             return this.messageHistory.filter((msg) => msg.type === messageType);
         }
         return [...this.messageHistory];
+    }
+
+    /**
+     * Clear all subscribers and message history.
+     * Called when the MessageBus is being disposed.
+     */
+    clear(): void {
+        this.subscribers.clear();
+        this.messageHistory = [];
     }
 }
 

@@ -896,6 +896,14 @@ export class MessageManager {
     getHistory(messageType?: string): SystemMessage[] {
         return this.bus.getMessageHistory(messageType);
     }
+
+    /**
+     * Clear all subscriptions and message history.
+     * Called when the MessageManager is being disposed.
+     */
+    clear(): void {
+        this.bus.clear();
+    }
 }
 
 /**

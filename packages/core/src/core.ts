@@ -57,7 +57,7 @@ export class CircularBuffer<T> {
 
     constructor(capacity: number) {
         this.capacity = capacity;
-        this.buffer = new Array(capacity);
+        this.buffer = Array.from({ length: capacity });
     }
 
     /**
@@ -121,7 +121,7 @@ export class CircularBuffer<T> {
      * Clear all items from the buffer.
      */
     clear(): void {
-        this.buffer = new Array(this.capacity);
+        this.buffer = Array.from({ length: this.capacity });
         this.head = 0;
         this._size = 0;
     }

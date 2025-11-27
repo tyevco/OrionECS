@@ -113,6 +113,30 @@ Entity lifecycle is managed through advanced object pooling to minimize garbage 
 
 ## Development Commands
 
+### Critical Rule: Never Bypass Validation
+
+**IMPORTANT: Bypassing validation checks is considered a failure.**
+
+- ❌ **NEVER** use `--no-verify` to skip git hooks
+- ❌ **NEVER** use `--force` flags to bypass safety checks
+- ❌ **NEVER** disable linter rules with inline comments to hide errors
+- ❌ **NEVER** skip tests or type checks to push code faster
+- ✅ **ALWAYS** fix linting errors properly in the code
+- ✅ **ALWAYS** resolve type errors before committing
+- ✅ **ALWAYS** ensure all tests pass before pushing
+- ✅ **ALWAYS** address pre-commit hook failures by fixing the underlying issues
+
+If pre-commit hooks fail, the correct response is to:
+1. Review the specific errors reported
+2. Fix each issue in the source code
+3. Re-run the commit with all checks passing
+
+This rule exists because bypassing validation:
+- Introduces technical debt and code quality issues
+- Hides real problems that will surface later
+- Undermines the purpose of having validation in place
+- Makes the codebase harder to maintain
+
 ### Build and Test
 - `npm run build` - Build with tsup (outputs CommonJS and ESM to `dist/` with type declarations)
 - `npm test` - Run comprehensive unit tests using Jest

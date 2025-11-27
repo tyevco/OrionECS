@@ -11,17 +11,13 @@ on:
         description: 'Optional: Focus area for the review (e.g., "security", "performance", "all")'
         required: false
         default: 'all'
-      discussion_category:
-        description: 'Discussion category to post results to'
-        required: false
-        default: 'Reports'
 
 jobs:
   nightly-review:
     runs-on: ubuntu-latest
     permissions:
       contents: read
-      discussions: write
+      issues: write
       id-token: write
 
     steps:
@@ -167,48 +163,11 @@ jobs:
 
             ## Output Format
 
-            Create a GitHub Discussion with your findings using the GraphQL API. Follow these steps:
+            Create a GitHub issue with your findings using `gh issue create`. The issue should:
 
-            ### Step 1: Get repository and category IDs
-            First, query for the repository ID and discussion category ID:
-            ```bash
-            gh api graphql -f query='
-              query {
-                repository(owner: "${{ github.repository_owner }}", name: "${{ github.event.repository.name }}") {
-                  id
-                  discussionCategories(first: 10) {
-                    nodes {
-                      id
-                      name
-                    }
-                  }
-                }
-              }
-            '
-            ```
-
-            ### Step 2: Create the discussion
-            Use the createDiscussion mutation with the IDs from step 1:
-            ```bash
-            gh api graphql -f query='
-              mutation {
-                createDiscussion(input: {
-                  repositoryId: "REPO_ID_FROM_STEP_1",
-                  categoryId: "CATEGORY_ID_FROM_STEP_1",
-                  title: "🔍 Nightly Code Review - [DATE]",
-                  body: "YOUR_REVIEW_BODY_HERE"
-                }) {
-                  discussion {
-                    url
-                  }
-                }
-              }
-            '
-            ```
-
-            Target category: "${{ github.event.inputs.discussion_category || 'Reports' }}"
-
-            The discussion **Body** should include:
+            1. **Title**: "🔍 Nightly Code Review - [DATE]"
+            2. **Labels**: `code-review`, `automated`
+            3. **Body** should include:
                - Executive summary (1-2 paragraphs)
                - Findings organized by severity (Critical, High, Medium, Low)
                - Each finding should include:
@@ -229,7 +188,7 @@ jobs:
             - Be specific - include file paths and line numbers
             - Group related issues together
             - **Examples matter**: Flag anti-patterns in examples/ as HIGH priority (users will copy these)
-            - If no significant issues are found, still create a discussion with a brief "all clear" summary
+            - If no significant issues are found, still create an issue with a brief "all clear" summary
 
             ## Key Directories to Review
 
@@ -238,4 +197,11 @@ jobs:
             - `packages/*/src/` - Supporting packages
             - `examples/` - Example code (check for anti-patterns that users might copy)
 
-          claude_args: '--allowed-tools "Bash(gh api graphql:*),Bash(wc:*),Bash(grep:*)"'
+          claude_args: '--allowed-tools "Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh label create:*)"'
+
+      - name: Ensure labels exist
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          gh label create "code-review" --description "Automated code review findings" --color "7057ff" --force || true
+          gh label create "automated" --description "Automatically generated" --color "bfdadc" --force || true

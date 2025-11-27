@@ -630,6 +630,7 @@ export class Engine {
         this._logger = new EngineLogger({ debugEnabled: debugMode });
         // Subscribe to entity changes to update queries
         // Store unsubscribers for proper cleanup on destroy
+        // Event callbacks receive unknown args, so we need to cast the entity type
         this.engineEventUnsubscribers.push(
             this.eventEmitter.on('onComponentAdded', (...args: unknown[]) => {
                 const entity = args[0] as Entity;
@@ -2136,11 +2137,16 @@ export class Engine {
             .map((entity) => entity.serialize());
 
         // Serialize singleton components
-        const singletons: { [componentName: string]: unknown } = {};
+        const singletons: Record<string, unknown> = {};
         const allSingletons = this.componentManager.getAllSingletons();
 
         for (const [componentType, component] of allSingletons) {
-            singletons[componentType.name] = { ...(component as object) };
+            // Spread object components or wrap primitives
+            if (component !== null && typeof component === 'object') {
+                singletons[componentType.name] = { ...(component as object) };
+            } else {
+                singletons[componentType.name] = component;
+            }
         }
 
         return {

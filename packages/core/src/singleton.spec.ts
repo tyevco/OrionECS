@@ -268,9 +268,11 @@ describe('Singleton Components', () => {
 
             expect(world.singletons).toBeDefined();
             expect(world.singletons!['GameTime']).toBeDefined();
-            expect(world.singletons!['GameTime'].elapsed).toBe(10.5);
+            const gameTime = world.singletons!['GameTime'] as { elapsed: number };
+            expect(gameTime.elapsed).toBe(10.5);
             expect(world.singletons!['GameSettings']).toBeDefined();
-            expect(world.singletons!['GameSettings'].difficulty).toBe('hard');
+            const gameSettings = world.singletons!['GameSettings'] as { difficulty: string };
+            expect(gameSettings.difficulty).toBe('hard');
         });
 
         test('should restore singletons from snapshot', () => {

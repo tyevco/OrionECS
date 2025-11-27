@@ -1,13 +1,9 @@
 {
-  "extends": "../../packages/core/tsconfig.json",
+  "extends": "../../tsconfig.base.json",
   "compilerOptions": {
+    "lib": ["ES2023", "DOM"],
     "outDir": "./dist",
-    "baseUrl": "../..",
-    "paths": {
-      "orion-ecs": ["packages/core/src/index.ts"],
-      "@orion-ecs/math": ["packages/math/src/index.ts"],
-      "@orion-ecs/graphics": ["packages/graphics/src/index.ts"]
-    }
+    "rootDir": "./src"
   },
   "include": ["src/**/*"],
   "exclude": ["node_modules", "dist", "**/*.spec.ts", "**/*.test.ts"]

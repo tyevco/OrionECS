@@ -36,6 +36,7 @@
     "@orion-ecs/math": "*"
   },
   "devDependencies": {
+    "@orion-ecs/math": "*",
     "@orion-ecs/plugin-api": "*",
     "@orion-ecs/testing": "*",
     "tsup": "^8.0.0",

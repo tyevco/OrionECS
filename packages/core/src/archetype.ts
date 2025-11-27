@@ -254,7 +254,7 @@ export class Archetype {
             const component = components.get(type);
             if (component === undefined) {
                 throw new Error(
-                    `Component ${type.name} not found when adding entity to archetype ${this.id}`
+                    `[ECS] Component ${type.name} not found when adding entity to archetype ${this.id}`
                 );
             }
             const array = this.componentArrays.get(type);
@@ -419,26 +419,26 @@ export class Archetype {
         const index = this.entityToIndex.get(entity.id);
         if (index === undefined) {
             throw new Error(
-                `Entity ${entity.name || entity.numericId} not found in archetype ${this.id}`
+                `[ECS] Entity ${entity.name || entity.numericId} not found in archetype ${this.id}`
             );
         }
 
         // Validate array bounds to handle stale indices from concurrent modifications
         if (index < 0 || index >= this.entities.length) {
             throw new Error(
-                `Entity ${entity.name || entity.numericId} has stale index ${index} in archetype ${this.id} (size: ${this.entities.length})`
+                `[ECS] Entity ${entity.name || entity.numericId} has stale index ${index} in archetype ${this.id} (size: ${this.entities.length})`
             );
         }
 
         const array = this.componentArrays.get(type);
         if (!array) {
-            throw new Error(`Component type ${type.name} not found in archetype ${this.id}`);
+            throw new Error(`[ECS] Component type ${type.name} not found in archetype ${this.id}`);
         }
 
         // Additional bounds check on component array
         if (index >= array.length) {
             throw new Error(
-                `Component array for ${type.name} has stale index ${index} in archetype ${this.id} (array size: ${array.length})`
+                `[ECS] Component array for ${type.name} has stale index ${index} in archetype ${this.id} (array size: ${array.length})`
             );
         }
 
@@ -726,7 +726,9 @@ export class ArchetypeManager {
     setComponent<T>(entity: Entity, type: ComponentIdentifier<T>, component: T): void {
         const archetype = this.entityToArchetype.get(entity.id);
         if (!archetype) {
-            throw new Error(`Entity ${entity.name || entity.numericId} not found in any archetype`);
+            throw new Error(
+                `[ECS] Entity ${entity.name || entity.numericId} not found in any archetype`
+            );
         }
         archetype.setComponent(entity, type, component);
     }

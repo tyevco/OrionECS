@@ -8,7 +8,7 @@
  * @module Core
  */
 
-import type { Archetype, ArchetypeManager } from './archetype';
+import type { ArchetypeManager } from './archetype';
 import type {
     ComponentIdentifier,
     ComponentLifecycle,

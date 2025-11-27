@@ -483,6 +483,7 @@ export class ComponentArray<T> {
  *
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class Query<C extends readonly any[] = any[]> {
     private matchingEntities: Set<Entity> = new Set();
     private cachedArray: Entity[] = [];
@@ -500,6 +501,7 @@ export class Query<C extends readonly any[] = any[]> {
     private _lastMatchCount: number = 0;
     private _cacheHits: number = 0;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(
         public options: QueryOptions<any>,
         archetypeManager?: ArchetypeManager
@@ -691,9 +693,12 @@ export class Query<C extends readonly any[] = any[]> {
 /**
  * Fluent query builder for constructing complex queries
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class QueryBuilder<C extends readonly any[] = any[]> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private options: QueryOptions<any> = {};
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(private createQueryFn: (options: QueryOptions<any>) => Query<C>) {}
 
     /**
@@ -2253,7 +2258,7 @@ export class MessageBus {
         };
     }
 
-    publish(messageType: string, data: any, sender?: string): void {
+    publish(messageType: string, data: unknown, sender?: string): void {
         const message: SystemMessage = {
             type: messageType,
             data,
@@ -2299,14 +2304,14 @@ export class MessageBus {
  * Uses CircularBuffer for O(1) event history insertion instead of O(n) shift operations.
  */
 export class EventEmitter {
-    private listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
-    private eventHistory: CircularBuffer<{ event: string; args: any[]; timestamp: number }>;
+    private listeners: Map<string, Set<(...args: unknown[]) => void>> = new Map();
+    private eventHistory: CircularBuffer<{ event: string; args: unknown[]; timestamp: number }>;
 
     constructor(maxHistorySize: number = MAX_EVENT_HISTORY) {
         this.eventHistory = new CircularBuffer(maxHistorySize);
     }
 
-    on(event: string, callback: (...args: any[]) => void): () => void {
+    on(event: string, callback: (...args: unknown[]) => void): () => void {
         if (!this.listeners.has(event)) {
             this.listeners.set(event, new Set());
         }
@@ -2316,14 +2321,14 @@ export class EventEmitter {
         return () => this.off(event, callback);
     }
 
-    off(event: string, callback: (...args: any[]) => void): void {
+    off(event: string, callback: (...args: unknown[]) => void): void {
         const callbacks = this.listeners.get(event);
         if (callbacks) {
             callbacks.delete(callback);
         }
     }
 
-    emit(event: string, ...args: any[]): void {
+    emit(event: string, ...args: unknown[]): void {
         // O(1) insertion using CircularBuffer instead of O(n) shift()
         this.eventHistory.push({ event, args, timestamp: Date.now() });
 
@@ -2339,7 +2344,7 @@ export class EventEmitter {
         }
     }
 
-    getEventHistory(): Array<{ event: string; args: any[]; timestamp: number }> {
+    getEventHistory(): Array<{ event: string; args: unknown[]; timestamp: number }> {
         return this.eventHistory.toArray();
     }
 }
@@ -2379,7 +2384,7 @@ export class EventSubscriptionManager {
     subscribe(
         emitter: EventEmitter,
         event: string,
-        callback: (...args: any[]) => void
+        callback: (...args: unknown[]) => void
     ): () => void {
         const unsubscribe = emitter.on(event, callback);
         this.unsubscribers.push(unsubscribe);
@@ -2471,17 +2476,20 @@ export class EntityManager {
         // Subscribe to entity changes to maintain tag index
         // Store unsubscribe functions for proper cleanup
         this._eventUnsubscribers.push(
-            eventEmitter.on('onComponentAdded', (entity: Entity) => {
+            eventEmitter.on('onComponentAdded', (...args: unknown[]) => {
+                const entity = args[0] as Entity;
                 this.updateEntityTags(entity);
             })
         );
         this._eventUnsubscribers.push(
-            eventEmitter.on('onComponentRemoved', (entity: Entity) => {
+            eventEmitter.on('onComponentRemoved', (...args: unknown[]) => {
+                const entity = args[0] as Entity;
                 this.updateEntityTags(entity);
             })
         );
         this._eventUnsubscribers.push(
-            eventEmitter.on('onTagChanged', (entity: Entity) => {
+            eventEmitter.on('onTagChanged', (...args: unknown[]) => {
+                const entity = args[0] as Entity;
                 this.updateEntityTags(entity);
             })
         );

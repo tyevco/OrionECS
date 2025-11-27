@@ -631,7 +631,8 @@ export class Engine {
         // Subscribe to entity changes to update queries
         // Store unsubscribers for proper cleanup on destroy
         this.engineEventUnsubscribers.push(
-            this.eventEmitter.on('onComponentAdded', (entity: Entity) => {
+            this.eventEmitter.on('onComponentAdded', (...args: unknown[]) => {
+                const entity = args[0] as Entity;
                 if (this.inTransaction) {
                     this.pendingQueryUpdates.add(entity);
                 } else {
@@ -640,7 +641,8 @@ export class Engine {
             })
         );
         this.engineEventUnsubscribers.push(
-            this.eventEmitter.on('onComponentRemoved', (entity: Entity) => {
+            this.eventEmitter.on('onComponentRemoved', (...args: unknown[]) => {
+                const entity = args[0] as Entity;
                 if (this.inTransaction) {
                     this.pendingQueryUpdates.add(entity);
                 } else {
@@ -649,7 +651,8 @@ export class Engine {
             })
         );
         this.engineEventUnsubscribers.push(
-            this.eventEmitter.on('onTagChanged', (entity: Entity) => {
+            this.eventEmitter.on('onTagChanged', (...args: unknown[]) => {
+                const entity = args[0] as Entity;
                 if (this.inTransaction) {
                     this.pendingQueryUpdates.add(entity);
                 } else {
@@ -2133,11 +2136,11 @@ export class Engine {
             .map((entity) => entity.serialize());
 
         // Serialize singleton components
-        const singletons: { [componentName: string]: any } = {};
+        const singletons: { [componentName: string]: unknown } = {};
         const allSingletons = this.componentManager.getAllSingletons();
 
         for (const [componentType, component] of allSingletons) {
-            singletons[componentType.name] = { ...component };
+            singletons[componentType.name] = { ...(component as object) };
         }
 
         return {

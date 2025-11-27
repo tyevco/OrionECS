@@ -7,6 +7,7 @@ import { ArchetypeManager } from './archetype';
 import {
     ComponentArray,
     type Entity,
+    type EventEmitter,
     MessageBus,
     Pool,
     Query,
@@ -263,7 +264,7 @@ export class SystemManager {
 
     createGroup(name: string, priority: number): SystemGroup {
         if (this.groups.has(name)) {
-            throw new Error(`System group '${name}' already exists`);
+            throw new Error(`[ECS] System group '${name}' already exists`);
         }
         const group = new SystemGroup(name, priority);
         this.groups.set(name, group);
@@ -374,7 +375,7 @@ export class SystemManager {
             // Find systems involved in the cycle
             const remaining = systems.filter((s) => !result.includes(s));
             const cycleNames = remaining.map((s) => s.name).join(', ');
-            throw new Error(`Circular dependency detected in systems: ${cycleNames}`);
+            throw new Error(`[ECS] Circular dependency detected in systems: ${cycleNames}`);
         }
 
         // Post-process: sort systems WITHOUT dependencies by priority
@@ -536,7 +537,7 @@ export class SystemManager {
     enableGroup(name: string): void {
         const group = this.groups.get(name);
         if (!group) {
-            throw new Error(`System group '${name}' not found`);
+            throw new Error(`[ECS] System group '${name}' not found`);
         }
         group.enabled = true;
     }
@@ -544,7 +545,7 @@ export class SystemManager {
     disableGroup(name: string): void {
         const group = this.groups.get(name);
         if (!group) {
-            throw new Error(`System group '${name}' not found`);
+            throw new Error(`[ECS] System group '${name}' not found`);
         }
         group.enabled = false;
     }
@@ -667,16 +668,19 @@ export class SystemManager {
  * Manages query creation and tracking
  */
 export class QueryManager {
+    // Using 'any' for internal storage to allow variance flexibility with generic queries
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private queries: Query<any>[] = [];
-    private componentManager?: any; // ComponentManager reference for archetype support
+    private componentManager?: ComponentManager;
 
     /**
      * Set component manager reference (for archetype support)
      */
-    setComponentManager(componentManager: any): void {
+    setComponentManager(componentManager: ComponentManager): void {
         this.componentManager = componentManager;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     createQuery<C extends readonly any[] = any[]>(options: QueryOptions<any>): Query<C> {
         const archetypeManager = this.componentManager?.getArchetypeManager();
         const query = new Query<C>(options, archetypeManager);
@@ -699,6 +703,7 @@ export class QueryManager {
         // It's here for semantic clarity in transaction commits
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getAllQueries(): Query<any>[] {
         return this.queries;
     }
@@ -735,7 +740,7 @@ export class PrefabManager {
     extend(baseName: string, overrides: Partial<EntityPrefab>): EntityPrefab {
         const base = this.prefabs.get(baseName);
         if (!base) {
-            throw new Error(`Base prefab '${baseName}' not found`);
+            throw new Error(`[ECS] Base prefab '${baseName}' not found`);
         }
 
         // Merge base and overrides
@@ -784,7 +789,7 @@ export class PrefabManager {
     ): EntityPrefab {
         const base = this.prefabs.get(baseName);
         if (!base) {
-            throw new Error(`Base prefab '${baseName}' not found`);
+            throw new Error(`[ECS] Base prefab '${baseName}' not found`);
         }
 
         const variant: EntityPrefab = {
@@ -907,25 +912,42 @@ export class MessageManager {
 }
 
 /**
+ * Options for configuring the ChangeTrackingManager.
+ * @internal
+ */
+interface ChangeTrackingOptions {
+    /** Enable automatic proxy-based change tracking for components */
+    enableProxyTracking?: boolean;
+    /** Enable batch mode (suspends events until flush) */
+    batchMode?: boolean;
+    /** Debounce time in milliseconds for change events (0 = no debounce) */
+    debounceMs?: number;
+}
+
+/**
  * Manages component change tracking and events
  */
 export class ChangeTrackingManager {
     private componentManager: ComponentManager;
-    private eventEmitter: any; // EventEmitter
+    private eventEmitter: EventEmitter;
     private batchMode: boolean = false;
     private proxyTrackingEnabled: boolean = false;
-    private reactiveComponents: WeakMap<any, any> = new WeakMap();
+    private reactiveComponents: WeakMap<object, object> = new WeakMap();
     private debounceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
     private debounceMs: number = 0;
     // Track dirty components per entity (for archetype mode)
     private dirtyComponentsMap: Map<number, Set<ComponentIdentifier>> = new Map();
 
-    constructor(componentManager: ComponentManager, eventEmitter: any, options: any = {}) {
+    constructor(
+        componentManager: ComponentManager,
+        eventEmitter: EventEmitter,
+        options: ChangeTrackingOptions = {}
+    ) {
         this.componentManager = componentManager;
         this.eventEmitter = eventEmitter;
-        this.proxyTrackingEnabled = options.enableProxyTracking || false;
-        this.batchMode = options.batchMode || false;
-        this.debounceMs = options.debounceMs || 0;
+        this.proxyTrackingEnabled = options.enableProxyTracking ?? false;
+        this.batchMode = options.batchMode ?? false;
+        this.debounceMs = options.debounceMs ?? 0;
     }
 
     /**
@@ -998,7 +1020,7 @@ export class ChangeTrackingManager {
     /**
      * Emit a component changed event
      */
-    private emitComponentChanged(entity: any, componentType: ComponentIdentifier): void {
+    private emitComponentChanged(entity: Entity, componentType: ComponentIdentifier): void {
         const component = entity.getComponent(componentType);
 
         const event = {
@@ -1032,7 +1054,7 @@ export class ChangeTrackingManager {
      */
     createReactiveComponent<T extends object>(
         component: T,
-        entity: any,
+        entity: Entity,
         componentType: ComponentIdentifier<T>
     ): T {
         if (!this.proxyTrackingEnabled) {
@@ -1041,21 +1063,24 @@ export class ChangeTrackingManager {
 
         // Check if already proxied
         if (this.reactiveComponents.has(component)) {
-            return this.reactiveComponents.get(component);
+            return this.reactiveComponents.get(component) as T;
         }
 
         const proxy = new Proxy(component, {
-            set: (target: any, property: string | symbol, value: any): boolean => {
-                const oldValue = target[property];
-                target[property] = value;
+            set: (target: T, property: string | symbol, value: unknown): boolean => {
+                const oldValue = (target as Record<string | symbol, unknown>)[property];
+                (target as Record<string | symbol, unknown>)[property] = value;
 
                 // Mark as dirty and emit change event
                 if (oldValue !== value) {
                     this.markComponentDirty(entity, componentType);
 
                     // Call onChanged lifecycle hook if it exists
-                    if (typeof target.onChanged === 'function') {
-                        target.onChanged();
+                    if (
+                        'onChanged' in target &&
+                        typeof (target as { onChanged?: () => void }).onChanged === 'function'
+                    ) {
+                        (target as { onChanged: () => void }).onChanged();
                     }
                 }
 

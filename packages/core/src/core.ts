@@ -26,6 +26,7 @@ const ESTIMATED_COMPONENT_SIZE_BYTES = 32;
 const MAX_PERFORMANCE_SAMPLES = 60;
 const MAX_MESSAGE_HISTORY = 1000;
 const MAX_EVENT_HISTORY = 500;
+const MAX_HIERARCHY_DEPTH = 100;
 
 /**
  * A fixed-size circular buffer that provides O(1) insertion and maintains bounded memory.
@@ -929,7 +930,7 @@ export class Entity implements EntityDef {
         if (entity instanceof Entity) {
             return entity;
         }
-        throw new Error('Invalid entity type - expected Entity instance');
+        throw new Error('[ECS] Invalid entity type - expected Entity instance');
     }
 
     addComponent<T>(
@@ -943,7 +944,7 @@ export class Entity implements EntityDef {
                 for (const dep of validator.dependencies) {
                     if (!this.hasComponent(dep)) {
                         throw new Error(
-                            `Component ${type.name} requires ${dep.name} on entity ${this._name || this._numericId}`
+                            `[ECS] Component ${type.name} requires ${dep.name} on entity ${this._name || this._numericId}`
                         );
                     }
                 }
@@ -953,7 +954,7 @@ export class Entity implements EntityDef {
                 for (const conflict of validator.conflicts) {
                     if (this.hasComponent(conflict)) {
                         throw new Error(
-                            `Component ${type.name} conflicts with ${conflict.name} on entity ${this._name || this._numericId}`
+                            `[ECS] Component ${type.name} conflicts with ${conflict.name} on entity ${this._name || this._numericId}`
                         );
                     }
                 }
@@ -970,7 +971,7 @@ export class Entity implements EntityDef {
                             ? validationResult
                             : 'Component validation failed';
                     throw new Error(
-                        `${errorMessage} for ${type.name} on entity ${this._name || this._numericId}`
+                        `[ECS] ${errorMessage} for ${type.name} on entity ${this._name || this._numericId}`
                     );
                 }
             }
@@ -1096,7 +1097,7 @@ export class Entity implements EntityDef {
         const index = this._componentIndices.get(type);
         if (index === undefined) {
             throw new Error(
-                `Component ${type.name} not found on entity ${this._name || this._numericId}`
+                `[ECS] Component ${type.name} not found on entity ${this._name || this._numericId}`
             );
         }
 
@@ -1106,7 +1107,7 @@ export class Entity implements EntityDef {
             const component = archetypeManager.getComponent(this, type);
             if (component === null) {
                 throw new Error(
-                    `Component ${type.name} is null on entity ${this._name || this._numericId}`
+                    `[ECS] Component ${type.name} is null on entity ${this._name || this._numericId}`
                 );
             }
             return component as T;
@@ -1116,7 +1117,7 @@ export class Entity implements EntityDef {
             const component = componentArray.get(index);
             if (component === null) {
                 throw new Error(
-                    `Component ${type.name} is null on entity ${this._name || this._numericId}`
+                    `[ECS] Component ${type.name} is null on entity ${this._name || this._numericId}`
                 );
             }
             return component as T;
@@ -1153,6 +1154,47 @@ export class Entity implements EntityDef {
         const previousParent = this._parent;
         const newParent = parent ? Entity.asEntity(parent) : undefined;
         const timestamp = Date.now();
+
+        // Validate hierarchy constraints when setting a new parent
+        if (newParent) {
+            // Check for circular reference: entity cannot be its own ancestor
+            if (newParent === this) {
+                throw new Error(
+                    `[ECS] Cannot set parent: Entity '${this._name ?? this._numericId}' cannot be its own parent`
+                );
+            }
+
+            // Check if the new parent is a descendant of this entity (would create a cycle)
+            let ancestor: Entity | undefined = newParent;
+            let depth = 0;
+            while (ancestor) {
+                if (ancestor === this) {
+                    throw new Error(
+                        `[ECS] Cannot set parent: Entity '${newParent._name ?? newParent._numericId}' ` +
+                            `is a descendant of '${this._name ?? this._numericId}', which would create a circular reference`
+                    );
+                }
+                ancestor = ancestor._parent;
+                depth++;
+                // Safety check for existing malformed hierarchies
+                if (depth > MAX_HIERARCHY_DEPTH) {
+                    throw new Error(
+                        `[ECS] Cannot set parent: Hierarchy depth exceeds maximum of ${MAX_HIERARCHY_DEPTH}`
+                    );
+                }
+            }
+
+            // Check if new parent's depth + this entity's descendant depth exceeds maximum
+            const parentDepth = newParent.getDepth();
+            const descendantDepth = this.getMaxDescendantDepth();
+            const totalDepth = parentDepth + 1 + descendantDepth;
+            if (totalDepth > MAX_HIERARCHY_DEPTH) {
+                throw new Error(
+                    `[ECS] Cannot set parent: Resulting hierarchy depth (${totalDepth}) ` +
+                        `would exceed maximum of ${MAX_HIERARCHY_DEPTH}`
+                );
+            }
+        }
 
         // Remove from previous parent's children
         if (previousParent) {
@@ -1434,6 +1476,29 @@ export class Entity implements EntityDef {
             current = current._parent;
         }
         return depth;
+    }
+
+    /**
+     * Get the maximum depth of the descendant tree from this entity.
+     *
+     * Returns 0 if this entity has no children, 1 if it has children but no grandchildren,
+     * and so on. This is used for hierarchy depth validation.
+     *
+     * @returns The maximum depth of descendants (0 if no children)
+     * @internal
+     */
+    getMaxDescendantDepth(): number {
+        if (this._children.size === 0) {
+            return 0;
+        }
+        let maxDepth = 0;
+        for (const child of this._children) {
+            const childDepth = 1 + child.getMaxDescendantDepth();
+            if (childDepth > maxDepth) {
+                maxDepth = childDepth;
+            }
+        }
+        return maxDepth;
     }
 
     /**
@@ -2142,7 +2207,7 @@ export class System<C extends readonly any[] = any[]> {
                 // but the component was removed before we could retrieve it.
                 // Provide helpful context for debugging.
                 throw new Error(
-                    `System "${this.name}": Entity "${entity.name || entity.numericId}" ` +
+                    `[ECS] System "${this.name}": Entity "${entity.name || entity.numericId}" ` +
                         `is missing required component "${componentType.name}". ` +
                         'This may indicate a component was removed during iteration.'
                 );

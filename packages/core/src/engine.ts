@@ -1380,7 +1380,7 @@ export class Engine {
      */
     beginTransaction(): void {
         if (this.inTransaction) {
-            throw new Error('Transaction already in progress');
+            throw new Error('[ECS] Transaction already in progress');
         }
         this.inTransaction = true;
         this.pendingQueryUpdates.clear();
@@ -1397,7 +1397,7 @@ export class Engine {
      */
     commitTransaction(): void {
         if (!this.inTransaction) {
-            throw new Error('No transaction in progress');
+            throw new Error('[ECS] No transaction in progress');
         }
 
         // Update all queries for entities that changed during the transaction
@@ -1422,7 +1422,7 @@ export class Engine {
      */
     rollbackTransaction(): void {
         if (!this.inTransaction) {
-            throw new Error('No transaction in progress');
+            throw new Error('[ECS] No transaction in progress');
         }
 
         // Simply discard all pending changes
@@ -2350,7 +2350,7 @@ export class Engine {
             },
             extend: <T extends object>(extensionName: string, api: T): void => {
                 if (this.extensions.has(extensionName)) {
-                    throw new Error(`Extension '${extensionName}' already exists`);
+                    throw new Error(`[ECS] Extension '${extensionName}' already exists`);
                 }
                 this.extensions.set(extensionName, api);
                 // Dynamically add extension to engine instance

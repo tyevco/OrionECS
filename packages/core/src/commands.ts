@@ -1080,7 +1080,7 @@ export class CommandBuffer {
                         // If constructor args don't match, try creating empty and assigning
                         entity.addComponent(change.componentType);
                         const component = entity.getComponent(change.componentType);
-                        Object.assign(component, componentData);
+                        Object.assign(component as object, componentData);
                     }
                 }
             } else {

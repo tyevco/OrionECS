@@ -29,7 +29,7 @@ type SystemMessage = PluginApiSystemMessage;
  * @typeParam T - The instance type of the component
  * @public
  */
-export type ComponentIdentifier<T = any> = new (...args: any[]) => T;
+export type ComponentIdentifier<T = unknown> = new (...args: any[]) => T;
 
 /**
  * Extract constructor parameter types from a component identifier.
@@ -341,7 +341,7 @@ export type ChildRemovedListener = (event: ChildRemovedEvent) => void;
 export type ParentChangedListener = (event: ParentChangedEvent) => void;
 
 // Enhanced system options with profiling and lifecycle hooks
-export interface SystemOptions<C extends readonly any[] = any[]> {
+export interface SystemOptions<C extends readonly unknown[] = unknown[]> {
     act?: (entity: EntityDef, ...components: C) => void;
     before?: () => void;
     after?: () => void;
@@ -439,7 +439,8 @@ export interface SystemOptions<C extends readonly any[] = any[]> {
     watchHierarchy?: boolean;
 }
 
-export type SystemType<T extends readonly any[] = any[]> = SystemOptions<T> & Partial<EngineEvents>;
+export type SystemType<T extends readonly unknown[] = unknown[]> = SystemOptions<T> &
+    Partial<EngineEvents>;
 
 // Enhanced engine events
 export interface EngineEvents {
@@ -662,7 +663,7 @@ export interface MemoryStats {
 }
 
 // Component validation
-export interface ComponentValidator<T = any> {
+export interface ComponentValidator<T = unknown> {
     validate(component: T): boolean | string;
     dependencies?: ComponentIdentifier[];
     conflicts?: ComponentIdentifier[];

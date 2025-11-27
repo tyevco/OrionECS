@@ -1532,7 +1532,7 @@ export class Engine {
                     } catch {
                         // If that fails, create empty and assign properties
                         const component = new componentType();
-                        Object.assign(component, componentData);
+                        Object.assign(component as object, componentData);
                         this.componentManager.setSingleton(componentType, component);
                     }
                 }

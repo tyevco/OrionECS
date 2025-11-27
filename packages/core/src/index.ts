@@ -4,7 +4,7 @@
  */
 
 // Export archetype system
-export { Archetype, ArchetypeManager } from './archetype';
+export { Archetype, ArchetypeManager, MemoryEstimationConfig } from './archetype';
 export type {
     CommandExecutionResult,
     CommandType,
@@ -19,8 +19,10 @@ export {
 // Export core building blocks
 export {
     ARCHETYPE_STORAGE_INDEX,
+    CircularBuffer,
     ComponentArray,
     Entity,
+    EntityIdGenerator,
     EntityManager,
     EventEmitter,
     EventSubscriptionManager,
@@ -60,6 +62,8 @@ export type {
     EventTypes,
     ExtractPluginExtensions,
     InstalledPlugin,
+    Logger,
+    LogLevel,
     MemoryStats,
     ParentChangedEvent,
     ParentChangedListener,
@@ -77,6 +81,8 @@ export type {
 } from './definitions';
 // Export the new Engine and Builder
 export { Engine, EngineBuilder } from './engine';
+// Export logger utilities
+export { EngineLogger, sanitizeLogString } from './logger';
 // Export managers
 export {
     ChangeTrackingManager,

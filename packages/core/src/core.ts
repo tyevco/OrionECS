@@ -8,7 +8,7 @@
  * @module Core
  */
 
-import type { ArchetypeManager } from './archetype';
+import type { Archetype, ArchetypeManager } from './archetype';
 import type {
     ComponentIdentifier,
     ComponentLifecycle,
@@ -26,6 +26,147 @@ const ESTIMATED_COMPONENT_SIZE_BYTES = 32;
 const MAX_PERFORMANCE_SAMPLES = 60;
 const MAX_MESSAGE_HISTORY = 1000;
 const MAX_EVENT_HISTORY = 500;
+const MAX_HIERARCHY_DEPTH = 100;
+
+/**
+ * A fixed-size circular buffer that provides O(1) insertion and maintains bounded memory.
+ *
+ * Unlike arrays with shift() operations (which are O(n)), CircularBuffer provides constant-time
+ * insertion by overwriting the oldest elements when full. This is ideal for maintaining
+ * bounded history collections like event logs, message history, and performance samples.
+ *
+ * @typeParam T - The type of elements stored in the buffer
+ *
+ * @example
+ * ```typescript
+ * const buffer = new CircularBuffer<number>(3);
+ * buffer.push(1);  // [1]
+ * buffer.push(2);  // [1, 2]
+ * buffer.push(3);  // [1, 2, 3]
+ * buffer.push(4);  // [2, 3, 4] - 1 was evicted
+ *
+ * buffer.toArray(); // [2, 3, 4] - in insertion order
+ * ```
+ *
+ * @internal
+ */
+export class CircularBuffer<T> {
+    private buffer: (T | undefined)[];
+    private head: number = 0; // Next write position
+    private _size: number = 0;
+    private capacity: number;
+
+    constructor(capacity: number) {
+        this.capacity = capacity;
+        this.buffer = Array.from({ length: capacity });
+    }
+
+    /**
+     * Add an item to the buffer. If full, overwrites the oldest item.
+     * @param item - Item to add
+     */
+    push(item: T): void {
+        this.buffer[this.head] = item;
+        this.head = (this.head + 1) % this.capacity;
+        if (this._size < this.capacity) {
+            this._size++;
+        }
+    }
+
+    /**
+     * Get the number of items currently in the buffer.
+     */
+    get size(): number {
+        return this._size;
+    }
+
+    /**
+     * Get the maximum capacity of the buffer.
+     */
+    get maxSize(): number {
+        return this.capacity;
+    }
+
+    /**
+     * Convert buffer contents to an array in insertion order (oldest to newest).
+     */
+    toArray(): T[] {
+        if (this._size === 0) {
+            return [];
+        }
+
+        const result: T[] = [];
+        // Start from the oldest element
+        const start = this._size < this.capacity ? 0 : this.head;
+
+        for (let i = 0; i < this._size; i++) {
+            const index = (start + i) % this.capacity;
+            const item = this.buffer[index];
+            if (item !== undefined) {
+                result.push(item);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Filter buffer contents and return as array.
+     * @param predicate - Filter function
+     */
+    filter(predicate: (item: T) => boolean): T[] {
+        return this.toArray().filter(predicate);
+    }
+
+    /**
+     * Clear all items from the buffer.
+     */
+    clear(): void {
+        this.buffer = Array.from({ length: this.capacity });
+        this.head = 0;
+        this._size = 0;
+    }
+
+    /**
+     * Iterate over all items in insertion order (oldest to newest).
+     */
+    *[Symbol.iterator](): Iterator<T> {
+        const arr = this.toArray();
+        for (const item of arr) {
+            yield item;
+        }
+    }
+}
+
+/**
+ * Type guard to check if a component has lifecycle hooks.
+ * @internal
+ */
+function hasOnCreate(
+    component: unknown
+): component is ComponentLifecycle & { onCreate: NonNullable<ComponentLifecycle['onCreate']> } {
+    return (
+        component !== null &&
+        typeof component === 'object' &&
+        'onCreate' in component &&
+        typeof (component as ComponentLifecycle).onCreate === 'function'
+    );
+}
+
+/**
+ * Type guard to check if a component has an onDestroy lifecycle hook.
+ * @internal
+ */
+function hasOnDestroy(
+    component: unknown
+): component is ComponentLifecycle & { onDestroy: NonNullable<ComponentLifecycle['onDestroy']> } {
+    return (
+        component !== null &&
+        typeof component === 'object' &&
+        'onDestroy' in component &&
+        typeof (component as ComponentLifecycle).onDestroy === 'function'
+    );
+}
 
 /**
  * Type guard to check if a component has lifecycle hooks.
@@ -135,6 +276,55 @@ export class Pool<T> {
                     ? (this._totalAcquired - this._totalCreated) / this._totalAcquired
                     : 0,
         };
+    }
+}
+
+/**
+ * Generates unique numeric IDs for entities within a single engine instance.
+ *
+ * This class provides per-engine ID generation to ensure isolation between
+ * multiple engine instances. Each engine has its own EntityIdGenerator,
+ * preventing ID collisions and ensuring test isolation.
+ *
+ * @example
+ * ```typescript
+ * const generator = new EntityIdGenerator();
+ * const id1 = generator.next(); // 1
+ * const id2 = generator.next(); // 2
+ *
+ * // Reset for a new engine instance
+ * generator.reset();
+ * const id3 = generator.next(); // 1 (starts fresh)
+ * ```
+ *
+ * @public
+ */
+export class EntityIdGenerator {
+    private _nextId: number = 1;
+
+    /**
+     * Generate the next unique entity ID.
+     * @returns A unique numeric ID for an entity
+     */
+    next(): number {
+        return this._nextId++;
+    }
+
+    /**
+     * Get the current counter value without incrementing.
+     * Useful for debugging and testing.
+     * @returns The next ID that will be generated
+     */
+    peek(): number {
+        return this._nextId;
+    }
+
+    /**
+     * Reset the ID generator to its initial state.
+     * This is primarily useful for testing scenarios.
+     */
+    reset(): void {
+        this._nextId = 1;
     }
 }
 
@@ -323,6 +513,7 @@ export class ComponentArray<T> {
  *
  * @public
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class Query<C extends readonly any[] = any[]> {
     private matchingEntities: Set<Entity> = new Set();
     private cachedArray: Entity[] = [];
@@ -330,8 +521,8 @@ export class Query<C extends readonly any[] = any[]> {
     private currentVersion: number = 0;
 
     // Archetype-based iteration support
-    private archetypeManager?: any; // ArchetypeManager
-    private matchingArchetypes?: any[]; // Archetype[]
+    private archetypeManager?: ArchetypeManager;
+    private matchingArchetypes?: Archetype[];
     private archetypesCacheValid: boolean = false;
 
     // Performance tracking
@@ -340,9 +531,10 @@ export class Query<C extends readonly any[] = any[]> {
     private _lastMatchCount: number = 0;
     private _cacheHits: number = 0;
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(
         public options: QueryOptions<any>,
-        archetypeManager?: any
+        archetypeManager?: ArchetypeManager
     ) {
         this.archetypeManager = archetypeManager;
     }
@@ -350,7 +542,7 @@ export class Query<C extends readonly any[] = any[]> {
     /**
      * Set the archetype manager for this query (enables archetype-based iteration)
      */
-    setArchetypeManager(manager: any): void {
+    setArchetypeManager(manager: ArchetypeManager): void {
         this.archetypeManager = manager;
         this.archetypesCacheValid = false;
     }
@@ -531,9 +723,12 @@ export class Query<C extends readonly any[] = any[]> {
 /**
  * Fluent query builder for constructing complex queries
  */
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
 export class QueryBuilder<C extends readonly any[] = any[]> {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private options: QueryOptions<any> = {};
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     constructor(private createQueryFn: (options: QueryOptions<any>) => Query<C>) {}
 
     /**
@@ -641,7 +836,10 @@ export class Entity implements EntityDef {
     private _children: Set<Entity> = new Set();
     private _tags: Set<string> = new Set();
     private _changeVersion: number = 0;
-    private static _nextId: number = 1;
+
+    // Serialization cache to reduce GC pressure
+    private _cachedSerialization: SerializedEntity | null = null;
+    private _cachedSerializationVersion: number = -1;
 
     // Serialization cache to reduce GC pressure
     private _cachedSerialization: SerializedEntity | null = null;
@@ -650,10 +848,11 @@ export class Entity implements EntityDef {
     // Dependency injection of managers
     constructor(
         private componentManager: any, // ComponentManager
-        private eventEmitter: any // EventEmitter or callback
+        private eventEmitter: any, // EventEmitter or callback
+        idGenerator: EntityIdGenerator
     ) {
         this._id = Symbol();
-        this._numericId = Entity._nextId++;
+        this._numericId = idGenerator.next();
     }
 
     get id(): symbol {
@@ -770,7 +969,7 @@ export class Entity implements EntityDef {
         if (entity instanceof Entity) {
             return entity;
         }
-        throw new Error('Invalid entity type - expected Entity instance');
+        throw new Error('[ECS] Invalid entity type - expected Entity instance');
     }
 
     addComponent<T>(
@@ -784,7 +983,7 @@ export class Entity implements EntityDef {
                 for (const dep of validator.dependencies) {
                     if (!this.hasComponent(dep)) {
                         throw new Error(
-                            `Component ${type.name} requires ${dep.name} on entity ${this._name || this._numericId}`
+                            `[ECS] Component ${type.name} requires ${dep.name} on entity ${this._name || this._numericId}`
                         );
                     }
                 }
@@ -794,7 +993,7 @@ export class Entity implements EntityDef {
                 for (const conflict of validator.conflicts) {
                     if (this.hasComponent(conflict)) {
                         throw new Error(
-                            `Component ${type.name} conflicts with ${conflict.name} on entity ${this._name || this._numericId}`
+                            `[ECS] Component ${type.name} conflicts with ${conflict.name} on entity ${this._name || this._numericId}`
                         );
                     }
                 }
@@ -811,7 +1010,7 @@ export class Entity implements EntityDef {
                             ? validationResult
                             : 'Component validation failed';
                     throw new Error(
-                        `${errorMessage} for ${type.name} on entity ${this._name || this._numericId}`
+                        `[ECS] ${errorMessage} for ${type.name} on entity ${this._name || this._numericId}`
                     );
                 }
             }
@@ -937,7 +1136,7 @@ export class Entity implements EntityDef {
         const index = this._componentIndices.get(type);
         if (index === undefined) {
             throw new Error(
-                `Component ${type.name} not found on entity ${this._name || this._numericId}`
+                `[ECS] Component ${type.name} not found on entity ${this._name || this._numericId}`
             );
         }
 
@@ -947,7 +1146,7 @@ export class Entity implements EntityDef {
             const component = archetypeManager.getComponent(this, type);
             if (component === null) {
                 throw new Error(
-                    `Component ${type.name} is null on entity ${this._name || this._numericId}`
+                    `[ECS] Component ${type.name} is null on entity ${this._name || this._numericId}`
                 );
             }
             return component as T;
@@ -957,7 +1156,7 @@ export class Entity implements EntityDef {
             const component = componentArray.get(index);
             if (component === null) {
                 throw new Error(
-                    `Component ${type.name} is null on entity ${this._name || this._numericId}`
+                    `[ECS] Component ${type.name} is null on entity ${this._name || this._numericId}`
                 );
             }
             return component as T;
@@ -994,6 +1193,47 @@ export class Entity implements EntityDef {
         const previousParent = this._parent;
         const newParent = parent ? Entity.asEntity(parent) : undefined;
         const timestamp = Date.now();
+
+        // Validate hierarchy constraints when setting a new parent
+        if (newParent) {
+            // Check for circular reference: entity cannot be its own ancestor
+            if (newParent === this) {
+                throw new Error(
+                    `[ECS] Cannot set parent: Entity '${this._name ?? this._numericId}' cannot be its own parent`
+                );
+            }
+
+            // Check if the new parent is a descendant of this entity (would create a cycle)
+            let ancestor: Entity | undefined = newParent;
+            let depth = 0;
+            while (ancestor) {
+                if (ancestor === this) {
+                    throw new Error(
+                        `[ECS] Cannot set parent: Entity '${newParent._name ?? newParent._numericId}' ` +
+                            `is a descendant of '${this._name ?? this._numericId}', which would create a circular reference`
+                    );
+                }
+                ancestor = ancestor._parent;
+                depth++;
+                // Safety check for existing malformed hierarchies
+                if (depth > MAX_HIERARCHY_DEPTH) {
+                    throw new Error(
+                        `[ECS] Cannot set parent: Hierarchy depth exceeds maximum of ${MAX_HIERARCHY_DEPTH}`
+                    );
+                }
+            }
+
+            // Check if new parent's depth + this entity's descendant depth exceeds maximum
+            const parentDepth = newParent.getDepth();
+            const descendantDepth = this.getMaxDescendantDepth();
+            const totalDepth = parentDepth + 1 + descendantDepth;
+            if (totalDepth > MAX_HIERARCHY_DEPTH) {
+                throw new Error(
+                    `[ECS] Cannot set parent: Resulting hierarchy depth (${totalDepth}) ` +
+                        `would exceed maximum of ${MAX_HIERARCHY_DEPTH}`
+                );
+            }
+        }
 
         // Remove from previous parent's children
         if (previousParent) {
@@ -1278,6 +1518,29 @@ export class Entity implements EntityDef {
     }
 
     /**
+     * Get the maximum depth of the descendant tree from this entity.
+     *
+     * Returns 0 if this entity has no children, 1 if it has children but no grandchildren,
+     * and so on. This is used for hierarchy depth validation.
+     *
+     * @returns The maximum depth of descendants (0 if no children)
+     * @internal
+     */
+    getMaxDescendantDepth(): number {
+        if (this._children.size === 0) {
+            return 0;
+        }
+        let maxDepth = 0;
+        for (const child of this._children) {
+            const childDepth = 1 + child.getMaxDescendantDepth();
+            if (childDepth > maxDepth) {
+                maxDepth = childDepth;
+            }
+        }
+        return maxDepth;
+    }
+
+    /**
      * Check if this entity is an ancestor of another entity.
      *
      * Returns true if the given entity is a descendant of this entity
@@ -1524,8 +1787,12 @@ export class Entity implements EntityDef {
         this._cachedSerializationVersion = -1;
     }
 
-    static create(componentManager: any, eventEmitter: any): Entity {
-        return new Entity(componentManager, eventEmitter);
+    static create(
+        componentManager: any,
+        eventEmitter: any,
+        idGenerator: EntityIdGenerator
+    ): Entity {
+        return new Entity(componentManager, eventEmitter, idGenerator);
     }
 }
 
@@ -1777,23 +2044,26 @@ export class System<C extends readonly any[] = any[]> {
 
         // Subscribe to child added events
         if (this.options.onChildAdded || this.options.watchHierarchy) {
-            this.eventEmitter.on('onChildAdded', (event: any) => {
+            const unsubscribe = this.eventEmitter.on('onChildAdded', (event: any) => {
                 this.options.onChildAdded?.(event);
             });
+            this._eventUnsubscribers.push(unsubscribe);
         }
 
         // Subscribe to child removed events
         if (this.options.onChildRemoved || this.options.watchHierarchy) {
-            this.eventEmitter.on('onChildRemoved', (event: any) => {
+            const unsubscribe = this.eventEmitter.on('onChildRemoved', (event: any) => {
                 this.options.onChildRemoved?.(event);
             });
+            this._eventUnsubscribers.push(unsubscribe);
         }
 
         // Subscribe to parent changed events
         if (this.options.onParentChanged || this.options.watchHierarchy) {
-            this.eventEmitter.on('onParentChanged', (event: any) => {
+            const unsubscribe = this.eventEmitter.on('onParentChanged', (event: any) => {
                 this.options.onParentChanged?.(event);
             });
+            this._eventUnsubscribers.push(unsubscribe);
         }
     }
 
@@ -1976,7 +2246,7 @@ export class System<C extends readonly any[] = any[]> {
                 // but the component was removed before we could retrieve it.
                 // Provide helpful context for debugging.
                 throw new Error(
-                    `System "${this.name}": Entity "${entity.name || entity.numericId}" ` +
+                    `[ECS] System "${this.name}": Entity "${entity.name || entity.numericId}" ` +
                         `is missing required component "${componentType.name}". ` +
                         'This may indicate a component was removed during iteration.'
                 );
@@ -1999,14 +2269,15 @@ export class System<C extends readonly any[] = any[]> {
 
 /**
  * Message bus for inter-system communication
+ *
+ * Uses CircularBuffer for O(1) message history insertion instead of O(n) shift operations.
  */
 export class MessageBus {
     private subscribers: Map<string, Set<(message: SystemMessage) => void>> = new Map();
-    private messageHistory: SystemMessage[] = [];
-    private maxHistorySize: number;
+    private messageHistory: CircularBuffer<SystemMessage>;
 
     constructor(maxHistorySize: number = MAX_MESSAGE_HISTORY) {
-        this.maxHistorySize = maxHistorySize;
+        this.messageHistory = new CircularBuffer<SystemMessage>(maxHistorySize);
     }
 
     subscribe(messageType: string, callback: (message: SystemMessage) => void): () => void {
@@ -2021,7 +2292,7 @@ export class MessageBus {
         };
     }
 
-    publish(messageType: string, data: any, sender?: string): void {
+    publish(messageType: string, data: unknown, sender?: string): void {
         const message: SystemMessage = {
             type: messageType,
             data,
@@ -2029,10 +2300,8 @@ export class MessageBus {
             timestamp: Date.now(),
         };
 
+        // O(1) insertion using CircularBuffer instead of O(n) shift()
         this.messageHistory.push(message);
-        while (this.messageHistory.length > this.maxHistorySize) {
-            this.messageHistory.shift();
-        }
 
         const subscribers = this.subscribers.get(messageType);
         if (subscribers) {
@@ -2050,19 +2319,33 @@ export class MessageBus {
         if (messageType) {
             return this.messageHistory.filter((msg) => msg.type === messageType);
         }
-        return [...this.messageHistory];
+        return this.messageHistory.toArray();
+    }
+
+    /**
+     * Clear all subscribers and message history.
+     * Called when the MessageBus is being disposed.
+     */
+    clear(): void {
+        this.subscribers.clear();
+        this.messageHistory.clear();
     }
 }
 
 /**
  * Event emitter for engine events
+ *
+ * Uses CircularBuffer for O(1) event history insertion instead of O(n) shift operations.
  */
 export class EventEmitter {
-    private listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
-    private eventHistory: Array<{ event: string; args: any[]; timestamp: number }> = [];
-    private maxHistorySize: number = MAX_EVENT_HISTORY;
+    private listeners: Map<string, Set<(...args: unknown[]) => void>> = new Map();
+    private eventHistory: CircularBuffer<{ event: string; args: unknown[]; timestamp: number }>;
 
-    on(event: string, callback: (...args: any[]) => void): () => void {
+    constructor(maxHistorySize: number = MAX_EVENT_HISTORY) {
+        this.eventHistory = new CircularBuffer(maxHistorySize);
+    }
+
+    on(event: string, callback: (...args: unknown[]) => void): () => void {
         if (!this.listeners.has(event)) {
             this.listeners.set(event, new Set());
         }
@@ -2072,18 +2355,16 @@ export class EventEmitter {
         return () => this.off(event, callback);
     }
 
-    off(event: string, callback: (...args: any[]) => void): void {
+    off(event: string, callback: (...args: unknown[]) => void): void {
         const callbacks = this.listeners.get(event);
         if (callbacks) {
             callbacks.delete(callback);
         }
     }
 
-    emit(event: string, ...args: any[]): void {
+    emit(event: string, ...args: unknown[]): void {
+        // O(1) insertion using CircularBuffer instead of O(n) shift()
         this.eventHistory.push({ event, args, timestamp: Date.now() });
-        while (this.eventHistory.length > this.maxHistorySize) {
-            this.eventHistory.shift();
-        }
 
         const callbacks = this.listeners.get(event);
         if (callbacks) {
@@ -2097,8 +2378,8 @@ export class EventEmitter {
         }
     }
 
-    getEventHistory(): Array<{ event: string; args: any[]; timestamp: number }> {
-        return [...this.eventHistory];
+    getEventHistory(): Array<{ event: string; args: unknown[]; timestamp: number }> {
+        return this.eventHistory.toArray();
     }
 }
 
@@ -2137,7 +2418,7 @@ export class EventSubscriptionManager {
     subscribe(
         emitter: EventEmitter,
         event: string,
-        callback: (...args: any[]) => void
+        callback: (...args: unknown[]) => void
     ): () => void {
         const unsubscribe = emitter.on(event, callback);
         this.unsubscribers.push(unsubscribe);
@@ -2165,33 +2446,39 @@ export class EventSubscriptionManager {
 
 /**
  * Performance monitor for tracking metrics
+ *
+ * Uses CircularBuffer for O(1) sample insertion instead of O(n) shift operations.
  */
 export class PerformanceMonitor {
-    private samples: number[] = [];
-    private maxSamples: number = MAX_PERFORMANCE_SAMPLES;
+    private samples: CircularBuffer<number>;
+
+    constructor(maxSamples: number = MAX_PERFORMANCE_SAMPLES) {
+        this.samples = new CircularBuffer<number>(maxSamples);
+    }
 
     addSample(value: number): void {
+        // O(1) insertion using CircularBuffer instead of O(n) shift()
         this.samples.push(value);
-        while (this.samples.length > this.maxSamples) {
-            this.samples.shift();
-        }
     }
 
     getAverage(): number {
-        if (this.samples.length === 0) return 0;
-        return this.samples.reduce((a, b) => a + b, 0) / this.samples.length;
+        const arr = this.samples.toArray();
+        if (arr.length === 0) return 0;
+        return arr.reduce((a, b) => a + b, 0) / arr.length;
     }
 
     getMin(): number {
-        return this.samples.length > 0 ? Math.min(...this.samples) : 0;
+        const arr = this.samples.toArray();
+        return arr.length > 0 ? Math.min(...arr) : 0;
     }
 
     getMax(): number {
-        return this.samples.length > 0 ? Math.max(...this.samples) : 0;
+        const arr = this.samples.toArray();
+        return arr.length > 0 ? Math.max(...arr) : 0;
     }
 
     reset(): void {
-        this.samples = [];
+        this.samples.clear();
     }
 }
 
@@ -2207,30 +2494,36 @@ export class EntityManager {
     private entitiesToDelete: Set<Entity> = new Set();
     /** Stores unsubscribe functions for event listeners to enable cleanup */
     private _eventUnsubscribers: Array<() => void> = [];
+    /** Per-engine entity ID generator to ensure isolation between engine instances */
+    private readonly idGenerator: EntityIdGenerator;
 
     constructor(
         componentManager: any,
         private eventEmitter: EventEmitter
     ) {
+        this.idGenerator = new EntityIdGenerator();
         this.entityPool = new Pool(
-            () => Entity.create(componentManager, eventEmitter),
+            () => Entity.create(componentManager, eventEmitter, this.idGenerator),
             (entity) => entity.reset()
         );
 
         // Subscribe to entity changes to maintain tag index
         // Store unsubscribe functions for proper cleanup
         this._eventUnsubscribers.push(
-            eventEmitter.on('onComponentAdded', (entity: Entity) => {
+            eventEmitter.on('onComponentAdded', (...args: unknown[]) => {
+                const entity = args[0] as Entity;
                 this.updateEntityTags(entity);
             })
         );
         this._eventUnsubscribers.push(
-            eventEmitter.on('onComponentRemoved', (entity: Entity) => {
+            eventEmitter.on('onComponentRemoved', (...args: unknown[]) => {
+                const entity = args[0] as Entity;
                 this.updateEntityTags(entity);
             })
         );
         this._eventUnsubscribers.push(
-            eventEmitter.on('onTagChanged', (entity: Entity) => {
+            eventEmitter.on('onTagChanged', (...args: unknown[]) => {
+                const entity = args[0] as Entity;
                 this.updateEntityTags(entity);
             })
         );

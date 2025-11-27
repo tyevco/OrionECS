@@ -27,6 +27,7 @@ import type {
     EntityPrefab,
     ExtractPluginExtensions,
     InstalledPlugin,
+    Logger,
     MemoryStats,
     PluginContext,
     PoolStats,
@@ -35,6 +36,7 @@ import type {
     SystemProfile,
     SystemType,
 } from './definitions';
+import { EngineLogger } from './logger';
 import {
     ChangeTrackingManager,
     ComponentManager,
@@ -44,6 +46,114 @@ import {
     SnapshotManager,
     SystemManager,
 } from './managers';
+
+/**
+ * Deep clone a component object, properly handling edge cases that JSON.parse(JSON.stringify())
+ * misses such as Date objects, undefined values, and nested objects.
+ *
+ * This function uses structuredClone when available (modern environments) and falls back
+ * to a manual implementation for older environments.
+ *
+ * Limitations (by design for component data):
+ * - Functions are not cloned (components should be data-only)
+ * - Symbols are not cloned (use numeric/string identifiers instead)
+ * - Circular references are detected and handled
+ *
+ * @param obj - The object to clone
+ * @param visited - Internal tracking for circular references
+ * @returns A deep copy of the object
+ *
+ * @internal
+ */
+function deepCloneComponent<T>(obj: T, visited = new WeakMap()): T {
+    // Handle primitives and null
+    if (obj === null || typeof obj !== 'object') {
+        return obj;
+    }
+
+    // Handle circular references
+    if (visited.has(obj as object)) {
+        return visited.get(obj as object);
+    }
+
+    // Try structuredClone first (available in Node.js 17+ and modern browsers)
+    // This handles Date, Map, Set, ArrayBuffer, TypedArrays, etc.
+    if (typeof structuredClone === 'function') {
+        try {
+            return structuredClone(obj);
+        } catch {
+            // Fall through to manual implementation if structuredClone fails
+            // (e.g., for objects with functions or symbols)
+        }
+    }
+
+    // Handle Date
+    if (obj instanceof Date) {
+        return new Date(obj.getTime()) as T;
+    }
+
+    // Handle RegExp
+    if (obj instanceof RegExp) {
+        return new RegExp(obj.source, obj.flags) as T;
+    }
+
+    // Handle Map
+    if (obj instanceof Map) {
+        const clone = new Map();
+        visited.set(obj, clone);
+        for (const [key, value] of obj) {
+            clone.set(deepCloneComponent(key, visited), deepCloneComponent(value, visited));
+        }
+        return clone as T;
+    }
+
+    // Handle Set
+    if (obj instanceof Set) {
+        const clone = new Set();
+        visited.set(obj, clone);
+        for (const value of obj) {
+            clone.add(deepCloneComponent(value, visited));
+        }
+        return clone as T;
+    }
+
+    // Handle TypedArrays
+    if (ArrayBuffer.isView(obj) && !(obj instanceof DataView)) {
+        const TypedArrayConstructor = obj.constructor as new (buffer: ArrayBuffer) => T;
+        return new TypedArrayConstructor(
+            (obj as unknown as { buffer: ArrayBuffer }).buffer.slice(0)
+        ) as T;
+    }
+
+    // Handle ArrayBuffer
+    if (obj instanceof ArrayBuffer) {
+        return obj.slice(0) as T;
+    }
+
+    // Handle Array
+    if (Array.isArray(obj)) {
+        const clone: unknown[] = [];
+        visited.set(obj, clone);
+        for (let i = 0; i < obj.length; i++) {
+            clone[i] = deepCloneComponent(obj[i], visited);
+        }
+        return clone as T;
+    }
+
+    // Handle plain objects
+    const clone = Object.create(Object.getPrototypeOf(obj));
+    visited.set(obj as object, clone);
+
+    for (const key of Object.keys(obj as object)) {
+        const value = (obj as Record<string, unknown>)[key];
+        // Skip functions (components should be data-only)
+        if (typeof value !== 'function') {
+            clone[key] = deepCloneComponent(value, visited);
+        }
+    }
+
+    return clone;
+}
 
 /**
  * Fluent builder for composing and configuring an ECS Engine instance.
@@ -98,7 +208,11 @@ export class EngineBuilder<TExtensions extends object = object> {
     private plugins: EnginePlugin[] = [];
     private enableArchetypeSystem: boolean = true; // Enable archetypes by default
     private profilingEnabled: boolean = true; // Enable profiling by default for backward compatibility
-    private changeTrackingOptions: any = {
+    private changeTrackingOptions: {
+        enableProxyTracking: boolean;
+        batchMode: boolean;
+        debounceMs: number;
+    } = {
         enableProxyTracking: false,
         batchMode: false,
         debounceMs: 0,
@@ -489,6 +603,15 @@ export class Engine {
     // Control whether commands are automatically executed during update
     private autoExecuteCommands: boolean = true;
 
+    // Store event unsubscribers for cleanup
+    private engineEventUnsubscribers: Array<() => void> = [];
+
+    // Track if engine has been destroyed
+    private _isDestroyed: boolean = false;
+
+    // Logger instance for the engine
+    private _logger: EngineLogger;
+
     constructor(
         private entityManager: EntityManager,
         private componentManager: ComponentManager,
@@ -503,28 +626,40 @@ export class Engine {
         private debugMode: boolean,
         private profilingEnabled: boolean = true
     ) {
+        // Initialize logger
+        this._logger = new EngineLogger({ debugEnabled: debugMode });
         // Subscribe to entity changes to update queries
-        this.eventEmitter.on('onComponentAdded', (entity: Entity) => {
-            if (this.inTransaction) {
-                this.pendingQueryUpdates.add(entity);
-            } else {
-                this.queryManager.updateQueries(entity);
-            }
-        });
-        this.eventEmitter.on('onComponentRemoved', (entity: Entity) => {
-            if (this.inTransaction) {
-                this.pendingQueryUpdates.add(entity);
-            } else {
-                this.queryManager.updateQueries(entity);
-            }
-        });
-        this.eventEmitter.on('onTagChanged', (entity: Entity) => {
-            if (this.inTransaction) {
-                this.pendingQueryUpdates.add(entity);
-            } else {
-                this.queryManager.updateQueries(entity);
-            }
-        });
+        // Store unsubscribers for proper cleanup on destroy
+        this.engineEventUnsubscribers.push(
+            this.eventEmitter.on('onComponentAdded', (...args: unknown[]) => {
+                const entity = args[0] as Entity;
+                if (this.inTransaction) {
+                    this.pendingQueryUpdates.add(entity);
+                } else {
+                    this.queryManager.updateQueries(entity);
+                }
+            })
+        );
+        this.engineEventUnsubscribers.push(
+            this.eventEmitter.on('onComponentRemoved', (...args: unknown[]) => {
+                const entity = args[0] as Entity;
+                if (this.inTransaction) {
+                    this.pendingQueryUpdates.add(entity);
+                } else {
+                    this.queryManager.updateQueries(entity);
+                }
+            })
+        );
+        this.engineEventUnsubscribers.push(
+            this.eventEmitter.on('onTagChanged', (...args: unknown[]) => {
+                const entity = args[0] as Entity;
+                if (this.inTransaction) {
+                    this.pendingQueryUpdates.add(entity);
+                } else {
+                    this.queryManager.updateQueries(entity);
+                }
+            })
+        );
 
         // Initialize command buffer for deferred entity operations
         this.commandBuffer = new CommandBuffer(this, debugMode);
@@ -766,8 +901,9 @@ export class Engine {
         for (const componentType of entity.getComponentTypes()) {
             const originalComponent = entity.getComponent(componentType as ComponentIdentifier);
 
-            // Deep copy the component data using JSON serialization
-            const componentData = JSON.parse(JSON.stringify(originalComponent));
+            // Deep copy using proper cloning that handles Date, Map, Set, circular refs, etc.
+            // This replaces the unsafe JSON.parse(JSON.stringify()) approach
+            const componentData = deepCloneComponent(originalComponent) as object;
 
             // Apply component overrides if provided
             if (overrides?.components?.[componentType.name]) {
@@ -1251,7 +1387,7 @@ export class Engine {
      */
     beginTransaction(): void {
         if (this.inTransaction) {
-            throw new Error('Transaction already in progress');
+            throw new Error('[ECS] Transaction already in progress');
         }
         this.inTransaction = true;
         this.pendingQueryUpdates.clear();
@@ -1268,7 +1404,7 @@ export class Engine {
      */
     commitTransaction(): void {
         if (!this.inTransaction) {
-            throw new Error('No transaction in progress');
+            throw new Error('[ECS] No transaction in progress');
         }
 
         // Update all queries for entities that changed during the transaction
@@ -1293,7 +1429,7 @@ export class Engine {
      */
     rollbackTransaction(): void {
         if (!this.inTransaction) {
-            throw new Error('No transaction in progress');
+            throw new Error('[ECS] No transaction in progress');
         }
 
         // Simply discard all pending changes
@@ -1532,7 +1668,7 @@ export class Engine {
                     } catch {
                         // If that fails, create empty and assign properties
                         const component = new componentType();
-                        Object.assign(component, componentData);
+                        Object.assign(component as object, componentData);
                         this.componentManager.setSingleton(componentType, component);
                     }
                 }
@@ -1575,6 +1711,29 @@ export class Engine {
             getMessageHistory: (messageType?: string) =>
                 this.messageManager.getHistory(messageType),
         };
+    }
+
+    // ========== Logging ==========
+
+    /**
+     * Get the engine logger for secure, structured logging.
+     *
+     * The logger automatically sanitizes string arguments to prevent log injection
+     * attacks by removing ANSI escape sequences and control characters.
+     *
+     * @returns The engine logger instance
+     *
+     * @example
+     * ```typescript
+     * const logger = engine.logger.withTag('MySystem');
+     * logger.debug('Processing entity:', entity.name);
+     * logger.info('System initialized');
+     * logger.warn('Performance warning:', metrics);
+     * logger.error('Failed to process:', error);
+     * ```
+     */
+    get logger(): Logger {
+        return this._logger;
     }
 
     // ========== Change Tracking ==========
@@ -1870,6 +2029,74 @@ export class Engine {
         }
     }
 
+    /**
+     * Check if the engine is currently running.
+     */
+    get isRunning(): boolean {
+        return this.running;
+    }
+
+    /**
+     * Check if the engine has been destroyed.
+     */
+    get isDestroyed(): boolean {
+        return this._isDestroyed;
+    }
+
+    /**
+     * Destroy the engine and clean up all resources.
+     * This includes:
+     * - Stopping the engine if running
+     * - Removing all systems and their event listeners
+     * - Clearing all entities
+     * - Disposing of entity manager event listeners
+     * - Disposing of change tracking manager (clears debounce timers)
+     * - Unsubscribing from all engine-level event listeners
+     *
+     * After calling destroy(), the engine should not be used anymore.
+     */
+    destroy(): void {
+        if (this._isDestroyed) return;
+
+        this._isDestroyed = true;
+
+        // Stop the engine if running
+        if (this.running) {
+            this.stop();
+        }
+
+        // Remove and clean up all systems (this calls system.destroy() for each)
+        this.removeAllSystems();
+
+        // Clear all entities
+        this.entityManager.clear();
+
+        // Dispose of entity manager event listeners
+        this.entityManager.dispose();
+
+        // Dispose of change tracking manager (clears debounce timers)
+        this.changeTrackingManager.dispose();
+
+        // Unsubscribe from engine-level event listeners
+        for (const unsubscribe of this.engineEventUnsubscribers) {
+            unsubscribe();
+        }
+        this.engineEventUnsubscribers = [];
+
+        // Clear pending query updates
+        this.pendingQueryUpdates.clear();
+
+        // Clear message bus subscriptions
+        this.messageManager.clear();
+
+        // Emit destroy event before clearing event emitter
+        this.eventEmitter.emit('onDestroy');
+
+        if (this.debugMode) {
+            console.log('[ECS Debug] Engine destroyed and cleaned up');
+        }
+    }
+
     update(deltaTime?: number): void {
         const now = performance.now();
         const dt = deltaTime !== undefined ? deltaTime : now - this.lastUpdateTime;
@@ -1909,11 +2136,11 @@ export class Engine {
             .map((entity) => entity.serialize());
 
         // Serialize singleton components
-        const singletons: { [componentName: string]: any } = {};
+        const singletons: { [componentName: string]: unknown } = {};
         const allSingletons = this.componentManager.getAllSingletons();
 
         for (const [componentType, component] of allSingletons) {
-            singletons[componentType.name] = { ...component };
+            singletons[componentType.name] = { ...(component as object) };
         }
 
         return {
@@ -2130,12 +2357,13 @@ export class Engine {
             },
             extend: <T extends object>(extensionName: string, api: T): void => {
                 if (this.extensions.has(extensionName)) {
-                    throw new Error(`Extension '${extensionName}' already exists`);
+                    throw new Error(`[ECS] Extension '${extensionName}' already exists`);
                 }
                 this.extensions.set(extensionName, api);
                 // Dynamically add extension to engine instance
                 (this as any)[extensionName] = api;
             },
+            logger: this._logger,
             getEngine: (): any => {
                 return this;
             },

@@ -7,6 +7,7 @@ import { ArchetypeManager } from './archetype';
 import {
     ComponentArray,
     type Entity,
+    type EventEmitter,
     MessageBus,
     Pool,
     Query,
@@ -31,14 +32,21 @@ const MAX_SNAPSHOTS = 10;
 
 /**
  * Manages component storage, validation, and registration
+ *
+ * Note: Internal maps use 'any' for heterogeneous type storage. Public methods
+ * provide type-safe access via generics.
  */
 export class ComponentManager {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private componentArrays: Map<ComponentIdentifier, ComponentArray<any>> = new Map();
-    private validators: Map<ComponentIdentifier, ComponentValidator> = new Map();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private validators: Map<ComponentIdentifier, ComponentValidator<any>> = new Map();
     private registry: Map<string, ComponentIdentifier> = new Map();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private componentPools: Map<ComponentIdentifier, Pool<any>> = new Map();
     private archetypeManager?: ArchetypeManager;
     private archetypesEnabled: boolean = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private singletonComponents: Map<ComponentIdentifier, any> = new Map();
 
     getComponentArray<T>(type: ComponentIdentifier): ComponentArray<T> {
@@ -68,6 +76,7 @@ export class ComponentManager {
         return this.registry.get(name);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getAllComponentArrays(): Map<ComponentIdentifier, ComponentArray<any>> {
         return this.componentArrays;
     }
@@ -109,6 +118,7 @@ export class ComponentManager {
     /**
      * Get a component instance from the pool if available, otherwise create new
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     acquireComponent<T extends object>(type: ComponentIdentifier<T>, ...args: any[]): T {
         const pool = this.componentPools.get(type);
         if (pool) {
@@ -228,6 +238,7 @@ export class ComponentManager {
      * Get all singleton components
      * @returns Map of all singleton components
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getAllSingletons(): Map<ComponentIdentifier, any> {
         return new Map(this.singletonComponents);
     }
@@ -242,9 +253,13 @@ export class ComponentManager {
 
 /**
  * Manages system registration, execution, and profiling
+ *
+ * Note: Internal arrays use 'any' for heterogeneous system storage.
  */
 export class SystemManager {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private systems: System<any>[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private fixedUpdateSystems: System<any>[] = [];
     private systemsSorted: boolean = true;
     private fixedSystemsSorted: boolean = true;
@@ -255,6 +270,10 @@ export class SystemManager {
     // Cache for sorted groups to avoid allocations in hot path
     private sortedGroupsCache: SystemGroup[] | null = null;
     private groupsCacheValid: boolean = false;
+    // Cache for sorted group systems to reduce GC pressure in hot path
+    private groupVariableSystemsCache: Map<string, System<any>[]> = new Map();
+    private groupFixedSystemsCache: Map<string, System<any>[]> = new Map();
+    private groupSystemsCacheValid: boolean = false;
 
     constructor(fixedUpdateFPS: number = 60, maxFixedIterations: number = 10) {
         this.fixedUpdateInterval = 1000 / fixedUpdateFPS;
@@ -263,7 +282,7 @@ export class SystemManager {
 
     createGroup(name: string, priority: number): SystemGroup {
         if (this.groups.has(name)) {
-            throw new Error(`System group '${name}' already exists`);
+            throw new Error(`[ECS] System group '${name}' already exists`);
         }
         const group = new SystemGroup(name, priority);
         this.groups.set(name, group);
@@ -293,11 +312,15 @@ export class SystemManager {
             this.systems.push(system);
             this.systemsSorted = false;
         }
+        // Invalidate group systems cache when systems change
+        this.groupSystemsCacheValid = false;
         return system;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private topologicalSort(systems: System<any>[]): System<any>[] {
         // Build system name to system map
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const systemMap = new Map<string, System<any>>();
         for (const system of systems) {
             systemMap.set(system.name, system);
@@ -339,6 +362,7 @@ export class SystemManager {
 
         // Kahn's algorithm for topological sort
         const queue: string[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const result: System<any>[] = [];
 
         // Find all nodes with in-degree 0
@@ -374,7 +398,7 @@ export class SystemManager {
             // Find systems involved in the cycle
             const remaining = systems.filter((s) => !result.includes(s));
             const cycleNames = remaining.map((s) => s.name).join(', ');
-            throw new Error(`Circular dependency detected in systems: ${cycleNames}`);
+            throw new Error(`[ECS] Circular dependency detected in systems: ${cycleNames}`);
         }
 
         // Post-process: sort systems WITHOUT dependencies by priority
@@ -389,6 +413,7 @@ export class SystemManager {
         // 3. Relative interleaving based on when each system was ready (in-degree became 0)
         if (result.length > 1) {
             // Extract systems with no explicit dependencies
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const noDeps: System<any>[] = [];
             for (const system of result) {
                 if (system.runAfter.length === 0 && system.runBefore.length === 0) {
@@ -441,6 +466,7 @@ export class SystemManager {
             }
             this.fixedSystemsSorted = true;
         }
+        // Group systems cache will be validated on first access after sorting
     }
 
     /**
@@ -467,14 +493,26 @@ export class SystemManager {
             if (!group.enabled) continue;
 
             // Execute systems in this group that are variable update systems (sorted by system priority)
-            // Note: filter() already creates a new array, so slice() is unnecessary
-            const groupSystems = group.systems
-                .filter((s: System<any>) => this.systems.includes(s))
-                .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
+            // Use cached sorted arrays to reduce GC pressure in hot path
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            let groupSystems: System<any>[];
+            if (this.groupSystemsCacheValid && this.groupVariableSystemsCache.has(group.name)) {
+                groupSystems = this.groupVariableSystemsCache.get(group.name)!;
+            } else {
+                groupSystems = group.systems
+                    .filter((s: System<any>) => this.systems.includes(s))
+                    .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
+                this.groupVariableSystemsCache.set(group.name, groupSystems);
+            }
 
             for (const system of groupSystems) {
                 system.step(deltaTime);
             }
+        }
+
+        // Mark group systems cache as valid after first full iteration
+        if (!this.groupSystemsCacheValid) {
+            this.groupSystemsCacheValid = true;
         }
 
         // Then, execute systems without a group
@@ -502,11 +540,17 @@ export class SystemManager {
                 if (!group.enabled) continue;
 
                 // Execute systems in this group that are fixed update systems (sorted by system priority)
-                // Note: This still creates arrays per iteration, but groups are typically small
-                // and the outer loop is the more critical hot path
-                const groupSystems = group.systems
-                    .filter((s: System<any>) => this.fixedUpdateSystems.includes(s))
-                    .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
+                // Use cached sorted arrays to reduce GC pressure in hot path
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                let groupSystems: System<any>[];
+                if (this.groupSystemsCacheValid && this.groupFixedSystemsCache.has(group.name)) {
+                    groupSystems = this.groupFixedSystemsCache.get(group.name)!;
+                } else {
+                    groupSystems = group.systems
+                        .filter((s: System<any>) => this.fixedUpdateSystems.includes(s))
+                        .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
+                    this.groupFixedSystemsCache.set(group.name, groupSystems);
+                }
 
                 for (const system of groupSystems) {
                     system.step(this.fixedUpdateInterval);
@@ -536,7 +580,7 @@ export class SystemManager {
     enableGroup(name: string): void {
         const group = this.groups.get(name);
         if (!group) {
-            throw new Error(`System group '${name}' not found`);
+            throw new Error(`[ECS] System group '${name}' not found`);
         }
         group.enabled = true;
     }
@@ -544,7 +588,7 @@ export class SystemManager {
     disableGroup(name: string): void {
         const group = this.groups.get(name);
         if (!group) {
-            throw new Error(`System group '${name}' not found`);
+            throw new Error(`[ECS] System group '${name}' not found`);
         }
         group.enabled = false;
     }
@@ -557,6 +601,7 @@ export class SystemManager {
         return Array.from(this.groups.values());
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getAllSystems(): System<any>[] {
         return [...this.systems, ...this.fixedUpdateSystems];
     }
@@ -570,6 +615,7 @@ export class SystemManager {
      * @param name - The name of the system to find
      * @returns The system if found, undefined otherwise
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getSystem(name: string): System<any> | undefined {
         return (
             this.systems.find((s) => s.name === name) ||
@@ -607,6 +653,8 @@ export class SystemManager {
             // Remove from array
             this.systems.splice(variableIndex, 1);
             this.systemsSorted = false;
+            // Invalidate group systems cache when systems change
+            this.groupSystemsCacheValid = false;
             return true;
         }
 
@@ -632,6 +680,8 @@ export class SystemManager {
             // Remove from array
             this.fixedUpdateSystems.splice(fixedIndex, 1);
             this.fixedSystemsSorted = false;
+            // Invalidate group systems cache when systems change
+            this.groupSystemsCacheValid = false;
             return true;
         }
 
@@ -660,23 +710,32 @@ export class SystemManager {
         for (const group of this.groups.values()) {
             group.systems = [];
         }
+
+        // Invalidate and clear group systems caches
+        this.groupSystemsCacheValid = false;
+        this.groupVariableSystemsCache.clear();
+        this.groupFixedSystemsCache.clear();
     }
 }
 
 /**
  * Manages query creation and tracking
+ *
+ * Note: Internal arrays use 'any' for heterogeneous query storage.
  */
 export class QueryManager {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private queries: Query<any>[] = [];
-    private componentManager?: any; // ComponentManager reference for archetype support
+    private componentManager?: ComponentManager;
 
     /**
      * Set component manager reference (for archetype support)
      */
-    setComponentManager(componentManager: any): void {
+    setComponentManager(componentManager: ComponentManager): void {
         this.componentManager = componentManager;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     createQuery<C extends readonly any[] = any[]>(options: QueryOptions<any>): Query<C> {
         const archetypeManager = this.componentManager?.getArchetypeManager();
         const query = new Query<C>(options, archetypeManager);
@@ -699,6 +758,7 @@ export class QueryManager {
         // It's here for semantic clarity in transaction commits
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getAllQueries(): Query<any>[] {
         return this.queries;
     }
@@ -735,7 +795,7 @@ export class PrefabManager {
     extend(baseName: string, overrides: Partial<EntityPrefab>): EntityPrefab {
         const base = this.prefabs.get(baseName);
         if (!base) {
-            throw new Error(`Base prefab '${baseName}' not found`);
+            throw new Error(`[ECS] Base prefab '${baseName}' not found`);
         }
 
         // Merge base and overrides
@@ -754,7 +814,7 @@ export class PrefabManager {
             const additionalTags = overrides.tags || [];
             const additionalChildren = overrides.children || [];
 
-            extended.factory = (...args: any[]) => {
+            extended.factory = (...args: unknown[]) => {
                 const baseResult = originalFactory(...args);
                 return {
                     name: baseResult.name,
@@ -777,14 +837,14 @@ export class PrefabManager {
     createVariant(
         baseName: string,
         overrides: {
-            components?: { [componentName: string]: any };
+            components?: { [componentName: string]: unknown };
             tags?: string[];
             children?: EntityPrefab[];
         }
     ): EntityPrefab {
         const base = this.prefabs.get(baseName);
         if (!base) {
-            throw new Error(`Base prefab '${baseName}' not found`);
+            throw new Error(`[ECS] Base prefab '${baseName}' not found`);
         }
 
         const variant: EntityPrefab = {
@@ -820,7 +880,7 @@ export class PrefabManager {
      * @param args - Arguments to pass to factory function (if applicable)
      * @returns Resolved prefab instance
      */
-    resolve(name: string, ...args: any[]): EntityPrefab | undefined {
+    resolve(name: string, ...args: unknown[]): EntityPrefab | undefined {
         const prefab = this.prefabs.get(name);
         if (!prefab) {
             return undefined;
@@ -889,13 +949,34 @@ export class MessageManager {
         return this.bus.subscribe(messageType, callback);
     }
 
-    publish(messageType: string, data: any, sender?: string): void {
+    publish(messageType: string, data: unknown, sender?: string): void {
         this.bus.publish(messageType, data, sender);
     }
 
     getHistory(messageType?: string): SystemMessage[] {
         return this.bus.getMessageHistory(messageType);
     }
+
+    /**
+     * Clear all subscriptions and message history.
+     * Called when the MessageManager is being disposed.
+     */
+    clear(): void {
+        this.bus.clear();
+    }
+}
+
+/**
+ * Options for configuring the ChangeTrackingManager.
+ * @internal
+ */
+interface ChangeTrackingOptions {
+    /** Enable automatic proxy-based change tracking for components */
+    enableProxyTracking?: boolean;
+    /** Enable batch mode (suspends events until flush) */
+    batchMode?: boolean;
+    /** Debounce time in milliseconds for change events (0 = no debounce) */
+    debounceMs?: number;
 }
 
 /**
@@ -903,21 +984,25 @@ export class MessageManager {
  */
 export class ChangeTrackingManager {
     private componentManager: ComponentManager;
-    private eventEmitter: any; // EventEmitter
+    private eventEmitter: EventEmitter;
     private batchMode: boolean = false;
     private proxyTrackingEnabled: boolean = false;
-    private reactiveComponents: WeakMap<any, any> = new WeakMap();
+    private reactiveComponents: WeakMap<object, object> = new WeakMap();
     private debounceTimers: Map<string, ReturnType<typeof setTimeout>> = new Map();
     private debounceMs: number = 0;
     // Track dirty components per entity (for archetype mode)
     private dirtyComponentsMap: Map<number, Set<ComponentIdentifier>> = new Map();
 
-    constructor(componentManager: ComponentManager, eventEmitter: any, options: any = {}) {
+    constructor(
+        componentManager: ComponentManager,
+        eventEmitter: EventEmitter,
+        options: ChangeTrackingOptions = {}
+    ) {
         this.componentManager = componentManager;
         this.eventEmitter = eventEmitter;
-        this.proxyTrackingEnabled = options.enableProxyTracking || false;
-        this.batchMode = options.batchMode || false;
-        this.debounceMs = options.debounceMs || 0;
+        this.proxyTrackingEnabled = options.enableProxyTracking ?? false;
+        this.batchMode = options.batchMode ?? false;
+        this.debounceMs = options.debounceMs ?? 0;
     }
 
     /**
@@ -990,7 +1075,7 @@ export class ChangeTrackingManager {
     /**
      * Emit a component changed event
      */
-    private emitComponentChanged(entity: any, componentType: ComponentIdentifier): void {
+    private emitComponentChanged(entity: Entity, componentType: ComponentIdentifier): void {
         const component = entity.getComponent(componentType);
 
         const event = {
@@ -1024,7 +1109,7 @@ export class ChangeTrackingManager {
      */
     createReactiveComponent<T extends object>(
         component: T,
-        entity: any,
+        entity: Entity,
         componentType: ComponentIdentifier<T>
     ): T {
         if (!this.proxyTrackingEnabled) {
@@ -1033,21 +1118,24 @@ export class ChangeTrackingManager {
 
         // Check if already proxied
         if (this.reactiveComponents.has(component)) {
-            return this.reactiveComponents.get(component);
+            return this.reactiveComponents.get(component) as T;
         }
 
         const proxy = new Proxy(component, {
-            set: (target: any, property: string | symbol, value: any): boolean => {
-                const oldValue = target[property];
-                target[property] = value;
+            set: (target: T, property: string | symbol, value: unknown): boolean => {
+                const oldValue = (target as Record<string | symbol, unknown>)[property];
+                (target as Record<string | symbol, unknown>)[property] = value;
 
                 // Mark as dirty and emit change event
                 if (oldValue !== value) {
                     this.markComponentDirty(entity, componentType);
 
                     // Call onChanged lifecycle hook if it exists
-                    if (typeof target.onChanged === 'function') {
-                        target.onChanged();
+                    if (
+                        'onChanged' in target &&
+                        typeof (target as { onChanged?: () => void }).onChanged === 'function'
+                    ) {
+                        (target as { onChanged: () => void }).onChanged();
                     }
                 }
 

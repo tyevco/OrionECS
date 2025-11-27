@@ -9,7 +9,10 @@
  */
 
 // Import plugin types from @orion-ecs/plugin-api for local use
-import type { SystemMessage as PluginApiSystemMessage } from '@orion-ecs/plugin-api';
+import type {
+    Logger as PluginApiLogger,
+    SystemMessage as PluginApiSystemMessage,
+} from '@orion-ecs/plugin-api';
 
 // Re-export plugin types from @orion-ecs/plugin-api for backward compatibility
 // Plugin authors can import directly from @orion-ecs/plugin-api for a lighter dependency
@@ -17,11 +20,14 @@ export type {
     EnginePlugin,
     ExtractPluginExtensions,
     InstalledPlugin,
+    Logger,
+    LogLevel,
     SystemMessage,
 } from '@orion-ecs/plugin-api';
 
-// Alias for local use within this file
+// Aliases for local use within this file
 type SystemMessage = PluginApiSystemMessage;
+type Logger = PluginApiLogger;
 
 /**
  * Type representing a component class constructor.
@@ -29,7 +35,7 @@ type SystemMessage = PluginApiSystemMessage;
  * @typeParam T - The instance type of the component
  * @public
  */
-export type ComponentIdentifier<T = any> = new (...args: any[]) => T;
+export type ComponentIdentifier<T = unknown> = new (...args: any[]) => T;
 
 /**
  * Extract constructor parameter types from a component identifier.
@@ -86,7 +92,7 @@ export interface ComponentLifecycle {
  * @typeParam T - The component type
  * @public
  */
-export interface ComponentChangeEvent<T = any> {
+export interface ComponentChangeEvent<T = unknown> {
     /** The entity that owns the modified component */
     entity: EntityDef;
     /** The type/class of the component that changed */
@@ -108,7 +114,7 @@ export interface ComponentChangeEvent<T = any> {
  * @typeParam T - The component type
  * @public
  */
-export interface ComponentAddedEvent<T = any> {
+export interface ComponentAddedEvent<T = unknown> {
     /** The entity that received the component */
     entity: EntityDef;
     /** The type/class of the component that was added */
@@ -128,7 +134,7 @@ export interface ComponentAddedEvent<T = any> {
  * @typeParam T - The component type
  * @public
  */
-export interface ComponentRemovedEvent<T = any> {
+export interface ComponentRemovedEvent<T = unknown> {
     /** The entity that the component was removed from */
     entity: EntityDef;
     /** The type/class of the component that was removed */
@@ -217,7 +223,7 @@ export type ComponentRemovedListener<T = any> = (event: ComponentRemovedEvent<T>
  * @typeParam T - The component type
  * @public
  */
-export interface SingletonSetEvent<T = any> {
+export interface SingletonSetEvent<T = unknown> {
     /** The type/class of the singleton component */
     componentType: ComponentIdentifier<T>;
     /** The previous value of the singleton (undefined if newly set) */
@@ -234,7 +240,7 @@ export interface SingletonSetEvent<T = any> {
  * @typeParam T - The component type
  * @public
  */
-export interface SingletonRemovedEvent<T = any> {
+export interface SingletonRemovedEvent<T = unknown> {
     /** The type/class of the singleton component that was removed */
     componentType: ComponentIdentifier<T>;
     /** The component instance that was removed */
@@ -341,7 +347,7 @@ export type ChildRemovedListener = (event: ChildRemovedEvent) => void;
 export type ParentChangedListener = (event: ParentChangedEvent) => void;
 
 // Enhanced system options with profiling and lifecycle hooks
-export interface SystemOptions<C extends readonly any[] = any[]> {
+export interface SystemOptions<C extends readonly unknown[] = unknown[]> {
     act?: (entity: EntityDef, ...components: C) => void;
     before?: () => void;
     after?: () => void;
@@ -439,7 +445,8 @@ export interface SystemOptions<C extends readonly any[] = any[]> {
     watchHierarchy?: boolean;
 }
 
-export type SystemType<T extends readonly any[] = any[]> = SystemOptions<T> & Partial<EngineEvents>;
+export type SystemType<T extends readonly unknown[] = unknown[]> = SystemOptions<T> &
+    Partial<EngineEvents>;
 
 // Enhanced engine events
 export interface EngineEvents {
@@ -662,7 +669,7 @@ export interface MemoryStats {
 }
 
 // Component validation
-export interface ComponentValidator<T = any> {
+export interface ComponentValidator<T = unknown> {
     validate(component: T): boolean | string;
     dependencies?: ComponentIdentifier[];
     conflicts?: ComponentIdentifier[];
@@ -723,7 +730,7 @@ export interface PluginContext {
     ): void;
 
     // Singleton component management
-    setSingleton<T>(type: ComponentIdentifier<T>, ...args: any[]): T;
+    setSingleton<T>(type: ComponentIdentifier<T>, ...args: unknown[]): T;
     getSingleton<T>(type: ComponentIdentifier<T>): T | undefined;
     hasSingleton<T>(type: ComponentIdentifier<T>): boolean;
     removeSingleton<T>(type: ComponentIdentifier<T>): T | undefined;
@@ -734,10 +741,10 @@ export interface PluginContext {
         queryOptions: QueryOptions<All>,
         options: SystemType<ComponentTypes<All>>,
         isFixedUpdate?: boolean
-    ): any; // System<ComponentTypes<All>>
+    ): unknown; // System<ComponentTypes<All>>
 
     // Query creation
-    createQuery<All extends readonly ComponentIdentifier[]>(options: QueryOptions<All>): any; // Query<ComponentTypes<All>>
+    createQuery<All extends readonly ComponentIdentifier[]>(options: QueryOptions<All>): unknown; // Query<ComponentTypes<All>>
 
     // Prefab registration and management
     registerPrefab(name: string, prefab: EntityPrefab): void;
@@ -750,7 +757,7 @@ export interface PluginContext {
     variantOfPrefab(
         baseName: string,
         overrides: {
-            components?: { [componentName: string]: any };
+            components?: { [componentName: string]: unknown };
             tags?: string[];
             children?: EntityPrefab[];
         },
@@ -758,20 +765,23 @@ export interface PluginContext {
     ): EntityPrefab;
 
     // Event system
-    on(event: string, callback: (...args: any[]) => void): () => void;
-    emit(event: string, ...args: any[]): void;
+    on(event: string, callback: (...args: unknown[]) => void): () => void;
+    emit(event: string, ...args: unknown[]): void;
 
     // Message bus
     messageBus: {
         subscribe(messageType: string, callback: (message: SystemMessage) => void): () => void;
-        publish(messageType: string, data: any, sender?: string): void;
+        publish(messageType: string, data: unknown, sender?: string): void;
     };
 
     // Allow plugins to extend the engine with custom APIs
     extend<T extends object>(extensionName: string, api: T): void;
 
+    // Logger for secure, structured logging
+    logger: Logger;
+
     // Get engine instance for advanced use cases
-    getEngine(): any; // Engine
+    getEngine(): unknown; // Engine
 }
 
 // Note: EnginePlugin, ExtractPluginExtensions, and InstalledPlugin are

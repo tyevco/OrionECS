@@ -113,6 +113,30 @@ Entity lifecycle is managed through advanced object pooling to minimize garbage 
 
 ## Development Commands
 
+### Critical Rule: Never Bypass Validation
+
+**IMPORTANT: Bypassing validation checks is considered a failure.**
+
+- ❌ **NEVER** use `--no-verify` to skip git hooks
+- ❌ **NEVER** use `--force` flags to bypass safety checks
+- ❌ **NEVER** disable linter rules with inline comments to hide errors
+- ❌ **NEVER** skip tests or type checks to push code faster
+- ✅ **ALWAYS** fix linting errors properly in the code
+- ✅ **ALWAYS** resolve type errors before committing
+- ✅ **ALWAYS** ensure all tests pass before pushing
+- ✅ **ALWAYS** address pre-commit hook failures by fixing the underlying issues
+
+If pre-commit hooks fail, the correct response is to:
+1. Review the specific errors reported
+2. Fix each issue in the source code
+3. Re-run the commit with all checks passing
+
+This rule exists because bypassing validation:
+- Introduces technical debt and code quality issues
+- Hides real problems that will surface later
+- Undermines the purpose of having validation in place
+- Makes the codebase harder to maintain
+
 ### Build and Test
 - `npm run build` - Build with tsup (outputs CommonJS and ESM to `dist/` with type declarations)
 - `npm test` - Run comprehensive unit tests using Jest
@@ -295,6 +319,98 @@ engine.createSystem('MovementSystem', {
 - Tags: `entity.addTag('player').addTag('active')`
 - Prefabs: `engine.createFromPrefab('PlayerPrefab', 'Player1')`
 - Component pooling: `engine.registerComponentPool(Particle, { initialSize: 100 })`
+
+### Entity Hierarchy System
+
+OrionECS provides comprehensive parent-child hierarchy support with query methods and observer events.
+
+**Basic Hierarchy Operations:**
+```typescript
+// Create hierarchy
+const parent = engine.createEntity('Parent');
+const child = engine.createEntity('Child');
+
+// Establish relationship (either method works)
+parent.addChild(child);
+// or: child.setParent(parent);
+
+// Remove from hierarchy
+child.setParent(null);
+// or: parent.removeChild(child);
+```
+
+**Hierarchy Query Methods:**
+```typescript
+// Get all descendants (children, grandchildren, etc.)
+const allDescendants = parent.getDescendants();
+const topTwoLevels = parent.getDescendants(2);  // Limit depth
+
+// Get all ancestors (parent, grandparent, etc.)
+const ancestors = child.getAncestors();  // Nearest to furthest
+
+// Find specific children
+const enemy = parent.findChild(e => e.hasTag('enemy'));
+const enemies = parent.findChildren(e => e.hasTag('enemy'), true);  // Recursive
+
+// Hierarchy info
+const root = child.getRoot();            // Get root of hierarchy
+const depth = child.getDepth();          // 0 = root, 1 = child of root, etc.
+const siblings = child.getSiblings();    // Get sibling entities
+
+// Relationship checks
+const isAncestor = parent.isAncestorOf(grandchild);
+const isDescendant = grandchild.isDescendantOf(parent);
+const hasChildren = parent.hasChildren();
+const hasParent = child.hasParent();
+const childCount = parent.getChildCount();
+```
+
+**Hierarchy Observer Events:**
+
+Listen for hierarchy changes at the engine level:
+```typescript
+// Child added to a parent
+engine.on('onChildAdded', (event) => {
+  console.log(`${event.child.name} added to ${event.parent.name}`);
+});
+
+// Child removed from a parent
+engine.on('onChildRemoved', (event) => {
+  console.log(`${event.child.name} removed from ${event.parent.name}`);
+});
+
+// Entity's parent changed
+engine.on('onParentChanged', (event) => {
+  console.log(`${event.entity.name} parent: ${event.previousParent?.name} -> ${event.newParent?.name}`);
+});
+```
+
+**System-Level Hierarchy Callbacks:**
+```typescript
+engine.createSystem('HierarchyWatcher', { all: [Transform] }, {
+  watchHierarchy: true,  // Enable hierarchy callbacks
+
+  onChildAdded: (event) => {
+    // React to children being added
+    console.log(`Child added: ${event.child.name}`);
+  },
+
+  onChildRemoved: (event) => {
+    // React to children being removed
+    console.log(`Child removed: ${event.child.name}`);
+  },
+
+  onParentChanged: (event) => {
+    // React to parent changes
+    const { entity, previousParent, newParent } = event;
+    // Update world transforms, recalculate bounds, etc.
+  },
+
+  act: (entity, transform) => {
+    // Normal system logic
+  }
+});
+```
 
 ### Advanced Features Usage
 

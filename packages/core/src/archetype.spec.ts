@@ -3,7 +3,7 @@
  */
 
 import { Archetype, ArchetypeManager } from './archetype';
-import { Entity, EventEmitter } from './core';
+import { Entity, EntityIdGenerator, EventEmitter } from './core';
 import { ComponentManager } from './managers';
 
 // Test components
@@ -35,7 +35,9 @@ describe('Archetype', () => {
     describe('constructor', () => {
         it('should create archetype with sorted component types', () => {
             expect(archetype.componentTypes).toHaveLength(2);
-            expect(archetype.id).toBe('Position,Velocity');
+            // ID includes unique identifiers to prevent collisions with same-named components
+            expect(archetype.id).toContain('Position');
+            expect(archetype.id).toContain('Velocity');
         });
 
         it('should handle empty component types', () => {
@@ -103,12 +105,14 @@ describe('Archetype', () => {
     describe('entity management', () => {
         let componentManager: ComponentManager;
         let eventEmitter: EventEmitter;
+        let idGenerator: EntityIdGenerator;
         let entity: Entity;
 
         beforeEach(() => {
             componentManager = new ComponentManager();
             eventEmitter = new EventEmitter();
-            entity = Entity.create(componentManager, eventEmitter);
+            idGenerator = new EntityIdGenerator();
+            entity = Entity.create(componentManager, eventEmitter, idGenerator);
         });
 
         it('should add entity with components', () => {
@@ -127,7 +131,7 @@ describe('Archetype', () => {
             components1.set(Position, new Position(10, 20));
             components1.set(Velocity, new Velocity(1, 2));
 
-            const entity2 = Entity.create(componentManager, eventEmitter);
+            const entity2 = Entity.create(componentManager, eventEmitter, idGenerator);
             const components2 = new Map();
             components2.set(Position, new Position(30, 40));
             components2.set(Velocity, new Velocity(3, 4));
@@ -173,7 +177,7 @@ describe('Archetype', () => {
         });
 
         it('should iterate over entities efficiently', () => {
-            const entity2 = Entity.create(componentManager, eventEmitter);
+            const entity2 = Entity.create(componentManager, eventEmitter, idGenerator);
 
             const components1 = new Map();
             components1.set(Position, new Position(10, 20));
@@ -213,18 +217,22 @@ describe('ArchetypeManager', () => {
     let archetypeManager: ArchetypeManager;
     let componentManager: ComponentManager;
     let eventEmitter: EventEmitter;
+    let idGenerator: EntityIdGenerator;
 
     beforeEach(() => {
         archetypeManager = new ArchetypeManager();
         componentManager = new ComponentManager();
         eventEmitter = new EventEmitter();
+        idGenerator = new EntityIdGenerator();
     });
 
     describe('getOrCreateArchetype', () => {
         it('should create new archetype for component composition', () => {
             const archetype = archetypeManager.getOrCreateArchetype([Position, Velocity]);
             expect(archetype).toBeDefined();
-            expect(archetype.id).toBe('Position,Velocity');
+            // ID includes unique identifiers to prevent collisions with same-named components
+            expect(archetype.id).toContain('Position');
+            expect(archetype.id).toContain('Velocity');
         });
 
         it('should reuse existing archetype for same composition', () => {
@@ -250,7 +258,7 @@ describe('ArchetypeManager', () => {
         let entity: Entity;
 
         beforeEach(() => {
-            entity = Entity.create(componentManager, eventEmitter);
+            entity = Entity.create(componentManager, eventEmitter, idGenerator);
         });
 
         it('should add entity to archetype', () => {
@@ -280,7 +288,9 @@ describe('ArchetypeManager', () => {
 
             const archetype2 = archetypeManager.getEntityArchetype(entity);
             expect(archetype2).toBeDefined();
-            expect(archetype2?.id).toBe('Position,Velocity');
+            // ID includes unique identifiers to prevent collisions with same-named components
+            expect(archetype2?.id).toContain('Position');
+            expect(archetype2?.id).toContain('Velocity');
             expect(archetype1.hasEntity(entity)).toBe(false);
             expect(archetype2?.hasEntity(entity)).toBe(true);
         });
@@ -349,7 +359,7 @@ describe('ArchetypeManager', () => {
         });
 
         it('should provide memory statistics', () => {
-            const entity = Entity.create(componentManager, eventEmitter);
+            const entity = Entity.create(componentManager, eventEmitter, idGenerator);
             const archetype = archetypeManager.getOrCreateArchetype([Position]);
             const components = new Map();
             components.set(Position, new Position(10, 20));

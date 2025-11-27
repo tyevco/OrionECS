@@ -66,6 +66,13 @@ export interface KeyboardEventData {
 // =============================================================================
 
 /**
+ * Callback type for input event handlers.
+ */
+export type InputEventCallback<T = MouseEventData | DragEventData | KeyboardEventData> = (
+    data: T
+) => void;
+
+/**
  * Input Manager API interface for type-safe engine extension.
  */
 export interface IInputAPI {
@@ -90,9 +97,25 @@ export interface IInputAPI {
     /** Gets all currently pressed keys */
     getPressedKeys(): string[];
     /** Subscribes to an input event */
-    on(event: string, callback: Function): () => void;
+    on<T = MouseEventData | DragEventData | KeyboardEventData>(
+        event: string,
+        callback: InputEventCallback<T>
+    ): () => void;
     /** Cleans up event listeners */
     cleanup(): void;
+}
+
+// =============================================================================
+// Helper Functions
+// =============================================================================
+
+/**
+ * Prevents the context menu from appearing on right-click.
+ * Defined at module level to satisfy consistent-function-scoping rule.
+ */
+function handleContextMenu(e: Event): boolean {
+    e.preventDefault();
+    return false;
 }
 
 // =============================================================================
@@ -119,7 +142,7 @@ export class InputAPI implements IInputAPI {
     private keysReleased: Set<string> = new Set(); // Keys released this frame
 
     // Event listeners
-    private listeners: Map<string, Set<Function>> = new Map();
+    private listeners: Map<string, Set<InputEventCallback<unknown>>> = new Map();
 
     // Bound event handlers for cleanup
     private boundHandlers: Map<string, EventListener> = new Map();
@@ -160,10 +183,6 @@ export class InputAPI implements IInputAPI {
         const onMouseDown = (e: MouseEvent) => this.handleMouseDown(e);
         const onMouseUp = (e: MouseEvent) => this.handleMouseUp(e);
         const onClick = (e: MouseEvent) => this.handleClick(e);
-        const onContextMenu = (e: Event) => {
-            e.preventDefault(); // Prevent context menu
-            return false;
-        };
 
         // Keyboard events
         const onKeyDown = (e: KeyboardEvent) => this.handleKeyDown(e);
@@ -173,7 +192,7 @@ export class InputAPI implements IInputAPI {
         this.element.addEventListener('mousedown', onMouseDown);
         this.element.addEventListener('mouseup', onMouseUp);
         this.element.addEventListener('click', onClick);
-        this.element.addEventListener('contextmenu', onContextMenu);
+        this.element.addEventListener('contextmenu', handleContextMenu);
 
         // Keyboard events on window
         window.addEventListener('keydown', onKeyDown);
@@ -184,7 +203,7 @@ export class InputAPI implements IInputAPI {
         this.boundHandlers.set('mousedown', onMouseDown as EventListener);
         this.boundHandlers.set('mouseup', onMouseUp as EventListener);
         this.boundHandlers.set('click', onClick as EventListener);
-        this.boundHandlers.set('contextmenu', onContextMenu as EventListener);
+        this.boundHandlers.set('contextmenu', handleContextMenu as EventListener);
         this.boundHandlers.set('keydown', onKeyDown as EventListener);
         this.boundHandlers.set('keyup', onKeyUp as EventListener);
     }
@@ -446,22 +465,25 @@ export class InputAPI implements IInputAPI {
     /**
      * Subscribes to an input event
      */
-    public on(event: string, callback: Function): () => void {
+    public on<T = MouseEventData | DragEventData | KeyboardEventData>(
+        event: string,
+        callback: InputEventCallback<T>
+    ): () => void {
         if (!this.listeners.has(event)) {
             this.listeners.set(event, new Set());
         }
-        this.listeners.get(event)!.add(callback);
+        this.listeners.get(event)!.add(callback as InputEventCallback<unknown>);
 
         // Return unsubscribe function
         return () => {
-            this.listeners.get(event)?.delete(callback);
+            this.listeners.get(event)?.delete(callback as InputEventCallback<unknown>);
         };
     }
 
     /**
      * Emits an input event
      */
-    private emit(event: string, data: any): void {
+    private emit(event: string, data: MouseEventData | DragEventData | KeyboardEventData): void {
         const callbacks = this.listeners.get(event);
         if (callbacks) {
             for (const callback of callbacks) {

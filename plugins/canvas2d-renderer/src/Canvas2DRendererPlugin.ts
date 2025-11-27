@@ -82,6 +82,36 @@ export class Sprite {
     ) {}
 }
 
+/**
+ * Internal interface for camera render bounds calculation.
+ * Used to pass computed bounds between camera setup and sprite rendering systems.
+ */
+interface CameraRenderBounds {
+    worldLeft: number;
+    worldTop: number;
+    worldRight: number;
+    worldBottom: number;
+    screenLeft: number;
+    screenTop: number;
+    screenWidth: number;
+    screenHeight: number;
+}
+
+/**
+ * Internal interface for mesh vertex structure.
+ */
+interface MeshVertex {
+    position: { x: number; y: number };
+}
+
+/**
+ * Internal interface for mesh structure used in rendering.
+ */
+interface RenderableMesh {
+    vertices: MeshVertex[];
+    color?: { value?: string; toString(): string };
+}
+
 // =============================================================================
 // Canvas2D API Interface
 // =============================================================================
@@ -233,6 +263,19 @@ export class Canvas2DAPI implements ICanvas2DAPI {
 /**
  * Canvas2D Renderer Plugin with type-safe engine extension.
  */
+/**
+ * Internal symbol for storing camera render bounds on entities.
+ * Using a symbol prevents naming collisions with user properties.
+ */
+const RENDER_BOUNDS_KEY = Symbol('_renderBounds');
+
+/**
+ * Entity with optional render bounds attached during camera setup.
+ */
+interface EntityWithRenderBounds extends EntityDef {
+    [RENDER_BOUNDS_KEY]?: CameraRenderBounds;
+}
+
 export class Canvas2DRendererPlugin implements EnginePlugin<{ canvas2d: ICanvas2DAPI }> {
     name = 'Canvas2DRendererPlugin';
     version = '1.0.0';
@@ -243,7 +286,7 @@ export class Canvas2DRendererPlugin implements EnginePlugin<{ canvas2d: ICanvas2
     private api = new Canvas2DAPI();
     private canvas?: HTMLCanvasElement;
     private context?: CanvasRenderingContext2D;
-    private cameraQuery: any;
+    private cameraEntities: EntityWithRenderBounds[] = [];
 
     install(context: PluginContext): void {
         // Register components
@@ -273,9 +316,6 @@ export class Canvas2DRendererPlugin implements EnginePlugin<{ canvas2d: ICanvas2
             dependencies: [Transform],
         });
 
-        // Create a query for cameras
-        this.cameraQuery = context.createQuery({ all: [Camera, Transform, ScreenElement] });
-
         // Camera setup and clearing system
         context.createSystem(
             'CameraSetupSystem',
@@ -295,13 +335,16 @@ export class Canvas2DRendererPlugin implements EnginePlugin<{ canvas2d: ICanvas2
                     if (this.context && this.canvas && this.api.getClearBeforeRender()) {
                         this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
                     }
+
+                    // Clear camera entities list for this frame
+                    this.cameraEntities = [];
                 },
-                act: (_entity: any, ...components: any[]) => {
-                    const [camera, transform, screenElement] = components as [
-                        Camera,
-                        Transform,
-                        ScreenElement,
-                    ];
+                act: (
+                    entity: EntityDef,
+                    camera: Camera,
+                    transform: Transform,
+                    screenElement: ScreenElement
+                ) => {
                     if (!this.context || !this.canvas) return;
 
                     // Calculate screen position
@@ -333,7 +376,8 @@ export class Canvas2DRendererPlugin implements EnginePlugin<{ canvas2d: ICanvas2
                     const worldTop = transform.y - camera.height / 2;
 
                     // Store bounds on entity for sprite rendering to use
-                    (_entity as any)._renderBounds = {
+                    const entityWithBounds = entity as EntityWithRenderBounds;
+                    entityWithBounds[RENDER_BOUNDS_KEY] = {
                         worldLeft,
                         worldTop,
                         worldRight: worldLeft + camera.width,
@@ -343,6 +387,9 @@ export class Canvas2DRendererPlugin implements EnginePlugin<{ canvas2d: ICanvas2
                         screenWidth,
                         screenHeight,
                     };
+
+                    // Track camera entities for sprite rendering
+                    this.cameraEntities.push(entityWithBounds);
 
                     // Clear camera viewport
                     this.context.clearRect(screenLeft, screenTop, screenWidth, screenHeight);
@@ -370,16 +417,12 @@ export class Canvas2DRendererPlugin implements EnginePlugin<{ canvas2d: ICanvas2
             },
             {
                 priority: 900, // Run after camera setup
-                act: (_entity: any, ...components: any[]) => {
-                    const [sprite, transform] = components as [Sprite, Transform];
+                act: (_entity: EntityDef, sprite: Sprite, transform: Transform) => {
                     if (!this.context || !sprite.visible) return;
 
-                    // Get all cameras
-                    const cameras = this.cameraQuery.entities;
-
                     // Render sprite in each camera that can see it
-                    for (const camera of cameras) {
-                        const bounds = (camera as any)._renderBounds;
+                    for (const camera of this.cameraEntities) {
+                        const bounds = camera[RENDER_BOUNDS_KEY];
                         if (!bounds) continue;
 
                         // Check if sprite is in camera bounds
@@ -394,7 +437,12 @@ export class Canvas2DRendererPlugin implements EnginePlugin<{ canvas2d: ICanvas2
                             const screenY = bounds.screenTop + (transform.y - bounds.worldTop);
 
                             // Render the mesh
-                            this.renderMesh(sprite.mesh, screenX, screenY, transform);
+                            this.renderMesh(
+                                sprite.mesh as RenderableMesh,
+                                screenX,
+                                screenY,
+                                transform
+                            );
                         }
                     }
                 },
@@ -411,7 +459,12 @@ export class Canvas2DRendererPlugin implements EnginePlugin<{ canvas2d: ICanvas2
     /**
      * Renders a mesh at the specified screen position
      */
-    private renderMesh(mesh: any, screenX: number, screenY: number, transform: Transform): void {
+    private renderMesh(
+        mesh: RenderableMesh,
+        screenX: number,
+        screenY: number,
+        transform: Transform
+    ): void {
         if (!this.context || !mesh.vertices || mesh.vertices.length === 0) return;
 
         this.context.save();
@@ -439,7 +492,7 @@ export class Canvas2DRendererPlugin implements EnginePlugin<{ canvas2d: ICanvas2
 
         // Fill with mesh color
         if (mesh.color) {
-            this.context.fillStyle = mesh.color.value || mesh.color.toString();
+            this.context.fillStyle = mesh.color.value ?? mesh.color.toString();
             this.context.fill();
         }
 

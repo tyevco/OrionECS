@@ -125,7 +125,7 @@ export interface SystemProfile {
  *
  * @public
  */
-export type ComponentIdentifier<T = any> = new (...args: any[]) => T;
+export type ComponentIdentifier<T = unknown> = new (...args: any[]) => T;
 
 /**
  * Component validator for runtime validation of component data.
@@ -134,7 +134,7 @@ export type ComponentIdentifier<T = any> = new (...args: any[]) => T;
  *
  * @public
  */
-export interface ComponentValidator<T = any> {
+export interface ComponentValidator<T = unknown> {
     /** Validate the component, returning true or an error message */
     validate(component: T): boolean | string;
     /** Other components that must be present on the entity */

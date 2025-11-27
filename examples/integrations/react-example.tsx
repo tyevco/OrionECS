@@ -27,103 +27,116 @@ import React, {
 import type { FC, ReactNode } from 'react';
 */
 
-import { EngineBuilder } from '../../core/src/engine';
-import type { Engine } from '../../core/src/engine';
 import type { EntityDef, QueryOptions } from '../../core/src/definitions';
+import type { Engine } from '../../core/src/engine';
+import { EngineBuilder } from '../../core/src/engine';
 
 // ============================================================================
 // Mock React for this example (remove when React is installed)
 // ============================================================================
 
 const React = {
-  useState: (initial: any) => [initial, (v: any) => {}],
-  useEffect: (fn: any, deps?: any[]) => {},
-  useCallback: (fn: any, deps: any[]) => fn,
-  useMemo: (fn: any, deps: any[]) => fn(),
-  useRef: (initial: any) => ({ current: initial }),
-  createContext: (defaultValue: any) => ({
-    Provider: ({ children }: any) => children,
-    Consumer: ({ children }: any) => children,
-  }),
-  useContext: (context: any) => null,
-  memo: (component: any) => component,
+    useState: <T,>(initial: T): [T, (v: T) => void] => [initial, (_v: T) => {}],
+    useEffect: (_fn: () => undefined | (() => void), _deps?: unknown[]) => {},
+    useCallback: <T extends (...args: unknown[]) => unknown>(fn: T, _deps: unknown[]): T => fn,
+    useMemo: <T,>(fn: () => T, _deps: unknown[]): T => fn(),
+    useRef: <T,>(initial: T): { current: T } => ({ current: initial }),
+    createContext: <T,>(_defaultValue: T) => ({
+        Provider: ({ children }: { children: ReactNode }) => children,
+        Consumer: ({ children }: { children: ReactNode }) => children,
+    }),
+    useContext: <T,>(_context: T): T | null => null,
+    memo: <T,>(component: T): T => component,
 };
 
-type FC<P = {}> = (props: P) => any;
-type ReactNode = any;
+type FC<P = object> = (props: P) => ReactNode;
+type ReactNode = unknown;
 
 // ============================================================================
-// Components - Game data
+// Components - Pure data (no business logic)
 // ============================================================================
 
 class Position {
-  constructor(public x: number = 0, public y: number = 0) {}
+    constructor(
+        public x: number = 0,
+        public y: number = 0
+    ) {}
 }
 
 class Velocity {
-  constructor(public dx: number = 0, public dy: number = 0) {}
+    constructor(
+        public dx: number = 0,
+        public dy: number = 0
+    ) {}
 }
 
+// Pure data component
 class Health {
-  constructor(
-    public current: number = 100,
-    public max: number = 100,
-  ) {}
-
-  get percentage(): number {
-    return (this.current / this.max) * 100;
-  }
+    constructor(
+        public current: number = 100,
+        public max: number = 100
+    ) {}
 }
 
+// Pure data component
 class PlayerStats {
-  constructor(
-    public level: number = 1,
-    public experience: number = 0,
-    public experienceToNext: number = 100,
-  ) {}
-
-  get progress(): number {
-    return (this.experience / this.experienceToNext) * 100;
-  }
-}
-
-class Inventory {
-  items: InventoryItem[] = [];
-  maxSlots: number = 20;
-
-  constructor(maxSlots: number = 20) {
-    this.maxSlots = maxSlots;
-  }
-
-  addItem(item: InventoryItem): boolean {
-    if (this.items.length >= this.maxSlots) return false;
-    this.items.push(item);
-    return true;
-  }
-
-  removeItem(index: number): InventoryItem | undefined {
-    return this.items.splice(index, 1)[0];
-  }
-
-  get isFull(): boolean {
-    return this.items.length >= this.maxSlots;
-  }
+    constructor(
+        public level: number = 1,
+        public experience: number = 0,
+        public experienceToNext: number = 100
+    ) {}
 }
 
 interface InventoryItem {
-  id: string;
-  name: string;
-  type: 'weapon' | 'armor' | 'consumable' | 'quest';
-  description: string;
-  icon?: string;
-  quantity?: number;
+    id: string;
+    name: string;
+    type: 'weapon' | 'armor' | 'consumable' | 'quest';
+    description: string;
+    icon?: string;
+    quantity?: number;
+}
+
+// Pure data component
+class Inventory {
+    items: InventoryItem[] = [];
+    maxSlots: number = 20;
+
+    constructor(maxSlots: number = 20) {
+        this.maxSlots = maxSlots;
+    }
 }
 
 class PlayerInfo {
-  constructor(
-    public name: string = 'Player',
-    public playerClass: string = 'Warrior',
-  ) {}
+    constructor(
+        public name: string = 'Player',
+        public playerClass: string = 'Warrior'
+    ) {}
+}
+
+// ============================================================================
+// Helper Functions (Pure functions for component calculations)
+// ============================================================================
+
+function getHealthPercentage(health: Health): number {
+    return (health.current / health.max) * 100;
+}
+
+function getStatsProgress(stats: PlayerStats): number {
+    return (stats.experience / stats.experienceToNext) * 100;
+}
+
+function addInventoryItem(inventory: Inventory, item: InventoryItem): boolean {
+    if (inventory.items.length >= inventory.maxSlots) return false;
+    inventory.items.push(item);
+    return true;
+}
+
+function removeInventoryItem(inventory: Inventory, index: number): InventoryItem | undefined {
+    return inventory.items.splice(index, 1)[0];
+}
+
+function isInventoryFull(inventory: Inventory): boolean {
+    return inventory.items.length >= inventory.maxSlots;
 }
 
 // ============================================================================
@@ -131,56 +144,56 @@ class PlayerInfo {
 // ============================================================================
 
 interface EngineContextValue {
-  engine: Engine | null;
-  isRunning: boolean;
+    engine: Engine | null;
+    isRunning: boolean;
 }
 
 const EngineContext = React.createContext<EngineContextValue>({
-  engine: null,
-  isRunning: false,
+    engine: null,
+    isRunning: false,
 });
 
 /**
  * Provider component for the ECS engine
  */
 interface EngineProviderProps {
-  engine: Engine;
-  children: ReactNode;
+    engine: Engine;
+    children: ReactNode;
 }
 
 const EngineProvider: FC<EngineProviderProps> = ({ engine, children }) => {
-  const [isRunning, setIsRunning] = React.useState(false);
+    const [isRunning, setIsRunning] = React.useState(false);
 
-  React.useEffect(() => {
-    engine.start();
-    setIsRunning(true);
+    React.useEffect(() => {
+        engine.start();
+        setIsRunning(true);
 
-    return () => {
-      engine.stop();
-      setIsRunning(false);
-    };
-  }, [engine]);
+        return () => {
+            engine.stop();
+            setIsRunning(false);
+        };
+    }, [engine]);
 
-  const value = React.useMemo(
-    () => ({
-      engine,
-      isRunning,
-    }),
-    [engine, isRunning],
-  );
+    const value = React.useMemo(
+        () => ({
+            engine,
+            isRunning,
+        }),
+        [engine, isRunning]
+    );
 
-  return React.createElement(EngineContext.Provider, { value }, children);
+    return React.createElement(EngineContext.Provider, { value }, children);
 };
 
 /**
  * Hook to access the engine instance
  */
 function useEngine(): Engine {
-  const context = React.useContext(EngineContext);
-  if (!context.engine) {
-    throw new Error('useEngine must be used within EngineProvider');
-  }
-  return context.engine;
+    const context = React.useContext(EngineContext);
+    if (!context.engine) {
+        throw new Error('useEngine must be used within EngineProvider');
+    }
+    return context.engine;
 }
 
 // ============================================================================
@@ -192,157 +205,160 @@ function useEngine(): Engine {
  * Re-renders when entities matching the query change
  */
 function useEntities(query: QueryOptions): EntityDef[] {
-  const engine = useEngine();
-  const [entities, setEntities] = React.useState<EntityDef[]>([]);
-  const [version, setVersion] = React.useState(0);
+    const engine = useEngine();
+    const [entities, setEntities] = React.useState<EntityDef[]>([]);
+    const [_version, _setVersion] = React.useState(0);
 
-  React.useEffect(() => {
-    // Create query
-    const queryObj = engine.createQuery(query);
+    React.useEffect(() => {
+        // Create query
+        const queryObj = engine.createQuery(query);
 
-    // Update entities
-    const updateEntities = () => {
-      const matched = queryObj.getEntities();
-      setEntities([...matched]); // Create new array to trigger re-render
-    };
+        // Update entities
+        const updateEntities = () => {
+            const matched = queryObj.getEntities();
+            setEntities([...matched]); // Create new array to trigger re-render
+        };
 
-    // Initial update
-    updateEntities();
-
-    // Subscribe to entity changes
-    // Note: In a real implementation, you'd subscribe to specific events
-    // For this example, we'll poll (not optimal but works)
-    const interval = setInterval(() => {
-      const currentEntities = queryObj.getEntities();
-      if (currentEntities.length !== entities.length) {
+        // Initial update
         updateEntities();
-      }
-    }, 100);
 
-    return () => {
-      clearInterval(interval);
-    };
-  }, [engine, JSON.stringify(query)]);
+        // Subscribe to entity changes
+        // Note: In a real implementation, you'd subscribe to specific events
+        // For this example, we'll poll (not optimal but works)
+        const interval = setInterval(() => {
+            const currentEntities = queryObj.getEntities();
+            if (currentEntities.length !== entities.length) {
+                updateEntities();
+            }
+        }, 100);
 
-  return entities;
+        return () => {
+            clearInterval(interval);
+        };
+    }, [engine, JSON.stringify(query)]);
+
+    return entities;
 }
 
 /**
  * Hook to access entities with specific tags
  */
 function useEntitiesWithTag(tag: string): EntityDef[] {
-  const engine = useEngine();
-  const [entities, setEntities] = React.useState<EntityDef[]>([]);
+    const engine = useEngine();
+    const [entities, setEntities] = React.useState<EntityDef[]>([]);
 
-  React.useEffect(() => {
-    const update = () => {
-      const tagged = engine.getEntitiesWithTag(tag);
-      setEntities([...tagged]);
-    };
+    React.useEffect(() => {
+        const update = () => {
+            const tagged = engine.getEntitiesWithTag(tag);
+            setEntities([...tagged]);
+        };
 
-    update();
+        update();
 
-    const interval = setInterval(update, 100);
-    return () => clearInterval(interval);
-  }, [engine, tag]);
+        const interval = setInterval(update, 100);
+        return () => clearInterval(interval);
+    }, [engine, tag]);
 
-  return entities;
+    return entities;
 }
 
 /**
  * Hook to observe a single entity's component
  * Re-renders when the component changes
  */
-function useComponent<T>(entity: EntityDef | null, componentClass: new (...args: any[]) => T): T | null {
-  const [component, setComponent] = React.useState<T | null>(null);
-  const [version, setVersion] = React.useState(0);
+function useComponent<T>(
+    entity: EntityDef | null,
+    componentClass: new (...args: unknown[]) => T
+): T | null {
+    const [component, setComponent] = React.useState<T | null>(null);
+    const [_version, setVersion] = React.useState(0);
 
-  React.useEffect(() => {
-    if (!entity) {
-      setComponent(null);
-      return;
-    }
+    React.useEffect(() => {
+        if (!entity) {
+            setComponent(null);
+            return;
+        }
 
-    if (!entity.hasComponent(componentClass)) {
-      setComponent(null);
-      return;
-    }
+        if (!entity.hasComponent(componentClass)) {
+            setComponent(null);
+            return;
+        }
 
-    const comp = entity.getComponent(componentClass);
-    setComponent(comp);
+        const comp = entity.getComponent(componentClass);
+        setComponent(comp);
 
-    // Poll for changes (in real app, use change detection)
-    const interval = setInterval(() => {
-      setVersion((v) => v + 1);
-    }, 100);
+        // Poll for changes (in real app, use change detection)
+        const interval = setInterval(() => {
+            setVersion((v) => v + 1);
+        }, 100);
 
-    return () => clearInterval(interval);
-  }, [entity, componentClass]);
+        return () => clearInterval(interval);
+    }, [entity, componentClass]);
 
-  return component;
+    return component;
 }
 
 /**
  * Hook to create and manage an entity
  */
 function useCreateEntity(
-  name: string,
-  setup: (entity: EntityDef) => void,
-  deps: any[] = [],
+    name: string,
+    setup: (entity: EntityDef) => void,
+    deps: unknown[] = []
 ): EntityDef | null {
-  const engine = useEngine();
-  const [entity, setEntity] = React.useState<EntityDef | null>(null);
+    const engine = useEngine();
+    const [entity, setEntity] = React.useState<EntityDef | null>(null);
 
-  React.useEffect(() => {
-    const newEntity = engine.createEntity(name);
-    setup(newEntity);
-    setEntity(newEntity);
+    React.useEffect(() => {
+        const newEntity = engine.createEntity(name);
+        setup(newEntity);
+        setEntity(newEntity);
 
-    return () => {
-      newEntity.queueFree();
-    };
-  }, [engine, ...deps]);
+        return () => {
+            newEntity.queueFree();
+        };
+    }, [engine, ...deps]);
 
-  return entity;
+    return entity;
 }
 
 /**
  * Hook to run a callback every frame
  */
-function useGameLoop(callback: (deltaTime: number) => void, deps: any[] = []): void {
-  const engine = useEngine();
-  const callbackRef = React.useRef(callback);
+function useGameLoop(callback: (deltaTime: number) => void, deps: unknown[] = []): void {
+    const engine = useEngine();
+    const callbackRef = React.useRef(callback);
 
-  React.useEffect(() => {
-    callbackRef.current = callback;
-  }, [callback]);
+    React.useEffect(() => {
+        callbackRef.current = callback;
+    }, [callback]);
 
-  React.useEffect(() => {
-    const systemName = `ReactHook_${Date.now()}`;
+    React.useEffect(() => {
+        const systemName = `ReactHook_${Date.now()}`;
 
-    engine.createSystem(
-      systemName,
-      { all: [] },
-      {
-        priority: -1000,
-        after: () => {
-          const dt = 1 / 60; // Simplified
-          callbackRef.current(dt);
-        },
-      },
-      false,
-    );
+        engine.createSystem(
+            systemName,
+            { all: [] },
+            {
+                priority: -1000,
+                after: () => {
+                    const dt = 1 / 60; // Simplified
+                    callbackRef.current(dt);
+                },
+            },
+            false
+        );
 
-    return () => {
-      // Remove system when unmounting
-      // Note: Engine would need a removeSystem method
-      // For now, disable it
-      const system = engine.getSystem(systemName);
-      if (system) {
-        system.enabled = false;
-      }
-    };
-  }, [engine, ...deps]);
+        return () => {
+            // Remove system when unmounting
+            // Note: Engine would need a removeSystem method
+            // For now, disable it
+            const system = engine.getSystem(systemName);
+            if (system) {
+                system.enabled = false;
+            }
+        };
+    }, [engine, ...deps]);
 }
 
 // ============================================================================
@@ -353,333 +369,341 @@ function useGameLoop(callback: (deltaTime: number) => void, deps: any[] = []): v
  * Health Bar Component
  */
 interface HealthBarProps {
-  entity: EntityDef;
-  width?: number;
-  height?: number;
-  showText?: boolean;
+    entity: EntityDef;
+    width?: number;
+    height?: number;
+    showText?: boolean;
 }
 
 const HealthBar: FC<HealthBarProps> = React.memo(
-  ({ entity, width = 200, height = 20, showText = true }) => {
-    const health = useComponent(entity, Health);
+    ({ entity, width = 200, height = 20, showText = true }) => {
+        const health = useComponent(entity, Health);
 
-    if (!health) {
-      return React.createElement('div', null, 'No health component');
+        if (!health) {
+            return React.createElement('div', null, 'No health component');
+        }
+
+        const percentage = getHealthPercentage(health);
+        const fillColor = percentage > 60 ? '#4ade80' : percentage > 30 ? '#facc15' : '#ef4444';
+
+        const containerStyle = {
+            width: `${width}px`,
+            height: `${height}px`,
+            backgroundColor: '#333',
+            border: '2px solid #666',
+            borderRadius: '4px',
+            overflow: 'hidden',
+            position: 'relative' as const,
+        };
+
+        const fillStyle = {
+            width: `${percentage}%`,
+            height: '100%',
+            backgroundColor: fillColor,
+            transition: 'width 0.3s ease, background-color 0.3s ease',
+        };
+
+        const textStyle = {
+            position: 'absolute' as const,
+            top: '50%',
+            left: '50%',
+            transform: 'translate(-50%, -50%)',
+            color: '#fff',
+            fontSize: '12px',
+            fontWeight: 'bold' as const,
+            textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
+        };
+
+        return React.createElement(
+            'div',
+            { style: containerStyle },
+            React.createElement('div', { style: fillStyle }),
+            showText &&
+                React.createElement('div', { style: textStyle }, `${health.current}/${health.max}`)
+        );
     }
-
-    const percentage = health.percentage;
-    const fillColor = percentage > 60 ? '#4ade80' : percentage > 30 ? '#facc15' : '#ef4444';
-
-    const containerStyle = {
-      width: `${width}px`,
-      height: `${height}px`,
-      backgroundColor: '#333',
-      border: '2px solid #666',
-      borderRadius: '4px',
-      overflow: 'hidden',
-      position: 'relative' as const,
-    };
-
-    const fillStyle = {
-      width: `${percentage}%`,
-      height: '100%',
-      backgroundColor: fillColor,
-      transition: 'width 0.3s ease, background-color 0.3s ease',
-    };
-
-    const textStyle = {
-      position: 'absolute' as const,
-      top: '50%',
-      left: '50%',
-      transform: 'translate(-50%, -50%)',
-      color: '#fff',
-      fontSize: '12px',
-      fontWeight: 'bold' as const,
-      textShadow: '1px 1px 2px rgba(0,0,0,0.8)',
-    };
-
-    return React.createElement(
-      'div',
-      { style: containerStyle },
-      React.createElement('div', { style: fillStyle }),
-      showText &&
-        React.createElement('div', { style: textStyle }, `${health.current}/${health.max}`),
-    );
-  },
 );
 
 /**
  * Experience Bar Component
  */
 interface ExperienceBarProps {
-  entity: EntityDef;
-  width?: number;
-  height?: number;
+    entity: EntityDef;
+    width?: number;
+    height?: number;
 }
 
 const ExperienceBar: FC<ExperienceBarProps> = React.memo(({ entity, width = 200, height = 10 }) => {
-  const stats = useComponent(entity, PlayerStats);
+    const stats = useComponent(entity, PlayerStats);
 
-  if (!stats) return null;
+    if (!stats) return null;
 
-  const containerStyle = {
-    width: `${width}px`,
-    height: `${height}px`,
-    backgroundColor: '#1e293b',
-    border: '1px solid #475569',
-    borderRadius: '2px',
-    overflow: 'hidden',
-  };
+    const containerStyle = {
+        width: `${width}px`,
+        height: `${height}px`,
+        backgroundColor: '#1e293b',
+        border: '1px solid #475569',
+        borderRadius: '2px',
+        overflow: 'hidden',
+    };
 
-  const fillStyle = {
-    width: `${stats.progress}%`,
-    height: '100%',
-    backgroundColor: '#8b5cf6',
-    transition: 'width 0.3s ease',
-  };
+    const fillStyle = {
+        width: `${getStatsProgress(stats)}%`,
+        height: '100%',
+        backgroundColor: '#8b5cf6',
+        transition: 'width 0.3s ease',
+    };
 
-  return React.createElement(
-    'div',
-    null,
-    React.createElement(
-      'div',
-      { style: { fontSize: '10px', color: '#94a3b8', marginBottom: '2px' } },
-      `Level ${stats.level} - ${stats.experience}/${stats.experienceToNext} XP`,
-    ),
-    React.createElement(
-      'div',
-      { style: containerStyle },
-      React.createElement('div', { style: fillStyle }),
-    ),
-  );
+    return React.createElement(
+        'div',
+        null,
+        React.createElement(
+            'div',
+            { style: { fontSize: '10px', color: '#94a3b8', marginBottom: '2px' } },
+            `Level ${stats.level} - ${stats.experience}/${stats.experienceToNext} XP`
+        ),
+        React.createElement(
+            'div',
+            { style: containerStyle },
+            React.createElement('div', { style: fillStyle })
+        )
+    );
 });
 
 /**
  * Player HUD Component
  */
 interface PlayerHUDProps {
-  playerEntity: EntityDef;
+    playerEntity: EntityDef;
 }
 
 const PlayerHUD: FC<PlayerHUDProps> = ({ playerEntity }) => {
-  const health = useComponent(playerEntity, Health);
-  const stats = useComponent(playerEntity, PlayerStats);
-  const info = useComponent(playerEntity, PlayerInfo);
+    const _health = useComponent(playerEntity, Health);
+    const stats = useComponent(playerEntity, PlayerStats);
+    const info = useComponent(playerEntity, PlayerInfo);
 
-  const containerStyle = {
-    position: 'fixed' as const,
-    top: '20px',
-    left: '20px',
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    padding: '20px',
-    borderRadius: '8px',
-    color: '#fff',
-    fontFamily: 'monospace',
-    minWidth: '250px',
-  };
+    const containerStyle = {
+        position: 'fixed' as const,
+        top: '20px',
+        left: '20px',
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        padding: '20px',
+        borderRadius: '8px',
+        color: '#fff',
+        fontFamily: 'monospace',
+        minWidth: '250px',
+    };
 
-  const titleStyle = {
-    fontSize: '18px',
-    fontWeight: 'bold' as const,
-    marginBottom: '10px',
-    color: '#60a5fa',
-  };
+    const titleStyle = {
+        fontSize: '18px',
+        fontWeight: 'bold' as const,
+        marginBottom: '10px',
+        color: '#60a5fa',
+    };
 
-  const sectionStyle = {
-    marginTop: '10px',
-  };
+    const sectionStyle = {
+        marginTop: '10px',
+    };
 
-  return React.createElement(
-    'div',
-    { style: containerStyle },
-    React.createElement('div', { style: titleStyle }, info?.name || 'Player'),
-    React.createElement('div', { style: { fontSize: '12px', color: '#94a3b8' } }, info?.playerClass),
-    React.createElement(
-      'div',
-      { style: sectionStyle },
-      React.createElement('div', { style: { fontSize: '12px', marginBottom: '5px' } }, 'Health'),
-      React.createElement(HealthBar, { entity: playerEntity, width: 210, showText: true }),
-    ),
-    stats &&
-      React.createElement(
+    return React.createElement(
         'div',
-        { style: sectionStyle },
-        React.createElement(ExperienceBar, { entity: playerEntity, width: 210 }),
-      ),
-  );
+        { style: containerStyle },
+        React.createElement('div', { style: titleStyle }, info?.name || 'Player'),
+        React.createElement(
+            'div',
+            { style: { fontSize: '12px', color: '#94a3b8' } },
+            info?.playerClass
+        ),
+        React.createElement(
+            'div',
+            { style: sectionStyle },
+            React.createElement(
+                'div',
+                { style: { fontSize: '12px', marginBottom: '5px' } },
+                'Health'
+            ),
+            React.createElement(HealthBar, { entity: playerEntity, width: 210, showText: true })
+        ),
+        stats &&
+            React.createElement(
+                'div',
+                { style: sectionStyle },
+                React.createElement(ExperienceBar, { entity: playerEntity, width: 210 })
+            )
+    );
 };
 
 /**
  * Inventory Component
  */
 interface InventoryProps {
-  entity: EntityDef;
-  onItemClick?: (item: InventoryItem, index: number) => void;
+    entity: EntityDef;
+    onItemClick?: (item: InventoryItem, index: number) => void;
 }
 
 const InventoryComponent: FC<InventoryProps> = ({ entity, onItemClick }) => {
-  const inventory = useComponent(entity, Inventory);
+    const inventory = useComponent(entity, Inventory);
 
-  if (!inventory) return null;
+    if (!inventory) return null;
 
-  const containerStyle = {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(5, 1fr)',
-    gap: '8px',
-    padding: '16px',
-    backgroundColor: 'rgba(0, 0, 0, 0.9)',
-    borderRadius: '8px',
-    maxWidth: '400px',
-  };
+    const containerStyle = {
+        display: 'grid',
+        gridTemplateColumns: 'repeat(5, 1fr)',
+        gap: '8px',
+        padding: '16px',
+        backgroundColor: 'rgba(0, 0, 0, 0.9)',
+        borderRadius: '8px',
+        maxWidth: '400px',
+    };
 
-  const slotStyle = {
-    width: '64px',
-    height: '64px',
-    backgroundColor: '#1e293b',
-    border: '2px solid #475569',
-    borderRadius: '4px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    cursor: 'pointer',
-    transition: 'all 0.2s',
-  };
+    const slotStyle = {
+        width: '64px',
+        height: '64px',
+        backgroundColor: '#1e293b',
+        border: '2px solid #475569',
+        borderRadius: '4px',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        cursor: 'pointer',
+        transition: 'all 0.2s',
+    };
 
-  const slots = [];
-  for (let i = 0; i < inventory.maxSlots; i++) {
-    const item = inventory.items[i];
+    const slots = [];
+    for (let i = 0; i < inventory.maxSlots; i++) {
+        const item = inventory.items[i];
 
-    slots.push(
-      React.createElement(
+        slots.push(
+            React.createElement(
+                'div',
+                {
+                    key: i,
+                    style: slotStyle,
+                    onClick: () => item && onItemClick?.(item, i),
+                    title: item?.description,
+                },
+                item &&
+                    React.createElement(
+                        'div',
+                        { style: { textAlign: 'center', fontSize: '10px', color: '#fff' } },
+                        React.createElement('div', null, item.icon || '📦'),
+                        React.createElement('div', null, item.quantity || '')
+                    )
+            )
+        );
+    }
+
+    return React.createElement(
         'div',
-        {
-          key: i,
-          style: slotStyle,
-          onClick: () => item && onItemClick?.(item, i),
-          title: item?.description,
-        },
-        item &&
-          React.createElement(
+        null,
+        React.createElement(
             'div',
-            { style: { textAlign: 'center', fontSize: '10px', color: '#fff' } },
-            React.createElement('div', null, item.icon || '📦'),
-            React.createElement('div', null, item.quantity || ''),
-          ),
-      ),
+            {
+                style: {
+                    fontSize: '14px',
+                    marginBottom: '8px',
+                    color: '#94a3b8',
+                },
+            },
+            `Inventory (${inventory.items.length}/${inventory.maxSlots})`
+        ),
+        React.createElement('div', { style: containerStyle }, ...slots)
     );
-  }
-
-  return React.createElement(
-    'div',
-    null,
-    React.createElement(
-      'div',
-      {
-        style: {
-          fontSize: '14px',
-          marginBottom: '8px',
-          color: '#94a3b8',
-        },
-      },
-      `Inventory (${inventory.items.length}/${inventory.maxSlots})`,
-    ),
-    React.createElement('div', { style: containerStyle }, ...slots),
-  );
 };
 
 /**
  * Entity List Component
  */
 interface EntityListProps {
-  query: QueryOptions;
-  title: string;
-  renderEntity: (entity: EntityDef) => ReactNode;
+    query: QueryOptions;
+    title: string;
+    renderEntity: (entity: EntityDef) => ReactNode;
 }
 
 const EntityList: FC<EntityListProps> = ({ query, title, renderEntity }) => {
-  const entities = useEntities(query);
+    const entities = useEntities(query);
 
-  const containerStyle = {
-    backgroundColor: 'rgba(0, 0, 0, 0.8)',
-    padding: '16px',
-    borderRadius: '8px',
-    color: '#fff',
-    maxHeight: '400px',
-    overflowY: 'auto' as const,
-  };
+    const containerStyle = {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        padding: '16px',
+        borderRadius: '8px',
+        color: '#fff',
+        maxHeight: '400px',
+        overflowY: 'auto' as const,
+    };
 
-  const titleStyle = {
-    fontSize: '16px',
-    fontWeight: 'bold' as const,
-    marginBottom: '12px',
-    color: '#60a5fa',
-  };
+    const titleStyle = {
+        fontSize: '16px',
+        fontWeight: 'bold' as const,
+        marginBottom: '12px',
+        color: '#60a5fa',
+    };
 
-  return React.createElement(
-    'div',
-    { style: containerStyle },
-    React.createElement('div', { style: titleStyle }, `${title} (${entities.length})`),
-    React.createElement(
-      'div',
-      null,
-      ...entities.map((entity) =>
-        React.createElement('div', { key: String(entity.id) }, renderEntity(entity)),
-      ),
-    ),
-  );
+    return React.createElement(
+        'div',
+        { style: containerStyle },
+        React.createElement('div', { style: titleStyle }, `${title} (${entities.length})`),
+        React.createElement(
+            'div',
+            null,
+            ...entities.map((entity) =>
+                React.createElement('div', { key: String(entity.id) }, renderEntity(entity))
+            )
+        )
+    );
 };
 
 /**
  * Mini-map Component
  */
 interface MiniMapProps {
-  width?: number;
-  height?: number;
-  worldWidth: number;
-  worldHeight: number;
-  playerEntity: EntityDef;
+    width?: number;
+    height?: number;
+    worldWidth: number;
+    worldHeight: number;
+    playerEntity: EntityDef;
 }
 
 const MiniMap: FC<MiniMapProps> = React.memo(
-  ({ width = 200, height = 200, worldWidth, worldHeight, playerEntity }) => {
-    const entities = useEntities({ all: [Position] });
-    const playerPos = useComponent(playerEntity, Position);
+    ({ width = 200, height = 200, worldWidth, worldHeight, playerEntity }) => {
+        const entities = useEntities({ all: [Position] });
+        const _playerPos = useComponent(playerEntity, Position);
 
-    const containerStyle = {
-      width: `${width}px`,
-      height: `${height}px`,
-      backgroundColor: '#1e293b',
-      border: '2px solid #475569',
-      borderRadius: '4px',
-      position: 'relative' as const,
-      overflow: 'hidden',
-    };
-
-    const scaleX = width / worldWidth;
-    const scaleY = height / worldHeight;
-
-    return React.createElement(
-      'div',
-      { style: containerStyle },
-      ...entities.map((entity) => {
-        const pos = entity.getComponent(Position);
-        const isPlayer = entity === playerEntity;
-
-        const dotStyle = {
-          position: 'absolute' as const,
-          left: `${pos.x * scaleX}px`,
-          top: `${pos.y * scaleY}px`,
-          width: isPlayer ? '8px' : '4px',
-          height: isPlayer ? '8px' : '4px',
-          backgroundColor: isPlayer ? '#4ade80' : '#ef4444',
-          borderRadius: '50%',
-          transform: 'translate(-50%, -50%)',
+        const containerStyle = {
+            width: `${width}px`,
+            height: `${height}px`,
+            backgroundColor: '#1e293b',
+            border: '2px solid #475569',
+            borderRadius: '4px',
+            position: 'relative' as const,
+            overflow: 'hidden',
         };
 
-        return React.createElement('div', { key: String(entity.id), style: dotStyle });
-      }),
-    );
-  },
+        const scaleX = width / worldWidth;
+        const scaleY = height / worldHeight;
+
+        return React.createElement(
+            'div',
+            { style: containerStyle },
+            ...entities.map((entity) => {
+                const pos = entity.getComponent(Position);
+                const isPlayer = entity === playerEntity;
+
+                const dotStyle = {
+                    position: 'absolute' as const,
+                    left: `${pos.x * scaleX}px`,
+                    top: `${pos.y * scaleY}px`,
+                    width: isPlayer ? '8px' : '4px',
+                    height: isPlayer ? '8px' : '4px',
+                    backgroundColor: isPlayer ? '#4ade80' : '#ef4444',
+                    borderRadius: '50%',
+                    transform: 'translate(-50%, -50%)',
+                };
+
+                return React.createElement('div', { key: String(entity.id), style: dotStyle });
+            })
+        );
+    }
 );
 
 // ============================================================================
@@ -690,60 +714,60 @@ const MiniMap: FC<MiniMapProps> = React.memo(
  * Create example game with entities
  */
 function createExampleGame(): Engine {
-  const engine = new EngineBuilder().withDebugMode(true).withFixedUpdateFPS(60).build();
+    const engine = new EngineBuilder().withDebugMode(true).withFixedUpdateFPS(60).build();
 
-  // Create player
-  const player = engine.createEntity('Player');
-  player.addComponent(Position, 400, 300);
-  player.addComponent(Velocity, 0, 0);
-  player.addComponent(Health, 80, 100);
-  player.addComponent(PlayerStats, 5, 350, 500);
-  player.addComponent(PlayerInfo, 'Hero', 'Warrior');
-  const inventory = player.addComponent(Inventory, 20);
-  player.addTag('player');
+    // Create player
+    const player = engine.createEntity('Player');
+    player.addComponent(Position, 400, 300);
+    player.addComponent(Velocity, 0, 0);
+    player.addComponent(Health, 80, 100);
+    player.addComponent(PlayerStats, 5, 350, 500);
+    player.addComponent(PlayerInfo, 'Hero', 'Warrior');
+    const inventory = player.addComponent(Inventory, 20);
+    player.addTag('player');
 
-  // Add some items to inventory
-  inventory.addItem({
-    id: 'sword_1',
-    name: 'Iron Sword',
-    type: 'weapon',
-    description: 'A sturdy iron sword',
-    icon: '⚔️',
-  });
+    // Add some items to inventory
+    addInventoryItem(inventory, {
+        id: 'sword_1',
+        name: 'Iron Sword',
+        type: 'weapon',
+        description: 'A sturdy iron sword',
+        icon: '⚔️',
+    });
 
-  inventory.addItem({
-    id: 'potion_1',
-    name: 'Health Potion',
-    type: 'consumable',
-    description: 'Restores 50 HP',
-    icon: '🧪',
-    quantity: 3,
-  });
+    addInventoryItem(inventory, {
+        id: 'potion_1',
+        name: 'Health Potion',
+        type: 'consumable',
+        description: 'Restores 50 HP',
+        icon: '🧪',
+        quantity: 3,
+    });
 
-  // Create some enemies
-  for (let i = 0; i < 5; i++) {
-    const enemy = engine.createEntity(`Enemy_${i}`);
-    enemy.addComponent(Position, Math.random() * 800, Math.random() * 600);
-    enemy.addComponent(Health, 50, 50);
-    enemy.addTag('enemy');
-  }
+    // Create some enemies
+    for (let i = 0; i < 5; i++) {
+        const enemy = engine.createEntity(`Enemy_${i}`);
+        enemy.addComponent(Position, Math.random() * 800, Math.random() * 600);
+        enemy.addComponent(Health, 50, 50);
+        enemy.addTag('enemy');
+    }
 
-  // Movement system
-  engine.createSystem(
-    'MovementSystem',
-    { all: [Position, Velocity] },
-    {
-      priority: 500,
-      act: (entity: EntityDef, pos: Position, vel: Velocity) => {
-        const dt = 1 / 60;
-        pos.x += vel.dx * dt;
-        pos.y += vel.dy * dt;
-      },
-    },
-    true,
-  );
+    // Movement system
+    engine.createSystem(
+        'MovementSystem',
+        { all: [Position, Velocity] },
+        {
+            priority: 500,
+            act: (_entity: EntityDef, pos: Position, vel: Velocity) => {
+                const dt = 1 / 60;
+                pos.x += vel.dx * dt;
+                pos.y += vel.dy * dt;
+            },
+        },
+        true
+    );
 
-  return engine;
+    return engine;
 }
 
 // ============================================================================
@@ -751,32 +775,38 @@ function createExampleGame(): Engine {
 // ============================================================================
 
 export {
-  // Context
-  EngineProvider,
-  EngineContext,
-  // Hooks
-  useEngine,
-  useEntities,
-  useEntitiesWithTag,
-  useComponent,
-  useCreateEntity,
-  useGameLoop,
-  // Components
-  HealthBar,
-  ExperienceBar,
-  PlayerHUD,
-  InventoryComponent,
-  EntityList,
-  MiniMap,
-  // Game Components
-  Position,
-  Velocity,
-  Health,
-  PlayerStats,
-  Inventory,
-  PlayerInfo,
-  // Setup
-  createExampleGame,
+    // Context
+    EngineProvider,
+    EngineContext,
+    // Hooks
+    useEngine,
+    useEntities,
+    useEntitiesWithTag,
+    useComponent,
+    useCreateEntity,
+    useGameLoop,
+    // React Components
+    HealthBar,
+    ExperienceBar,
+    PlayerHUD,
+    InventoryComponent,
+    EntityList,
+    MiniMap,
+    // ECS Components (pure data)
+    Position,
+    Velocity,
+    Health,
+    PlayerStats,
+    Inventory,
+    PlayerInfo,
+    // Helper Functions
+    getHealthPercentage,
+    getStatsProgress,
+    addInventoryItem,
+    removeInventoryItem,
+    isInventoryFull,
+    // Setup
+    createExampleGame,
 };
 
 // ============================================================================

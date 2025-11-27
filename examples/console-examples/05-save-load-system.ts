@@ -3,15 +3,25 @@
  * Demonstrates world serialization, snapshots, and game state persistence
  */
 
-import { Engine } from '../src/engine';
+import type { EntityDef } from '../../core/src/definitions';
+import { EngineBuilder } from '../../core/src/engine';
 
-// Game Components
+// ============================================================================
+// COMPONENTS (Pure data - no business logic)
+// ============================================================================
+
 class Position {
-    constructor(public x: number = 0, public y: number = 0) {}
+    constructor(
+        public x: number = 0,
+        public y: number = 0
+    ) {}
 }
 
 class Health {
-    constructor(public current: number = 100, public max: number = 100) {}
+    constructor(
+        public current: number = 100,
+        public max: number = 100
+    ) {}
 }
 
 class Inventory {
@@ -19,24 +29,28 @@ class Inventory {
         public items: Map<string, number> = new Map(),
         public maxSlots: number = 10
     ) {}
-    
-    addItem(item: string, count: number = 1) {
-        const current = this.items.get(item) || 0;
-        this.items.set(item, current + count);
-    }
-    
-    removeItem(item: string, count: number = 1): boolean {
-        const current = this.items.get(item) || 0;
-        if (current >= count) {
-            if (current === count) {
-                this.items.delete(item);
-            } else {
-                this.items.set(item, current - count);
-            }
-            return true;
+}
+
+// ============================================================================
+// HELPER FUNCTIONS
+// ============================================================================
+
+function addInventoryItem(inventory: Inventory, item: string, count: number = 1): void {
+    const current = inventory.items.get(item) || 0;
+    inventory.items.set(item, current + count);
+}
+
+function _removeInventoryItem(inventory: Inventory, item: string, count: number = 1): boolean {
+    const current = inventory.items.get(item) || 0;
+    if (current >= count) {
+        if (current === count) {
+            inventory.items.delete(item);
+        } else {
+            inventory.items.set(item, current - count);
         }
-        return false;
+        return true;
     }
+    return false;
 }
 
 class PlayerStats {
@@ -52,11 +66,11 @@ class QuestProgress {
     constructor(
         public activeQuests: Set<string> = new Set(),
         public completedQuests: Set<string> = new Set(),
-        public questVariables: Map<string, any> = new Map()
+        public questVariables: Map<string, string | number | boolean> = new Map()
     ) {}
 }
 
-class SaveMetadata {
+class _SaveMetadata {
     constructor(
         public version: number = 1,
         public timestamp: number = Date.now(),
@@ -65,102 +79,118 @@ class SaveMetadata {
     ) {}
 }
 
-// Custom serialization for complex components
-class SerializationHelper {
-    static serializeInventory(inventory: Inventory): any {
-        return {
-            items: Array.from(inventory.items.entries()),
-            maxSlots: inventory.maxSlots
-        };
-    }
-    
-    static deserializeInventory(data: any): Inventory {
-        const inventory = new Inventory();
-        inventory.maxSlots = data.maxSlots;
-        inventory.items = new Map(data.items);
-        return inventory;
-    }
-    
-    static serializeQuestProgress(progress: QuestProgress): any {
-        return {
-            activeQuests: Array.from(progress.activeQuests),
-            completedQuests: Array.from(progress.completedQuests),
-            questVariables: Array.from(progress.questVariables.entries())
-        };
-    }
-    
-    static deserializeQuestProgress(data: any): QuestProgress {
-        const progress = new QuestProgress();
-        progress.activeQuests = new Set(data.activeQuests);
-        progress.completedQuests = new Set(data.completedQuests);
-        progress.questVariables = new Map(data.questVariables);
-        return progress;
-    }
+// Serialization types
+interface SerializedInventory {
+    items: [string, number][];
+    maxSlots: number;
+}
+
+interface SerializedQuestProgress {
+    activeQuests: string[];
+    completedQuests: string[];
+    questVariables: [string, string | number | boolean][];
+}
+
+// Custom serialization functions for complex components
+function serializeInventory(inventory: Inventory): SerializedInventory {
+    return {
+        items: Array.from(inventory.items.entries()),
+        maxSlots: inventory.maxSlots,
+    };
+}
+
+function deserializeInventory(data: SerializedInventory): Inventory {
+    const inventory = new Inventory();
+    inventory.maxSlots = data.maxSlots;
+    inventory.items = new Map(data.items);
+    return inventory;
+}
+
+function serializeQuestProgress(progress: QuestProgress): SerializedQuestProgress {
+    return {
+        activeQuests: Array.from(progress.activeQuests),
+        completedQuests: Array.from(progress.completedQuests),
+        questVariables: Array.from(progress.questVariables.entries()),
+    };
+}
+
+function deserializeQuestProgress(data: SerializedQuestProgress): QuestProgress {
+    const progress = new QuestProgress();
+    progress.activeQuests = new Set(data.activeQuests);
+    progress.completedQuests = new Set(data.completedQuests);
+    progress.questVariables = new Map(data.questVariables);
+    return progress;
 }
 
 // Initialize engine
-const game = new Engine(60, true);
+const game = new EngineBuilder().withDebugMode(true).withFixedUpdateFPS(60).build();
 
 // Auto-save system
 let autoSaveTimer = 0;
 const AUTO_SAVE_INTERVAL = 10; // seconds
 
-game.createSystem('AutoSaveSystem', {
-    all: []
-}, {
-    priority: 10,
-    before: () => {
-        autoSaveTimer += 0.016;
-        
-        if (autoSaveTimer >= AUTO_SAVE_INTERVAL) {
-            autoSaveTimer = 0;
-            
-            // Create auto-save snapshot
-            game.createSnapshot();
-            console.log('⏰ Auto-save created');
-            
-            // Also save to "file" (simulated)
-            saveToFile('autosave.json');
-        }
+game.createSystem(
+    'AutoSaveSystem',
+    {
+        all: [],
+    },
+    {
+        priority: 10,
+        before: () => {
+            autoSaveTimer += 0.016;
+
+            if (autoSaveTimer >= AUTO_SAVE_INTERVAL) {
+                autoSaveTimer = 0;
+
+                // Create auto-save snapshot
+                game.createSnapshot();
+                console.log('⏰ Auto-save created');
+
+                // Also save to "file" (simulated)
+                saveToFile('autosave.json');
+            }
+        },
     }
-});
+);
 
 // Play time tracking
-game.createSystem('PlayTimeSystem', {
-    all: [PlayerStats]
-}, {
-    priority: 5,
-    act: (entity, stats) => {
-        stats.playTime += 0.016;
+game.createSystem(
+    'PlayTimeSystem',
+    {
+        all: [PlayerStats],
+    },
+    {
+        priority: 5,
+        act: (_entity, stats) => {
+            stats.playTime += 0.016;
+        },
     }
-});
+);
 
 // Save game state to file (simulated)
 function saveToFile(filename: string): void {
     const worldData = game.serialize();
-    
+
     // Create save data with metadata
     const saveData = {
         metadata: {
             version: 1,
             timestamp: Date.now(),
             engineVersion: '1.0.0',
-            totalEntities: worldData.entities.length
+            totalEntities: worldData.entities.length,
         },
         world: worldData,
-        customData: {} as any
+        customData: {} as Record<string, SerializedInventory | SerializedQuestProgress | undefined>,
     };
-    
+
     // Find player and add custom serialization
     const player = game.getEntitiesByTag('player')[0];
     if (player) {
         if (player.hasComponent(Inventory)) {
-            saveData.customData.inventory = SerializationHelper.serializeInventory(
-                player.getComponent(Inventory)
-            );
+            saveData.customData.inventory = serializeInventory(player.getComponent(Inventory));
         }
         if (player.hasComponent(QuestProgress)) {
-            saveData.customData.questProgress = SerializationHelper.serializeQuestProgress(
+            saveData.customData.questProgress = serializeQuestProgress(
                 player.getComponent(QuestProgress)
             );
         }
@@ -169,11 +199,11 @@ function saveToFile(filename: string): void {
             saveData.metadata.playTime = stats.playTime;
         }
     }
-    
+
     // Simulate file write
     const jsonData = JSON.stringify(saveData, null, 2);
     console.log(`💾 Saved game to ${filename} (${(jsonData.length / 1024).toFixed(2)} KB)`);
-    
+
     // Store in simulated filesystem
     simulatedFileSystem.set(filename, jsonData);
 }
@@ -185,32 +215,34 @@ function loadFromFile(filename: string): boolean {
         console.log(`❌ Save file ${filename} not found`);
         return false;
     }
-    
+
     try {
         const saveData = JSON.parse(jsonData);
-        
+
         // Verify save version
         if (saveData.metadata.version !== 1) {
             console.log(`❌ Incompatible save version: ${saveData.metadata.version}`);
             return false;
         }
-        
+
         // Clear current world
-        game.getAllEntities().forEach(entity => entity.queueFree());
+        for (const entity of game.getAllEntities()) {
+            entity.queueFree();
+        }
         game.update(0); // Process deletions
-        
+
         // Recreate entities from save data
-        const entityMap = new Map<string, any>();
-        
+        const entityMap = new Map<string, EntityDef>();
+
         for (const entityData of saveData.world.entities) {
             const entity = game.createEntity(entityData.name);
             entityMap.set(entityData.id, entity);
-            
+
             // Restore tags
             for (const tag of entityData.tags || []) {
                 entity.addTag(tag);
             }
-            
+
             // Restore components
             for (const [componentName, componentData] of Object.entries(entityData.components)) {
                 // Map component names to classes
@@ -222,7 +254,8 @@ function loadFromFile(filename: string): boolean {
                         entity.addComponent(Health, componentData.current, componentData.max);
                         break;
                     case 'PlayerStats':
-                        entity.addComponent(PlayerStats, 
+                        entity.addComponent(
+                            PlayerStats,
                             componentData.level,
                             componentData.experience,
                             componentData.gold,
@@ -232,18 +265,18 @@ function loadFromFile(filename: string): boolean {
                     // Add more component mappings as needed
                 }
             }
-            
+
             // Restore custom components
             if (entity.hasTag('player') && saveData.customData) {
                 if (saveData.customData.inventory) {
-                    const inventory = SerializationHelper.deserializeInventory(saveData.customData.inventory);
+                    const inventory = deserializeInventory(saveData.customData.inventory);
                     entity.addComponent(Inventory);
                     const comp = entity.getComponent(Inventory);
                     comp.items = inventory.items;
                     comp.maxSlots = inventory.maxSlots;
                 }
                 if (saveData.customData.questProgress) {
-                    const progress = SerializationHelper.deserializeQuestProgress(saveData.customData.questProgress);
+                    const progress = deserializeQuestProgress(saveData.customData.questProgress);
                     entity.addComponent(QuestProgress);
                     const comp = entity.getComponent(QuestProgress);
                     comp.activeQuests = progress.activeQuests;
@@ -252,7 +285,7 @@ function loadFromFile(filename: string): boolean {
                 }
             }
         }
-        
+
         // Restore entity hierarchies
         for (const entityData of saveData.world.entities) {
             if (entityData.children && entityData.children.length > 0) {
@@ -265,12 +298,12 @@ function loadFromFile(filename: string): boolean {
                 }
             }
         }
-        
+
         console.log(`✅ Loaded game from ${filename}`);
         console.log(`   Restored ${saveData.world.entities.length} entities`);
         console.log(`   Save time: ${new Date(saveData.metadata.timestamp).toLocaleString()}`);
         console.log(`   Play time: ${(saveData.metadata.playTime / 60).toFixed(1)} minutes`);
-        
+
         return true;
     } catch (error) {
         console.log(`❌ Failed to load save: ${error}`);
@@ -283,19 +316,20 @@ const simulatedFileSystem = new Map<string, string>();
 
 // Create game world
 const player = game.createEntity('Player');
-player.addComponent(Position, 100, 100)
-      .addComponent(Health, 75, 100)
-      .addComponent(PlayerStats, 5, 2500, 150, 0)
-      .addComponent(Inventory)
-      .addComponent(QuestProgress)
-      .addTag('player')
-      .addTag('saveable');
+player
+    .addComponent(Position, 100, 100)
+    .addComponent(Health, 75, 100)
+    .addComponent(PlayerStats, 5, 2500, 150, 0)
+    .addComponent(Inventory)
+    .addComponent(QuestProgress)
+    .addTag('player')
+    .addTag('saveable');
 
 // Add items to inventory
 const inventory = player.getComponent(Inventory);
-inventory.addItem('Sword', 1);
-inventory.addItem('Potion', 5);
-inventory.addItem('Gold Coin', 50);
+addInventoryItem(inventory, 'Sword', 1);
+addInventoryItem(inventory, 'Potion', 5);
+addInventoryItem(inventory, 'Gold Coin', 50);
 
 // Add quest progress
 const quests = player.getComponent(QuestProgress);
@@ -310,17 +344,18 @@ quests.questVariables.set('artifactsFound', 1);
 for (let i = 0; i < 5; i++) {
     const npc = game.createEntity(`NPC_${i}`);
     npc.addComponent(Position, 200 + i * 50, 200)
-       .addComponent(Health, 50, 50)
-       .addTag('npc')
-       .addTag('saveable');
+        .addComponent(Health, 50, 50)
+        .addTag('npc')
+        .addTag('saveable');
 }
 
 // Create world objects
 const chest = game.createEntity('TreasureChest');
-chest.addComponent(Position, 300, 300)
-     .addComponent(Inventory)
-     .addTag('container')
-     .addTag('saveable');
+chest
+    .addComponent(Position, 300, 300)
+    .addComponent(Inventory)
+    .addTag('container')
+    .addTag('saveable');
 
 const chestInv = chest.getComponent(Inventory);
 chestInv.addItem('Gold Coin', 100);
@@ -334,97 +369,123 @@ const commands = [
     { time: 15, action: 'load', slot: 'save1.json' },
     { time: 20, action: 'snapshot' },
     { time: 25, action: 'restore' },
-    { time: 30, action: 'save', slot: 'final.json' }
+    { time: 30, action: 'save', slot: 'final.json' },
 ];
 
-game.createSystem('SaveLoadCommandSystem', {
-    all: []
-}, {
-    priority: 1,
-    before: () => {
-        commandTimer += 0.016;
-        
-        for (const command of commands) {
-            if (Math.abs(commandTimer - command.time) < 0.1) {
-                switch (command.action) {
-                    case 'save':
-                        console.log(`\n📝 Manual save to ${command.slot}`);
-                        saveToFile(command.slot!);
-                        break;
-                    case 'load':
-                        console.log(`\n📂 Loading from ${command.slot}`);
-                        loadFromFile(command.slot!);
-                        break;
-                    case 'snapshot':
-                        console.log(`\n📸 Creating snapshot`);
-                        game.createSnapshot();
-                        break;
-                    case 'restore':
-                        console.log(`\n🔄 Restoring from snapshot`);
-                        game.restoreSnapshot();
-                        break;
+game.createSystem(
+    'SaveLoadCommandSystem',
+    {
+        all: [],
+    },
+    {
+        priority: 1,
+        before: () => {
+            commandTimer += 0.016;
+
+            for (const command of commands) {
+                if (Math.abs(commandTimer - command.time) < 0.1) {
+                    switch (command.action) {
+                        case 'save':
+                            if (command.slot) {
+                                console.log(`\n📝 Manual save to ${command.slot}`);
+                                saveToFile(command.slot);
+                            }
+                            break;
+                        case 'load':
+                            if (command.slot) {
+                                console.log(`\n📂 Loading from ${command.slot}`);
+                                loadFromFile(command.slot);
+                            }
+                            break;
+                        case 'snapshot':
+                            console.log(`\n📸 Creating snapshot`);
+                            game.createSnapshot();
+                            break;
+                        case 'restore':
+                            console.log(`\n🔄 Restoring from snapshot`);
+                            game.restoreSnapshot();
+                            break;
+                    }
                 }
             }
-        }
+        },
     }
-});
+);
 
 // Progress monitoring system
-game.createSystem('ProgressMonitorSystem', {
-    all: [PlayerStats],
-    tags: ['player']
-}, {
-    priority: 20,
-    act: (entity, stats) => {
-        // Simulate gameplay progress
-        stats.experience += 10 * 0.016;
-        stats.gold += 1 * 0.016;
-        
-        // Level up check
-        const requiredExp = stats.level * 1000;
-        if (stats.experience >= requiredExp) {
-            stats.experience -= requiredExp;
-            stats.level++;
-            console.log(`🎉 Level up! Now level ${stats.level}`);
-        }
+game.createSystem(
+    'ProgressMonitorSystem',
+    {
+        all: [PlayerStats],
+        tags: ['player'],
+    },
+    {
+        priority: 20,
+        act: (_entity, stats) => {
+            // Simulate gameplay progress
+            stats.experience += 10 * 0.016;
+            stats.gold += 1 * 0.016;
+
+            // Level up check
+            const requiredExp = stats.level * 1000;
+            if (stats.experience >= requiredExp) {
+                stats.experience -= requiredExp;
+                stats.level++;
+                console.log(`🎉 Level up! Now level ${stats.level}`);
+            }
+        },
     }
-});
+);
 
 // Status display
 let statusTimer = 0;
-game.createSystem('StatusDisplaySystem', {
-    all: []
-}, {
-    priority: 15,
-    before: () => {
-        statusTimer += 0.016;
-        
-        if (statusTimer > 5) {
-            statusTimer = 0;
-            
-            const player = game.getEntitiesByTag('player')[0];
-            if (player && player.hasComponent(PlayerStats) && player.hasComponent(Inventory)) {
-                const stats = player.getComponent(PlayerStats);
-                const inv = player.getComponent(Inventory);
-                const quests = player.getComponent(QuestProgress);
-                
-                console.log('\n=== Game Status ===');
-                console.log(`Level: ${stats.level} | EXP: ${stats.experience.toFixed(0)} | Gold: ${stats.gold.toFixed(0)}`);
-                console.log(`Play Time: ${(stats.playTime / 60).toFixed(1)} minutes`);
-                console.log(`Inventory: ${Array.from(inv.items.entries()).map(([k,v]) => `${k}(${v})`).join(', ')}`);
-                console.log(`Active Quests: ${quests.activeQuests.size} | Completed: ${quests.completedQuests.size}`);
-                console.log(`Total Entities: ${game.getAllEntities().length}`);
+game.createSystem(
+    'StatusDisplaySystem',
+    {
+        all: [],
+    },
+    {
+        priority: 15,
+        before: () => {
+            statusTimer += 0.016;
+
+            if (statusTimer > 5) {
+                statusTimer = 0;
+
+                const player = game.getEntitiesByTag('player')[0];
+                if (player?.hasComponent(PlayerStats) && player.hasComponent(Inventory)) {
+                    const stats = player.getComponent(PlayerStats);
+                    const inv = player.getComponent(Inventory);
+                    const quests = player.getComponent(QuestProgress);
+
+                    console.log('\n=== Game Status ===');
+                    console.log(
+                        `Level: ${stats.level} | EXP: ${stats.experience.toFixed(0)} | Gold: ${stats.gold.toFixed(0)}`
+                    );
+                    console.log(`Play Time: ${(stats.playTime / 60).toFixed(1)} minutes`);
+                    console.log(
+                        `Inventory: ${Array.from(inv.items.entries())
+                            .map(([k, v]) => `${k}(${v})`)
+                            .join(', ')}`
+                    );
+                    console.log(
+                        `Active Quests: ${quests.activeQuests.size} | Completed: ${quests.completedQuests.size}`
+                    );
+                    console.log(`Total Entities: ${game.getAllEntities().length}`);
+                }
             }
-        }
+        },
     }
-});
+);
 
 // Save statistics
 setInterval(() => {
     const saveFiles = Array.from(simulatedFileSystem.keys());
-    const totalSize = Array.from(simulatedFileSystem.values())
-        .reduce((sum, data) => sum + data.length, 0);
-    
+    const totalSize = Array.from(simulatedFileSystem.values()).reduce(
+        (sum, data) => sum + data.length,
+        0
+    );
+
     console.log('\n=== Save System Statistics ===');
     console.log(`Save Files: ${saveFiles.join(', ')}`);
     console.log(`Total Save Data: ${(totalSize / 1024).toFixed(2)} KB`);
@@ -455,10 +516,10 @@ game.run();
 setTimeout(() => {
     game.stop();
     console.log('\nSave/Load example stopped.');
-    
+
     // Final save
     saveToFile('exit_save.json');
-    
+
     console.log('\nFinal save files:');
     for (const [filename, data] of simulatedFileSystem.entries()) {
         console.log(`- ${filename}: ${(data.length / 1024).toFixed(2)} KB`);

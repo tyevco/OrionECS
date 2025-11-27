@@ -32,14 +32,21 @@ const MAX_SNAPSHOTS = 10;
 
 /**
  * Manages component storage, validation, and registration
+ *
+ * Note: Internal maps use 'any' for heterogeneous type storage. Public methods
+ * provide type-safe access via generics.
  */
 export class ComponentManager {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private componentArrays: Map<ComponentIdentifier, ComponentArray<any>> = new Map();
-    private validators: Map<ComponentIdentifier, ComponentValidator> = new Map();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private validators: Map<ComponentIdentifier, ComponentValidator<any>> = new Map();
     private registry: Map<string, ComponentIdentifier> = new Map();
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private componentPools: Map<ComponentIdentifier, Pool<any>> = new Map();
     private archetypeManager?: ArchetypeManager;
     private archetypesEnabled: boolean = false;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private singletonComponents: Map<ComponentIdentifier, any> = new Map();
 
     getComponentArray<T>(type: ComponentIdentifier): ComponentArray<T> {
@@ -69,6 +76,7 @@ export class ComponentManager {
         return this.registry.get(name);
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getAllComponentArrays(): Map<ComponentIdentifier, ComponentArray<any>> {
         return this.componentArrays;
     }
@@ -110,6 +118,7 @@ export class ComponentManager {
     /**
      * Get a component instance from the pool if available, otherwise create new
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     acquireComponent<T extends object>(type: ComponentIdentifier<T>, ...args: any[]): T {
         const pool = this.componentPools.get(type);
         if (pool) {
@@ -229,6 +238,7 @@ export class ComponentManager {
      * Get all singleton components
      * @returns Map of all singleton components
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getAllSingletons(): Map<ComponentIdentifier, any> {
         return new Map(this.singletonComponents);
     }
@@ -243,9 +253,13 @@ export class ComponentManager {
 
 /**
  * Manages system registration, execution, and profiling
+ *
+ * Note: Internal arrays use 'any' for heterogeneous system storage.
  */
 export class SystemManager {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private systems: System<any>[] = [];
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private fixedUpdateSystems: System<any>[] = [];
     private systemsSorted: boolean = true;
     private fixedSystemsSorted: boolean = true;
@@ -303,8 +317,10 @@ export class SystemManager {
         return system;
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private topologicalSort(systems: System<any>[]): System<any>[] {
         // Build system name to system map
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const systemMap = new Map<string, System<any>>();
         for (const system of systems) {
             systemMap.set(system.name, system);
@@ -346,6 +362,7 @@ export class SystemManager {
 
         // Kahn's algorithm for topological sort
         const queue: string[] = [];
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const result: System<any>[] = [];
 
         // Find all nodes with in-degree 0
@@ -396,6 +413,7 @@ export class SystemManager {
         // 3. Relative interleaving based on when each system was ready (in-degree became 0)
         if (result.length > 1) {
             // Extract systems with no explicit dependencies
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const noDeps: System<any>[] = [];
             for (const system of result) {
                 if (system.runAfter.length === 0 && system.runBefore.length === 0) {
@@ -476,6 +494,7 @@ export class SystemManager {
 
             // Execute systems in this group that are variable update systems (sorted by system priority)
             // Use cached sorted arrays to reduce GC pressure in hot path
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
             let groupSystems: System<any>[];
             if (this.groupSystemsCacheValid && this.groupVariableSystemsCache.has(group.name)) {
                 groupSystems = this.groupVariableSystemsCache.get(group.name)!;
@@ -522,6 +541,7 @@ export class SystemManager {
 
                 // Execute systems in this group that are fixed update systems (sorted by system priority)
                 // Use cached sorted arrays to reduce GC pressure in hot path
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 let groupSystems: System<any>[];
                 if (this.groupSystemsCacheValid && this.groupFixedSystemsCache.has(group.name)) {
                     groupSystems = this.groupFixedSystemsCache.get(group.name)!;
@@ -581,6 +601,7 @@ export class SystemManager {
         return Array.from(this.groups.values());
     }
 
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getAllSystems(): System<any>[] {
         return [...this.systems, ...this.fixedUpdateSystems];
     }
@@ -594,6 +615,7 @@ export class SystemManager {
      * @param name - The name of the system to find
      * @returns The system if found, undefined otherwise
      */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getSystem(name: string): System<any> | undefined {
         return (
             this.systems.find((s) => s.name === name) ||
@@ -698,9 +720,10 @@ export class SystemManager {
 
 /**
  * Manages query creation and tracking
+ *
+ * Note: Internal arrays use 'any' for heterogeneous query storage.
  */
 export class QueryManager {
-    // Using 'any' for internal storage to allow variance flexibility with generic queries
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private queries: Query<any>[] = [];
     private componentManager?: ComponentManager;
@@ -791,7 +814,7 @@ export class PrefabManager {
             const additionalTags = overrides.tags || [];
             const additionalChildren = overrides.children || [];
 
-            extended.factory = (...args: any[]) => {
+            extended.factory = (...args: unknown[]) => {
                 const baseResult = originalFactory(...args);
                 return {
                     name: baseResult.name,
@@ -814,7 +837,7 @@ export class PrefabManager {
     createVariant(
         baseName: string,
         overrides: {
-            components?: { [componentName: string]: any };
+            components?: { [componentName: string]: unknown };
             tags?: string[];
             children?: EntityPrefab[];
         }
@@ -857,7 +880,7 @@ export class PrefabManager {
      * @param args - Arguments to pass to factory function (if applicable)
      * @returns Resolved prefab instance
      */
-    resolve(name: string, ...args: any[]): EntityPrefab | undefined {
+    resolve(name: string, ...args: unknown[]): EntityPrefab | undefined {
         const prefab = this.prefabs.get(name);
         if (!prefab) {
             return undefined;
@@ -926,7 +949,7 @@ export class MessageManager {
         return this.bus.subscribe(messageType, callback);
     }
 
-    publish(messageType: string, data: any, sender?: string): void {
+    publish(messageType: string, data: unknown, sender?: string): void {
         this.bus.publish(messageType, data, sender);
     }
 

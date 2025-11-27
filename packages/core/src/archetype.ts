@@ -176,7 +176,9 @@ export class Archetype {
 
         // Generate unique ID from sorted component type keys
         // Uses unique IDs to prevent collisions when same-named components exist across modules
-        this.id = this.componentTypes.map((type) => componentTypeRegistry.getTypeKey(type)).join(',');
+        this.id = this.componentTypes
+            .map((type) => componentTypeRegistry.getTypeKey(type))
+            .join(',');
 
         // Initialize component arrays
         for (const type of this.componentTypes) {
@@ -604,7 +606,9 @@ export class ArchetypeManager {
         // generate different archetype IDs
         return componentTypes
             .toSorted((a, b) =>
-                componentTypeRegistry.getTypeKey(a).localeCompare(componentTypeRegistry.getTypeKey(b))
+                componentTypeRegistry
+                    .getTypeKey(a)
+                    .localeCompare(componentTypeRegistry.getTypeKey(b))
             )
             .map((type) => componentTypeRegistry.getTypeKey(type))
             .join(',');

@@ -120,7 +120,9 @@ function deepCloneComponent<T>(obj: T, visited = new WeakMap()): T {
     // Handle TypedArrays
     if (ArrayBuffer.isView(obj) && !(obj instanceof DataView)) {
         const TypedArrayConstructor = obj.constructor as new (buffer: ArrayBuffer) => T;
-        return new TypedArrayConstructor((obj as unknown as { buffer: ArrayBuffer }).buffer.slice(0)) as T;
+        return new TypedArrayConstructor(
+            (obj as unknown as { buffer: ArrayBuffer }).buffer.slice(0)
+        ) as T;
     }
 
     // Handle ArrayBuffer

@@ -38,6 +38,8 @@
     "@orion-ecs/canvas2d-renderer": "*"
   },
   "devDependencies": {
+    "@orion-ecs/input-manager": "*",
+    "@orion-ecs/math": "*",
     "@orion-ecs/plugin-api": "*",
     "@orion-ecs/testing": "*",
     "tsup": "^8.0.0",

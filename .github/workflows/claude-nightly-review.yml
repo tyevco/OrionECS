@@ -26,7 +26,36 @@ jobs:
         with:
           fetch-depth: 0  # Full history for comprehensive analysis
 
+      - name: Check for recent changes
+        id: check-changes
+        run: |
+          # Check if there have been any commits in the last 24 hours
+          COMMITS_LAST_DAY=$(git log --oneline --since="24 hours ago" | wc -l)
+          echo "commits_last_day=$COMMITS_LAST_DAY" >> $GITHUB_OUTPUT
+
+          if [ "$COMMITS_LAST_DAY" -eq 0 ]; then
+            echo "No commits in the last 24 hours"
+            echo "has_changes=false" >> $GITHUB_OUTPUT
+          else
+            echo "Found $COMMITS_LAST_DAY commits in the last 24 hours"
+            echo "has_changes=true" >> $GITHUB_OUTPUT
+          fi
+
+          # Determine if this is an on-demand run
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            echo "is_on_demand=true" >> $GITHUB_OUTPUT
+          else
+            echo "is_on_demand=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Skip if no changes (scheduled runs only)
+        if: steps.check-changes.outputs.has_changes == 'false' && github.event_name == 'schedule'
+        run: |
+          echo "::notice::Skipping nightly review - no changes in the last 24 hours"
+          exit 0
+
       - name: Run Claude Nightly Code Review
+        if: steps.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
         id: claude-review
         uses: anthropics/claude-code-action@v1
         with:
@@ -165,7 +194,10 @@ jobs:
 
             Create a GitHub issue with your findings using `gh issue create`. The issue should:
 
-            1. **Title**: "🔍 Nightly Code Review - [DATE]"
+            1. **Title**: Use one of the following formats based on trigger type:
+               - For scheduled runs: "🔍 Nightly Code Review - [DATE]"
+               - For on-demand runs: "🔍 On-Demand Code Review - [DATE]"
+               This run was triggered by: ${{ github.event_name }} (workflow_dispatch = on-demand, schedule = nightly)
             2. **Labels**: `code-review`, `automated`
             3. **Body** should include:
                - Executive summary (1-2 paragraphs)
@@ -200,6 +232,7 @@ jobs:
           claude_args: '--allowed-tools "Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh label create:*)"'
 
       - name: Ensure labels exist
+        if: steps.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |

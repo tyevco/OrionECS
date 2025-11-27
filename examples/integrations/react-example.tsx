@@ -97,7 +97,7 @@ interface InventoryItem {
 // Pure data component
 class Inventory {
     items: InventoryItem[] = [];
-    maxSlots: number = 20;
+    maxSlots: number;
 
     constructor(maxSlots: number = 20) {
         this.maxSlots = maxSlots;

@@ -8,7 +8,7 @@
  * and animate UI updates accordingly.
  */
 
-import { EngineBuilder } from '../../core/src/engine';
+import { EngineBuilder } from '@orion-ecs/core';
 
 // ============================================================================
 // COMPONENTS

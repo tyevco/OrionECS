@@ -3,7 +3,7 @@
  * Demonstrates combat mechanics, status effects, abilities, and component validation
  */
 
-import { EngineBuilder } from '../../core/src/engine';
+import { EngineBuilder } from '@orion-ecs/core';
 
 // ============================================================================
 // COMPONENTS (Pure data - no business logic)

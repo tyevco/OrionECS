@@ -13,8 +13,7 @@
  * - Tag-based entity management
  */
 
-import type { EntityDef } from '../../core/src/definitions';
-import { EngineBuilder } from '../../core/src/engine';
+import { EngineBuilder, type EntityDef } from '@orion-ecs/core';
 
 // ============================================================================
 // Components
@@ -372,7 +371,7 @@ engine.createSystem(
     { all: [Player, InputState] },
     {
         priority: 1000, // Run first
-        act: (entity: EntityDef, player: Player, input: InputState) => {
+        act: (_entity: EntityDef, player: Player, input: InputState) => {
             // In a real game, this would read from keyboard events
             // For this example, we'll simulate some basic behavior
 
@@ -415,7 +414,7 @@ engine.createSystem(
     {
         priority: 900,
         act: (
-            entity: EntityDef,
+            _entity: EntityDef,
             player: Player,
             input: InputState,
             position: Position,
@@ -532,7 +531,7 @@ engine.createSystem(
     { all: [Position, Background] },
     {
         priority: 450,
-        act: (entity: EntityDef, position: Position, background: Background) => {
+        act: (_entity: EntityDef, position: Position, _background: Background) => {
             // Wrap background when it scrolls off screen
             if (position.y > SCREEN_HEIGHT) {
                 position.y = -SCREEN_HEIGHT;
@@ -554,7 +553,7 @@ engine.createSystem(
     { all: [Enemy, Position, Velocity] },
     {
         priority: 600,
-        act: (entity: EntityDef, enemy: Enemy, position: Position, velocity: Velocity) => {
+        act: (_entity: EntityDef, enemy: Enemy, position: Position, velocity: Velocity) => {
             const dt = 1 / 60; // Fixed timestep
 
             // Update shoot cooldown
@@ -1051,7 +1050,7 @@ engine.createSystem(
             // Clear screen (simulated)
             // ctx.clearRect(0, 0, SCREEN_WIDTH, SCREEN_HEIGHT);
         },
-        act: (entity: EntityDef, position: Position, renderable: Renderable) => {
+        act: (_entity: EntityDef, _position: Position, _renderable: Renderable) => {
             // Draw entity (simulated)
             // In real implementation:
             // - Draw sprite/shape at position
@@ -1079,7 +1078,7 @@ engine.messageBus.subscribe('enemy-destroyed', (message) => {
     console.log(`Enemy destroyed! Type: ${message.data.type}, Score: ${message.data.score}`);
 });
 
-engine.messageBus.subscribe('player-shoot', (message) => {
+engine.messageBus.subscribe('player-shoot', (_message) => {
     // Could play sound effect here
 });
 
@@ -1095,7 +1094,7 @@ engine.messageBus.subscribe('wave-start', (message) => {
     console.log(`Wave ${message.data.wave} starting!`);
 });
 
-engine.messageBus.subscribe('boss-spawn', (message) => {
+engine.messageBus.subscribe('boss-spawn', (_message) => {
     console.log('Boss spawned!');
 });
 

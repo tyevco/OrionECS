@@ -3,7 +3,7 @@
  * Adds canvas rendering and keyboard input to the core game logic
  */
 
-import type { EntityDef } from '../../packages/core/src/definitions';
+import type { EntityDef } from '@orion-ecs/core';
 import {
     DivingState,
     DyingState,

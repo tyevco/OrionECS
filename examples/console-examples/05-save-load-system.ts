@@ -3,8 +3,7 @@
  * Demonstrates world serialization, snapshots, and game state persistence
  */
 
-import type { EntityDef } from '../../core/src/definitions';
-import { EngineBuilder } from '../../core/src/engine';
+import { EngineBuilder, type EntityDef } from '@orion-ecs/core';
 
 // ============================================================================
 // COMPONENTS (Pure data - no business logic)

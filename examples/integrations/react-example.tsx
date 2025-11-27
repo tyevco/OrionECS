@@ -104,6 +104,17 @@ class Inventory {
     }
 }
 
+// Command component for inventory operations (ECS command pattern)
+type InventoryCommandType = 'add_item' | 'remove_item' | 'use_item';
+
+class InventoryCommand {
+    constructor(
+        public commandType: InventoryCommandType,
+        public item?: InventoryItem,
+        public index?: number
+    ) {}
+}
+
 class PlayerInfo {
     constructor(
         public name: string = 'Player',
@@ -112,7 +123,7 @@ class PlayerInfo {
 }
 
 // ============================================================================
-// Helper Functions (Pure functions for component calculations)
+// Helper Functions (Pure query functions - no mutations)
 // ============================================================================
 
 function getHealthPercentage(health: Health): number {
@@ -123,18 +134,16 @@ function getStatsProgress(stats: PlayerStats): number {
     return (stats.experience / stats.experienceToNext) * 100;
 }
 
-function addInventoryItem(inventory: Inventory, item: InventoryItem): boolean {
-    if (inventory.items.length >= inventory.maxSlots) return false;
-    inventory.items.push(item);
-    return true;
-}
-
-function removeInventoryItem(inventory: Inventory, index: number): InventoryItem | undefined {
-    return inventory.items.splice(index, 1)[0];
-}
-
 function isInventoryFull(inventory: Inventory): boolean {
     return inventory.items.length >= inventory.maxSlots;
+}
+
+function getInventoryItemCount(inventory: Inventory): number {
+    return inventory.items.length;
+}
+
+function findInventoryItem(inventory: Inventory, itemId: string): InventoryItem | undefined {
+    return inventory.items.find((item) => item.id === itemId);
 }
 
 // ============================================================================
@@ -357,6 +366,47 @@ function useGameLoop(callback: (deltaTime: number) => void, deps: unknown[] = []
             }
         };
     }, [engine, ...deps]);
+}
+
+/**
+ * Hook to dispatch inventory commands (ECS command pattern)
+ * Returns functions that add command components to the entity
+ */
+interface InventoryCommands {
+    addItem: (item: InventoryItem) => void;
+    removeItem: (index: number) => void;
+    useItem: (index: number) => void;
+}
+
+function useInventoryCommands(entity: EntityDef | null): InventoryCommands {
+    const addItem = React.useCallback(
+        (item: InventoryItem) => {
+            if (entity && entity.hasComponent(Inventory)) {
+                entity.addComponent(InventoryCommand, 'add_item', item);
+            }
+        },
+        [entity]
+    );
+
+    const removeItem = React.useCallback(
+        (index: number) => {
+            if (entity && entity.hasComponent(Inventory)) {
+                entity.addComponent(InventoryCommand, 'remove_item', undefined, index);
+            }
+        },
+        [entity]
+    );
+
+    const useItem = React.useCallback(
+        (index: number) => {
+            if (entity && entity.hasComponent(Inventory)) {
+                entity.addComponent(InventoryCommand, 'use_item', undefined, index);
+            }
+        },
+        [entity]
+    );
+
+    return { addItem, removeItem, useItem };
 }
 
 // ============================================================================
@@ -714,43 +764,66 @@ const MiniMap: FC<MiniMapProps> = React.memo(
 function createExampleGame(): Engine {
     const engine = new EngineBuilder().withDebugMode(true).withFixedUpdateFPS(60).build();
 
-    // Create player
-    const player = engine.createEntity('Player');
-    player.addComponent(Position, 400, 300);
-    player.addComponent(Velocity, 0, 0);
-    player.addComponent(Health, 80, 100);
-    player.addComponent(PlayerStats, 5, 350, 500);
-    player.addComponent(PlayerInfo, 'Hero', 'Warrior');
-    const inventory = player.addComponent(Inventory, 20);
-    player.addTag('player');
+    // ========================================================================
+    // Inventory Command System (processes commands from React components)
+    // ========================================================================
+    engine.createSystem(
+        'InventoryCommandSystem',
+        { all: [Inventory, InventoryCommand] },
+        {
+            priority: 100, // Run before other systems
+            act: (entity: EntityDef, inventory: Inventory, command: InventoryCommand) => {
+                switch (command.commandType) {
+                    case 'add_item':
+                        if (command.item && inventory.items.length < inventory.maxSlots) {
+                            inventory.items.push(command.item);
+                            engine.markComponentDirty(entity, Inventory);
+                            console.log(`[Inventory] Added: ${command.item.name}`);
+                        }
+                        break;
 
-    // Add some items to inventory
-    addInventoryItem(inventory, {
-        id: 'sword_1',
-        name: 'Iron Sword',
-        type: 'weapon',
-        description: 'A sturdy iron sword',
-        icon: '⚔️',
-    });
+                    case 'remove_item':
+                        if (
+                            command.index !== undefined &&
+                            command.index >= 0 &&
+                            command.index < inventory.items.length
+                        ) {
+                            const removed = inventory.items.splice(command.index, 1)[0];
+                            engine.markComponentDirty(entity, Inventory);
+                            console.log(`[Inventory] Removed: ${removed.name}`);
+                        }
+                        break;
 
-    addInventoryItem(inventory, {
-        id: 'potion_1',
-        name: 'Health Potion',
-        type: 'consumable',
-        description: 'Restores 50 HP',
-        icon: '🧪',
-        quantity: 3,
-    });
+                    case 'use_item':
+                        if (
+                            command.index !== undefined &&
+                            command.index >= 0 &&
+                            command.index < inventory.items.length
+                        ) {
+                            const item = inventory.items[command.index];
+                            if (item.type === 'consumable') {
+                                // Handle consumable (e.g., apply effect, reduce quantity)
+                                if (item.quantity && item.quantity > 1) {
+                                    item.quantity--;
+                                    console.log(`[Inventory] Used: ${item.name} (${item.quantity} left)`);
+                                } else {
+                                    inventory.items.splice(command.index, 1);
+                                    console.log(`[Inventory] Used: ${item.name} (removed)`);
+                                }
+                                engine.markComponentDirty(entity, Inventory);
+                            }
+                        }
+                        break;
+                }
+                // Remove command after processing
+                entity.removeComponent(InventoryCommand);
+            },
+        }
+    );
 
-    // Create some enemies
-    for (let i = 0; i < 5; i++) {
-        const enemy = engine.createEntity(`Enemy_${i}`);
-        enemy.addComponent(Position, Math.random() * 800, Math.random() * 600);
-        enemy.addComponent(Health, 50, 50);
-        enemy.addTag('enemy');
-    }
-
-    // Movement system
+    // ========================================================================
+    // Movement System
+    // ========================================================================
     engine.createSystem(
         'MovementSystem',
         { all: [Position, Velocity] },
@@ -764,6 +837,46 @@ function createExampleGame(): Engine {
         },
         true
     );
+
+    // ========================================================================
+    // Create Player Entity
+    // ========================================================================
+    const player = engine.createEntity('Player');
+    player.addComponent(Position, 400, 300);
+    player.addComponent(Velocity, 0, 0);
+    player.addComponent(Health, 80, 100);
+    player.addComponent(PlayerStats, 5, 350, 500);
+    player.addComponent(PlayerInfo, 'Hero', 'Warrior');
+    const inventory = player.addComponent(Inventory, 20);
+    player.addTag('player');
+
+    // Initialize inventory with starting items (direct initialization is fine during setup)
+    inventory.items.push({
+        id: 'sword_1',
+        name: 'Iron Sword',
+        type: 'weapon',
+        description: 'A sturdy iron sword',
+        icon: '⚔️',
+    });
+
+    inventory.items.push({
+        id: 'potion_1',
+        name: 'Health Potion',
+        type: 'consumable',
+        description: 'Restores 50 HP',
+        icon: '🧪',
+        quantity: 3,
+    });
+
+    // ========================================================================
+    // Create Enemy Entities
+    // ========================================================================
+    for (let i = 0; i < 5; i++) {
+        const enemy = engine.createEntity(`Enemy_${i}`);
+        enemy.addComponent(Position, Math.random() * 800, Math.random() * 600);
+        enemy.addComponent(Health, 50, 50);
+        enemy.addTag('enemy');
+    }
 
     return engine;
 }
@@ -783,6 +896,7 @@ export {
     useComponent,
     useCreateEntity,
     useGameLoop,
+    useInventoryCommands, // Command pattern hook for inventory mutations
     // React Components
     HealthBar,
     ExperienceBar,
@@ -796,13 +910,14 @@ export {
     Health,
     PlayerStats,
     Inventory,
+    InventoryCommand, // Command component for inventory operations
     PlayerInfo,
-    // Helper Functions
+    // Helper Functions (queries only - no mutations)
     getHealthPercentage,
     getStatsProgress,
-    addInventoryItem,
-    removeInventoryItem,
     isInventoryFull,
+    getInventoryItemCount,
+    findInventoryItem,
     // Setup
     createExampleGame,
 };

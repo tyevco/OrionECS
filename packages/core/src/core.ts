@@ -28,6 +28,116 @@ const MAX_MESSAGE_HISTORY = 1000;
 const MAX_EVENT_HISTORY = 500;
 
 /**
+ * A fixed-size circular buffer that provides O(1) insertion and maintains bounded memory.
+ *
+ * Unlike arrays with shift() operations (which are O(n)), CircularBuffer provides constant-time
+ * insertion by overwriting the oldest elements when full. This is ideal for maintaining
+ * bounded history collections like event logs, message history, and performance samples.
+ *
+ * @typeParam T - The type of elements stored in the buffer
+ *
+ * @example
+ * ```typescript
+ * const buffer = new CircularBuffer<number>(3);
+ * buffer.push(1);  // [1]
+ * buffer.push(2);  // [1, 2]
+ * buffer.push(3);  // [1, 2, 3]
+ * buffer.push(4);  // [2, 3, 4] - 1 was evicted
+ *
+ * buffer.toArray(); // [2, 3, 4] - in insertion order
+ * ```
+ *
+ * @internal
+ */
+export class CircularBuffer<T> {
+    private buffer: (T | undefined)[];
+    private head: number = 0; // Next write position
+    private _size: number = 0;
+    private capacity: number;
+
+    constructor(capacity: number) {
+        this.capacity = capacity;
+        this.buffer = new Array(capacity);
+    }
+
+    /**
+     * Add an item to the buffer. If full, overwrites the oldest item.
+     * @param item - Item to add
+     */
+    push(item: T): void {
+        this.buffer[this.head] = item;
+        this.head = (this.head + 1) % this.capacity;
+        if (this._size < this.capacity) {
+            this._size++;
+        }
+    }
+
+    /**
+     * Get the number of items currently in the buffer.
+     */
+    get size(): number {
+        return this._size;
+    }
+
+    /**
+     * Get the maximum capacity of the buffer.
+     */
+    get maxSize(): number {
+        return this.capacity;
+    }
+
+    /**
+     * Convert buffer contents to an array in insertion order (oldest to newest).
+     */
+    toArray(): T[] {
+        if (this._size === 0) {
+            return [];
+        }
+
+        const result: T[] = [];
+        // Start from the oldest element
+        const start = this._size < this.capacity ? 0 : this.head;
+
+        for (let i = 0; i < this._size; i++) {
+            const index = (start + i) % this.capacity;
+            const item = this.buffer[index];
+            if (item !== undefined) {
+                result.push(item);
+            }
+        }
+
+        return result;
+    }
+
+    /**
+     * Filter buffer contents and return as array.
+     * @param predicate - Filter function
+     */
+    filter(predicate: (item: T) => boolean): T[] {
+        return this.toArray().filter(predicate);
+    }
+
+    /**
+     * Clear all items from the buffer.
+     */
+    clear(): void {
+        this.buffer = new Array(this.capacity);
+        this.head = 0;
+        this._size = 0;
+    }
+
+    /**
+     * Iterate over all items in insertion order (oldest to newest).
+     */
+    *[Symbol.iterator](): Iterator<T> {
+        const arr = this.toArray();
+        for (const item of arr) {
+            yield item;
+        }
+    }
+}
+
+/**
  * Type guard to check if a component has lifecycle hooks.
  * @internal
  */
@@ -2055,14 +2165,15 @@ export class System<C extends readonly any[] = any[]> {
 
 /**
  * Message bus for inter-system communication
+ *
+ * Uses CircularBuffer for O(1) message history insertion instead of O(n) shift operations.
  */
 export class MessageBus {
     private subscribers: Map<string, Set<(message: SystemMessage) => void>> = new Map();
-    private messageHistory: SystemMessage[] = [];
-    private maxHistorySize: number;
+    private messageHistory: CircularBuffer<SystemMessage>;
 
     constructor(maxHistorySize: number = MAX_MESSAGE_HISTORY) {
-        this.maxHistorySize = maxHistorySize;
+        this.messageHistory = new CircularBuffer<SystemMessage>(maxHistorySize);
     }
 
     subscribe(messageType: string, callback: (message: SystemMessage) => void): () => void {
@@ -2085,10 +2196,8 @@ export class MessageBus {
             timestamp: Date.now(),
         };
 
+        // O(1) insertion using CircularBuffer instead of O(n) shift()
         this.messageHistory.push(message);
-        while (this.messageHistory.length > this.maxHistorySize) {
-            this.messageHistory.shift();
-        }
 
         const subscribers = this.subscribers.get(messageType);
         if (subscribers) {
@@ -2106,7 +2215,7 @@ export class MessageBus {
         if (messageType) {
             return this.messageHistory.filter((msg) => msg.type === messageType);
         }
-        return [...this.messageHistory];
+        return this.messageHistory.toArray();
     }
 
     /**
@@ -2115,17 +2224,22 @@ export class MessageBus {
      */
     clear(): void {
         this.subscribers.clear();
-        this.messageHistory = [];
+        this.messageHistory.clear();
     }
 }
 
 /**
  * Event emitter for engine events
+ *
+ * Uses CircularBuffer for O(1) event history insertion instead of O(n) shift operations.
  */
 export class EventEmitter {
     private listeners: Map<string, Set<(...args: any[]) => void>> = new Map();
-    private eventHistory: Array<{ event: string; args: any[]; timestamp: number }> = [];
-    private maxHistorySize: number = MAX_EVENT_HISTORY;
+    private eventHistory: CircularBuffer<{ event: string; args: any[]; timestamp: number }>;
+
+    constructor(maxHistorySize: number = MAX_EVENT_HISTORY) {
+        this.eventHistory = new CircularBuffer(maxHistorySize);
+    }
 
     on(event: string, callback: (...args: any[]) => void): () => void {
         if (!this.listeners.has(event)) {
@@ -2145,10 +2259,8 @@ export class EventEmitter {
     }
 
     emit(event: string, ...args: any[]): void {
+        // O(1) insertion using CircularBuffer instead of O(n) shift()
         this.eventHistory.push({ event, args, timestamp: Date.now() });
-        while (this.eventHistory.length > this.maxHistorySize) {
-            this.eventHistory.shift();
-        }
 
         const callbacks = this.listeners.get(event);
         if (callbacks) {
@@ -2163,7 +2275,7 @@ export class EventEmitter {
     }
 
     getEventHistory(): Array<{ event: string; args: any[]; timestamp: number }> {
-        return [...this.eventHistory];
+        return this.eventHistory.toArray();
     }
 }
 
@@ -2230,33 +2342,39 @@ export class EventSubscriptionManager {
 
 /**
  * Performance monitor for tracking metrics
+ *
+ * Uses CircularBuffer for O(1) sample insertion instead of O(n) shift operations.
  */
 export class PerformanceMonitor {
-    private samples: number[] = [];
-    private maxSamples: number = MAX_PERFORMANCE_SAMPLES;
+    private samples: CircularBuffer<number>;
+
+    constructor(maxSamples: number = MAX_PERFORMANCE_SAMPLES) {
+        this.samples = new CircularBuffer<number>(maxSamples);
+    }
 
     addSample(value: number): void {
+        // O(1) insertion using CircularBuffer instead of O(n) shift()
         this.samples.push(value);
-        while (this.samples.length > this.maxSamples) {
-            this.samples.shift();
-        }
     }
 
     getAverage(): number {
-        if (this.samples.length === 0) return 0;
-        return this.samples.reduce((a, b) => a + b, 0) / this.samples.length;
+        const arr = this.samples.toArray();
+        if (arr.length === 0) return 0;
+        return arr.reduce((a, b) => a + b, 0) / arr.length;
     }
 
     getMin(): number {
-        return this.samples.length > 0 ? Math.min(...this.samples) : 0;
+        const arr = this.samples.toArray();
+        return arr.length > 0 ? Math.min(...arr) : 0;
     }
 
     getMax(): number {
-        return this.samples.length > 0 ? Math.max(...this.samples) : 0;
+        const arr = this.samples.toArray();
+        return arr.length > 0 ? Math.max(...arr) : 0;
     }
 
     reset(): void {
-        this.samples = [];
+        this.samples.clear();
     }
 }
 

@@ -35,7 +35,9 @@ describe('Archetype', () => {
     describe('constructor', () => {
         it('should create archetype with sorted component types', () => {
             expect(archetype.componentTypes).toHaveLength(2);
-            expect(archetype.id).toBe('Position,Velocity');
+            // ID includes unique identifiers to prevent collisions with same-named components
+            expect(archetype.id).toContain('Position');
+            expect(archetype.id).toContain('Velocity');
         });
 
         it('should handle empty component types', () => {
@@ -228,7 +230,9 @@ describe('ArchetypeManager', () => {
         it('should create new archetype for component composition', () => {
             const archetype = archetypeManager.getOrCreateArchetype([Position, Velocity]);
             expect(archetype).toBeDefined();
-            expect(archetype.id).toBe('Position,Velocity');
+            // ID includes unique identifiers to prevent collisions with same-named components
+            expect(archetype.id).toContain('Position');
+            expect(archetype.id).toContain('Velocity');
         });
 
         it('should reuse existing archetype for same composition', () => {
@@ -284,7 +288,9 @@ describe('ArchetypeManager', () => {
 
             const archetype2 = archetypeManager.getEntityArchetype(entity);
             expect(archetype2).toBeDefined();
-            expect(archetype2?.id).toBe('Position,Velocity');
+            // ID includes unique identifiers to prevent collisions with same-named components
+            expect(archetype2?.id).toContain('Position');
+            expect(archetype2?.id).toContain('Velocity');
             expect(archetype1.hasEntity(entity)).toBe(false);
             expect(archetype2?.hasEntity(entity)).toBe(true);
         });

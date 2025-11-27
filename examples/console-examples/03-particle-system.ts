@@ -3,7 +3,7 @@
  * Demonstrates object pooling, bulk operations, and high-performance particle effects
  */
 
-import { EngineBuilder } from '../../core/src/engine';
+import { EngineBuilder } from '@orion-ecs/core';
 
 // ============================================================================
 // COMPONENTS (Pure data - no business logic)

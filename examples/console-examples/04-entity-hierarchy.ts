@@ -3,8 +3,7 @@
  * Demonstrates parent-child relationships, transform propagation, and scene graphs
  */
 
-import type { EntityDef } from '../../core/src/definitions';
-import { EngineBuilder } from '../../core/src/engine';
+import { EngineBuilder, type EntityDef } from '@orion-ecs/core';
 
 // Transform Components
 class Transform {

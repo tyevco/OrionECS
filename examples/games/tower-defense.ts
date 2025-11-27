@@ -13,8 +13,7 @@
  * Ported from v1 OrionECS-Examples repository
  */
 
-import type { EntityDef } from '../../core/src/definitions';
-import { EngineBuilder } from '../../core/src/engine';
+import { EngineBuilder, type EntityDef } from '@orion-ecs/core';
 
 // ============================================================================
 // Components
@@ -66,10 +65,10 @@ class Tower {
 }
 
 /**
- * Enemy marker component
+ * Enemy marker component (tag component)
  */
 class Enemy {
-    constructor() {}
+    readonly isEnemy = true;
 }
 
 /**
@@ -136,7 +135,7 @@ engine.createSystem(
     { all: [GameTimer] },
     {
         priority: 1000, // Run first
-        act: (entity: EntityDef, timer: GameTimer) => {
+        act: (_entity: EntityDef, timer: GameTimer) => {
             timer.steps++;
         },
     },
@@ -341,15 +340,15 @@ engine.createSystem(
             // Clear screen (simulated)
             // In browser implementation: ctx.clearRect(0, 0, CANVAS_WIDTH, CANVAS_HEIGHT);
         },
-        act: (entity: EntityDef, position: Position, renderable: Renderable) => {
+        act: (_entity: EntityDef, _position: Position, _renderable: Renderable) => {
             // Draw entity (simulated)
             // In browser implementation:
-            // ctx.fillStyle = renderable.color;
+            // ctx.fillStyle = _renderable.color;
             // ctx.fillRect(
-            //   position.x - renderable.size / 2,
-            //   position.y - renderable.size / 2,
-            //   renderable.size,
-            //   renderable.size
+            //   _position.x - _renderable.size / 2,
+            //   _position.y - _renderable.size / 2,
+            //   _renderable.size,
+            //   _renderable.size
             // );
         },
         after: () => {
@@ -363,7 +362,7 @@ engine.createSystem(
 // Message Bus Subscriptions
 // ============================================================================
 
-engine.messageBus.subscribe('tower-fired', (message) => {
+engine.messageBus.subscribe('tower-fired', (_message) => {
     // Could play sound effect here
 });
 
@@ -373,11 +372,11 @@ engine.messageBus.subscribe('enemy-hit', (message) => {
     );
 });
 
-engine.messageBus.subscribe('enemy-killed', (message) => {
+engine.messageBus.subscribe('enemy-killed', (_message) => {
     console.log('Enemy killed!');
 });
 
-engine.messageBus.subscribe('enemy-escaped', (message) => {
+engine.messageBus.subscribe('enemy-escaped', (_message) => {
     console.log('Enemy escaped!');
 });
 

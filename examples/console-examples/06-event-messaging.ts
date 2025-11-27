@@ -3,7 +3,7 @@
  * Demonstrates inter-system communication, event-driven gameplay, and decoupled architecture
  */
 
-import { EngineBuilder } from '../../core/src/engine';
+import { EngineBuilder } from '@orion-ecs/core';
 
 // ============================================================================
 // COMPONENTS (Pure data - no business logic)

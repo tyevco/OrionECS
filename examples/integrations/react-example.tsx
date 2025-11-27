@@ -27,9 +27,7 @@ import React, {
 import type { FC, ReactNode } from 'react';
 */
 
-import type { EntityDef, QueryOptions } from '../../core/src/definitions';
-import type { Engine } from '../../core/src/engine';
-import { EngineBuilder } from '../../core/src/engine';
+import { type Engine, EngineBuilder, type EntityDef, type QueryOptions } from '@orion-ecs/core';
 
 // ============================================================================
 // Mock React for this example (remove when React is installed)

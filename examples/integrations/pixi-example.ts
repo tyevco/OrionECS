@@ -12,8 +12,7 @@
  * 4. Initialize and run the game loop
  */
 
-import { EngineBuilder } from '../../core/src/engine';
-import type { EntityDef } from '../../core/src/definitions';
+import { EngineBuilder, type EntityDef } from '@orion-ecs/core';
 
 // ============================================================================
 // Pixi.js Imports (uncomment when pixi.js is installed)
@@ -34,28 +33,37 @@ import * as PIXI from 'pixi.js';
  * Position in 2D space
  */
 class Position {
-  constructor(public x: number = 0, public y: number = 0) {}
+    constructor(
+        public x: number = 0,
+        public y: number = 0
+    ) {}
 }
 
 /**
  * Velocity for movement
  */
 class Velocity {
-  constructor(public dx: number = 0, public dy: number = 0) {}
+    constructor(
+        public dx: number = 0,
+        public dy: number = 0
+    ) {}
 }
 
 /**
  * Rotation angle (in radians)
  */
 class Rotation {
-  constructor(public angle: number = 0) {}
+    constructor(public angle: number = 0) {}
 }
 
 /**
  * Scale for sprite size
  */
 class Scale {
-  constructor(public x: number = 1, public y: number = 1) {}
+    constructor(
+        public x: number = 1,
+        public y: number = 1
+    ) {}
 }
 
 /**
@@ -63,83 +71,80 @@ class Scale {
  * Manages the display object lifecycle
  */
 class PixiSprite {
-  sprite: any = null; // PIXI.Sprite when pixi.js is available
-  textureName: string;
-  tint: number;
-  anchor: { x: number; y: number };
-  zIndex: number;
+    sprite: any = null; // PIXI.Sprite when pixi.js is available
+    textureName: string;
+    tint: number;
+    anchor: { x: number; y: number };
+    zIndex: number;
 
-  constructor(
-    textureName: string = 'default',
-    tint: number = 0xFFFFFF,
-    anchorX: number = 0.5,
-    anchorY: number = 0.5,
-    zIndex: number = 0
-  ) {
-    this.textureName = textureName;
-    this.tint = tint;
-    this.anchor = { x: anchorX, y: anchorY };
-    this.zIndex = zIndex;
-  }
+    constructor(
+        textureName: string = 'default',
+        tint: number = 0xffffff,
+        anchorX: number = 0.5,
+        anchorY: number = 0.5,
+        zIndex: number = 0
+    ) {
+        this.textureName = textureName;
+        this.tint = tint;
+        this.anchor = { x: anchorX, y: anchorY };
+        this.zIndex = zIndex;
+    }
 
-  /**
-   * Component lifecycle hook - called when component is added to entity
-   */
-  onCreate(entity: EntityDef): void {
-    console.log(`[PixiSprite] Creating sprite for entity: ${entity.name}`);
-    // Sprite creation happens in the PixiSetupSystem
-  }
+    /**
+     * Component lifecycle hook - called when component is added to entity
+     */
+    onCreate(entity: EntityDef): void {
+        console.log(`[PixiSprite] Creating sprite for entity: ${entity.name}`);
+        // Sprite creation happens in the PixiSetupSystem
+    }
 
-  /**
-   * Component lifecycle hook - called when component is removed from entity
-   */
-  onDestroy(entity: EntityDef): void {
-    console.log(`[PixiSprite] Destroying sprite for entity: ${entity.name}`);
-    // Cleanup happens in the PixiCleanupSystem
-  }
+    /**
+     * Component lifecycle hook - called when component is removed from entity
+     */
+    onDestroy(entity: EntityDef): void {
+        console.log(`[PixiSprite] Destroying sprite for entity: ${entity.name}`);
+        // Cleanup happens in the PixiCleanupSystem
+    }
 }
 
 /**
  * Pixi.js graphics component for procedural shapes
  */
 class PixiGraphics {
-  graphics: any = null; // PIXI.Graphics when pixi.js is available
-  drawFunction: (graphics: any) => void;
-  zIndex: number;
+    graphics: any = null; // PIXI.Graphics when pixi.js is available
+    drawFunction: (graphics: any) => void;
+    zIndex: number;
 
-  constructor(
-    drawFunction: (graphics: any) => void,
-    zIndex: number = 0
-  ) {
-    this.drawFunction = drawFunction;
-    this.zIndex = zIndex;
-  }
+    constructor(drawFunction: (graphics: any) => void, zIndex: number = 0) {
+        this.drawFunction = drawFunction;
+        this.zIndex = zIndex;
+    }
 }
 
 /**
  * Pixi.js container for grouping display objects
  */
 class PixiContainer {
-  container: any = null; // PIXI.Container when pixi.js is available
-  zIndex: number;
+    container: any = null; // PIXI.Container when pixi.js is available
+    zIndex: number;
 
-  constructor(zIndex: number = 0) {
-    this.zIndex = zIndex;
-  }
+    constructor(zIndex: number = 0) {
+        this.zIndex = zIndex;
+    }
 }
 
 /**
  * Opacity/alpha value
  */
 class Opacity {
-  constructor(public alpha: number = 1.0) {}
+    constructor(public alpha: number = 1.0) {}
 }
 
 /**
  * Visible flag
  */
 class Visible {
-  constructor(public value: boolean = true) {}
+    constructor(public value: boolean = true) {}
 }
 
 // ============================================================================
@@ -150,18 +155,18 @@ class Visible {
  * Manages the Pixi.js application and rendering context
  */
 class PixiAppManager {
-  app: any = null; // PIXI.Application when available
-  stage: any = null; // PIXI.Container when available
-  textures: Map<string, any> = new Map(); // Map<string, PIXI.Texture>
-  isInitialized: boolean = false;
+    app: any = null; // PIXI.Application when available
+    stage: any = null; // PIXI.Container when available
+    textures: Map<string, any> = new Map(); // Map<string, PIXI.Texture>
+    isInitialized: boolean = false;
 
-  /**
-   * Initialize Pixi.js application
-   */
-  async initialize(width: number = 800, height: number = 600): Promise<void> {
-    console.log('[PixiAppManager] Initializing...');
+    /**
+     * Initialize Pixi.js application
+     */
+    async initialize(_width: number = 800, _height: number = 600): Promise<void> {
+        console.log('[PixiAppManager] Initializing...');
 
-    /*
+        /*
     // Uncomment when pixi.js is available:
 
     this.app = new PIXI.Application({
@@ -184,16 +189,18 @@ class PixiAppManager {
     console.log('[PixiAppManager] Initialized successfully');
     */
 
-    // For this example without pixi.js installed:
-    this.isInitialized = true;
-    console.log('[PixiAppManager] Simulated initialization (install pixi.js for actual rendering)');
-  }
+        // For this example without pixi.js installed:
+        this.isInitialized = true;
+        console.log(
+            '[PixiAppManager] Simulated initialization (install pixi.js for actual rendering)'
+        );
+    }
 
-  /**
-   * Load textures for sprites
-   */
-  async loadTextures(): Promise<void> {
-    /*
+    /**
+     * Load textures for sprites
+     */
+    async loadTextures(): Promise<void> {
+        /*
     // Uncomment when pixi.js is available:
 
     // Load texture atlas or individual textures
@@ -216,50 +223,50 @@ class PixiAppManager {
     this.textures.set('default', this.app.renderer.generateTexture(graphics));
     */
 
-    console.log('[PixiAppManager] Textures loaded (simulated)');
-  }
-
-  /**
-   * Get texture by name
-   */
-  getTexture(name: string): any {
-    return this.textures.get(name) || this.textures.get('default');
-  }
-
-  /**
-   * Add display object to stage
-   */
-  addToStage(displayObject: any): void {
-    if (this.stage && displayObject) {
-      this.stage.addChild(displayObject);
+        console.log('[PixiAppManager] Textures loaded (simulated)');
     }
-  }
 
-  /**
-   * Remove display object from stage
-   */
-  removeFromStage(displayObject: any): void {
-    if (this.stage && displayObject) {
-      this.stage.removeChild(displayObject);
+    /**
+     * Get texture by name
+     */
+    getTexture(name: string): any {
+        return this.textures.get(name) || this.textures.get('default');
     }
-  }
 
-  /**
-   * Get the Pixi renderer for advanced use
-   */
-  getRenderer(): any {
-    return this.app?.renderer;
-  }
-
-  /**
-   * Destroy and cleanup
-   */
-  destroy(): void {
-    if (this.app) {
-      this.app.destroy(true, { children: true, texture: true });
+    /**
+     * Add display object to stage
+     */
+    addToStage(displayObject: any): void {
+        if (this.stage && displayObject) {
+            this.stage.addChild(displayObject);
+        }
     }
-    this.isInitialized = false;
-  }
+
+    /**
+     * Remove display object from stage
+     */
+    removeFromStage(displayObject: any): void {
+        if (this.stage && displayObject) {
+            this.stage.removeChild(displayObject);
+        }
+    }
+
+    /**
+     * Get the Pixi renderer for advanced use
+     */
+    getRenderer(): any {
+        return this.app?.renderer;
+    }
+
+    /**
+     * Destroy and cleanup
+     */
+    destroy(): void {
+        if (this.app) {
+            this.app.destroy(true, { children: true, texture: true });
+        }
+        this.isInitialized = false;
+    }
 }
 
 // ============================================================================
@@ -268,10 +275,7 @@ class PixiAppManager {
 
 const pixiManager = new PixiAppManager();
 
-const engine = new EngineBuilder()
-  .withDebugMode(true)
-  .withFixedUpdateFPS(60)
-  .build();
+const engine = new EngineBuilder().withDebugMode(true).withFixedUpdateFPS(60).build();
 
 // ============================================================================
 // Pixi Setup System
@@ -280,15 +284,16 @@ const engine = new EngineBuilder()
 /**
  * Sets up Pixi sprites for entities that need them
  */
-engine.createSystem('PixiSetupSystem',
-  { all: [PixiSprite], none: [] },
-  {
-    priority: 1000,
-    act: (entity: EntityDef, pixiSprite: PixiSprite) => {
-      // Skip if sprite already created
-      if (pixiSprite.sprite) return;
+engine.createSystem(
+    'PixiSetupSystem',
+    { all: [PixiSprite], none: [] },
+    {
+        priority: 1000,
+        act: (entity: EntityDef, pixiSprite: PixiSprite) => {
+            // Skip if sprite already created
+            if (pixiSprite.sprite) return;
 
-      /*
+            /*
       // Uncomment when pixi.js is available:
 
       // Create sprite
@@ -306,33 +311,34 @@ engine.createSystem('PixiSetupSystem',
       console.log(`[PixiSetupSystem] Created sprite for ${entity.name}`);
       */
 
-      // Simulated sprite creation
-      pixiSprite.sprite = {
-        x: 0,
-        y: 0,
-        rotation: 0,
-        scale: { x: 1, y: 1 },
-        alpha: 1,
-        visible: true
-      };
-      console.log(`[PixiSetupSystem] Created simulated sprite for ${entity.name}`);
-    }
-  },
-  false // Variable update
+            // Simulated sprite creation
+            pixiSprite.sprite = {
+                x: 0,
+                y: 0,
+                rotation: 0,
+                scale: { x: 1, y: 1 },
+                alpha: 1,
+                visible: true,
+            };
+            console.log(`[PixiSetupSystem] Created simulated sprite for ${entity.name}`);
+        },
+    },
+    false // Variable update
 );
 
 /**
  * Sets up Pixi graphics for entities
  */
-engine.createSystem('PixiGraphicsSetupSystem',
-  { all: [PixiGraphics] },
-  {
-    priority: 1000,
-    act: (entity: EntityDef, pixiGraphics: PixiGraphics) => {
-      // Skip if graphics already created
-      if (pixiGraphics.graphics) return;
+engine.createSystem(
+    'PixiGraphicsSetupSystem',
+    { all: [PixiGraphics] },
+    {
+        priority: 1000,
+        act: (entity: EntityDef, pixiGraphics: PixiGraphics) => {
+            // Skip if graphics already created
+            if (pixiGraphics.graphics) return;
 
-      /*
+            /*
       // Uncomment when pixi.js is available:
 
       pixiGraphics.graphics = new PIXI.Graphics();
@@ -345,10 +351,10 @@ engine.createSystem('PixiGraphicsSetupSystem',
       pixiManager.addToStage(pixiGraphics.graphics);
       */
 
-      console.log(`[PixiGraphicsSetupSystem] Created graphics for ${entity.name}`);
-    }
-  },
-  false
+            console.log(`[PixiGraphicsSetupSystem] Created graphics for ${entity.name}`);
+        },
+    },
+    false
 );
 
 // ============================================================================
@@ -358,86 +364,88 @@ engine.createSystem('PixiGraphicsSetupSystem',
 /**
  * Synchronizes ECS component data with Pixi sprite properties
  */
-engine.createSystem('PixiSyncSystem',
-  { all: [PixiSprite] },
-  {
-    priority: -100, // Run late (after game logic)
-    act: (entity: EntityDef, pixiSprite: PixiSprite) => {
-      if (!pixiSprite.sprite) return;
+engine.createSystem(
+    'PixiSyncSystem',
+    { all: [PixiSprite] },
+    {
+        priority: -100, // Run late (after game logic)
+        act: (entity: EntityDef, pixiSprite: PixiSprite) => {
+            if (!pixiSprite.sprite) return;
 
-      // Sync position
-      if (entity.hasComponent(Position)) {
-        const position = entity.getComponent(Position);
-        pixiSprite.sprite.x = position.x;
-        pixiSprite.sprite.y = position.y;
-      }
+            // Sync position
+            if (entity.hasComponent(Position)) {
+                const position = entity.getComponent(Position);
+                pixiSprite.sprite.x = position.x;
+                pixiSprite.sprite.y = position.y;
+            }
 
-      // Sync rotation
-      if (entity.hasComponent(Rotation)) {
-        const rotation = entity.getComponent(Rotation);
-        pixiSprite.sprite.rotation = rotation.angle;
-      }
+            // Sync rotation
+            if (entity.hasComponent(Rotation)) {
+                const rotation = entity.getComponent(Rotation);
+                pixiSprite.sprite.rotation = rotation.angle;
+            }
 
-      // Sync scale
-      if (entity.hasComponent(Scale)) {
-        const scale = entity.getComponent(Scale);
-        pixiSprite.sprite.scale.x = scale.x;
-        pixiSprite.sprite.scale.y = scale.y;
-      }
+            // Sync scale
+            if (entity.hasComponent(Scale)) {
+                const scale = entity.getComponent(Scale);
+                pixiSprite.sprite.scale.x = scale.x;
+                pixiSprite.sprite.scale.y = scale.y;
+            }
 
-      // Sync opacity
-      if (entity.hasComponent(Opacity)) {
-        const opacity = entity.getComponent(Opacity);
-        pixiSprite.sprite.alpha = opacity.alpha;
-      }
+            // Sync opacity
+            if (entity.hasComponent(Opacity)) {
+                const opacity = entity.getComponent(Opacity);
+                pixiSprite.sprite.alpha = opacity.alpha;
+            }
 
-      // Sync visibility
-      if (entity.hasComponent(Visible)) {
-        const visible = entity.getComponent(Visible);
-        pixiSprite.sprite.visible = visible.value;
-      }
-    }
-  },
-  false // Variable update (rendering)
+            // Sync visibility
+            if (entity.hasComponent(Visible)) {
+                const visible = entity.getComponent(Visible);
+                pixiSprite.sprite.visible = visible.value;
+            }
+        },
+    },
+    false // Variable update (rendering)
 );
 
 /**
  * Synchronizes graphics objects
  */
-engine.createSystem('PixiGraphicsSyncSystem',
-  { all: [PixiGraphics] },
-  {
-    priority: -100,
-    act: (entity: EntityDef, pixiGraphics: PixiGraphics) => {
-      if (!pixiGraphics.graphics) return;
+engine.createSystem(
+    'PixiGraphicsSyncSystem',
+    { all: [PixiGraphics] },
+    {
+        priority: -100,
+        act: (entity: EntityDef, pixiGraphics: PixiGraphics) => {
+            if (!pixiGraphics.graphics) return;
 
-      // Sync position
-      if (entity.hasComponent(Position)) {
-        const position = entity.getComponent(Position);
-        pixiGraphics.graphics.x = position.x;
-        pixiGraphics.graphics.y = position.y;
-      }
+            // Sync position
+            if (entity.hasComponent(Position)) {
+                const position = entity.getComponent(Position);
+                pixiGraphics.graphics.x = position.x;
+                pixiGraphics.graphics.y = position.y;
+            }
 
-      // Sync rotation
-      if (entity.hasComponent(Rotation)) {
-        const rotation = entity.getComponent(Rotation);
-        pixiGraphics.graphics.rotation = rotation.angle;
-      }
+            // Sync rotation
+            if (entity.hasComponent(Rotation)) {
+                const rotation = entity.getComponent(Rotation);
+                pixiGraphics.graphics.rotation = rotation.angle;
+            }
 
-      // Sync opacity
-      if (entity.hasComponent(Opacity)) {
-        const opacity = entity.getComponent(Opacity);
-        pixiGraphics.graphics.alpha = opacity.alpha;
-      }
+            // Sync opacity
+            if (entity.hasComponent(Opacity)) {
+                const opacity = entity.getComponent(Opacity);
+                pixiGraphics.graphics.alpha = opacity.alpha;
+            }
 
-      // Sync visibility
-      if (entity.hasComponent(Visible)) {
-        const visible = entity.getComponent(Visible);
-        pixiGraphics.graphics.visible = visible.value;
-      }
-    }
-  },
-  false
+            // Sync visibility
+            if (entity.hasComponent(Visible)) {
+                const visible = entity.getComponent(Visible);
+                pixiGraphics.graphics.visible = visible.value;
+            }
+        },
+    },
+    false
 );
 
 // ============================================================================
@@ -447,48 +455,49 @@ engine.createSystem('PixiGraphicsSyncSystem',
 /**
  * Cleans up Pixi display objects when entities are destroyed
  */
-engine.createSystem('PixiCleanupSystem',
-  { all: [] }, // Runs globally
-  {
-    priority: -1000, // Run last
-    after: () => {
-      // Find entities marked for deletion with Pixi components
-      const allEntities = engine.getAllEntities();
+engine.createSystem(
+    'PixiCleanupSystem',
+    { all: [] }, // Runs globally
+    {
+        priority: -1000, // Run last
+        after: () => {
+            // Find entities marked for deletion with Pixi components
+            const allEntities = engine.getAllEntities();
 
-      for (const entity of allEntities) {
-        if (!entity.isMarkedForDeletion) continue;
+            for (const entity of allEntities) {
+                if (!entity.isMarkedForDeletion) continue;
 
-        // Cleanup sprite
-        if (entity.hasComponent(PixiSprite)) {
-          const pixiSprite = entity.getComponent(PixiSprite);
-          if (pixiSprite.sprite) {
-            pixiManager.removeFromStage(pixiSprite.sprite);
-            /*
+                // Cleanup sprite
+                if (entity.hasComponent(PixiSprite)) {
+                    const pixiSprite = entity.getComponent(PixiSprite);
+                    if (pixiSprite.sprite) {
+                        pixiManager.removeFromStage(pixiSprite.sprite);
+                        /*
             // Uncomment when pixi.js is available:
             pixiSprite.sprite.destroy({ children: true, texture: false });
             */
-            pixiSprite.sprite = null;
-            console.log(`[PixiCleanupSystem] Destroyed sprite for ${entity.name}`);
-          }
-        }
+                        pixiSprite.sprite = null;
+                        console.log(`[PixiCleanupSystem] Destroyed sprite for ${entity.name}`);
+                    }
+                }
 
-        // Cleanup graphics
-        if (entity.hasComponent(PixiGraphics)) {
-          const pixiGraphics = entity.getComponent(PixiGraphics);
-          if (pixiGraphics.graphics) {
-            pixiManager.removeFromStage(pixiGraphics.graphics);
-            /*
+                // Cleanup graphics
+                if (entity.hasComponent(PixiGraphics)) {
+                    const pixiGraphics = entity.getComponent(PixiGraphics);
+                    if (pixiGraphics.graphics) {
+                        pixiManager.removeFromStage(pixiGraphics.graphics);
+                        /*
             // Uncomment when pixi.js is available:
             pixiGraphics.graphics.destroy({ children: true });
             */
-            pixiGraphics.graphics = null;
-            console.log(`[PixiCleanupSystem] Destroyed graphics for ${entity.name}`);
-          }
-        }
-      }
-    }
-  },
-  false
+                        pixiGraphics.graphics = null;
+                        console.log(`[PixiCleanupSystem] Destroyed graphics for ${entity.name}`);
+                    }
+                }
+            }
+        },
+    },
+    false
 );
 
 // ============================================================================
@@ -499,88 +508,90 @@ engine.createSystem('PixiCleanupSystem',
  * Create a simple example scene
  */
 async function createExampleScene(): Promise<void> {
-  console.log('[Example] Creating scene...');
+    console.log('[Example] Creating scene...');
 
-  // Initialize Pixi
-  await pixiManager.initialize(800, 600);
+    // Initialize Pixi
+    await pixiManager.initialize(800, 600);
 
-  // Create player entity with sprite
-  const player = engine.createEntity('Player');
-  player.addComponent(Position, 400, 300);
-  player.addComponent(Velocity, 0, 0);
-  player.addComponent(Rotation, 0);
-  player.addComponent(Scale, 1, 1);
-  player.addComponent(PixiSprite, 'player', 0x00FF00); // Green tint
-  player.addTag('player');
+    // Create player entity with sprite
+    const player = engine.createEntity('Player');
+    player.addComponent(Position, 400, 300);
+    player.addComponent(Velocity, 0, 0);
+    player.addComponent(Rotation, 0);
+    player.addComponent(Scale, 1, 1);
+    player.addComponent(PixiSprite, 'player', 0x00ff00); // Green tint
+    player.addTag('player');
 
-  console.log('[Example] Created player entity');
+    console.log('[Example] Created player entity');
 
-  // Create enemy entities
-  for (let i = 0; i < 5; i++) {
-    const enemy = engine.createEntity(`Enemy${i}`);
-    enemy.addComponent(Position, Math.random() * 800, Math.random() * 600);
-    enemy.addComponent(Velocity, (Math.random() - 0.5) * 100, (Math.random() - 0.5) * 100);
-    enemy.addComponent(Rotation, Math.random() * Math.PI * 2);
-    enemy.addComponent(PixiSprite, 'enemy', 0xFF0000); // Red tint
-    enemy.addTag('enemy');
-  }
+    // Create enemy entities
+    for (let i = 0; i < 5; i++) {
+        const enemy = engine.createEntity(`Enemy${i}`);
+        enemy.addComponent(Position, Math.random() * 800, Math.random() * 600);
+        enemy.addComponent(Velocity, (Math.random() - 0.5) * 100, (Math.random() - 0.5) * 100);
+        enemy.addComponent(Rotation, Math.random() * Math.PI * 2);
+        enemy.addComponent(PixiSprite, 'enemy', 0xff0000); // Red tint
+        enemy.addTag('enemy');
+    }
 
-  console.log('[Example] Created 5 enemy entities');
+    console.log('[Example] Created 5 enemy entities');
 
-  // Create a graphics entity (procedural circle)
-  const circle = engine.createEntity('Circle');
-  circle.addComponent(Position, 100, 100);
-  circle.addComponent(PixiGraphics, (graphics: any) => {
-    /*
+    // Create a graphics entity (procedural circle)
+    const circle = engine.createEntity('Circle');
+    circle.addComponent(Position, 100, 100);
+    circle.addComponent(PixiGraphics, (_graphics: any) => {
+        /*
     // Uncomment when pixi.js is available:
     graphics.beginFill(0x0000FF);
     graphics.drawCircle(0, 0, 20);
     graphics.endFill();
     */
-  });
+    });
 
-  console.log('[Example] Created graphics entity');
+    console.log('[Example] Created graphics entity');
 }
 
 /**
  * Simple movement system for the example
  */
-engine.createSystem('SimpleMovementSystem',
-  { all: [Position, Velocity] },
-  {
-    priority: 500,
-    act: (entity: EntityDef, position: Position, velocity: Velocity) => {
-      const dt = 1 / 60; // Fixed timestep
+engine.createSystem(
+    'SimpleMovementSystem',
+    { all: [Position, Velocity] },
+    {
+        priority: 500,
+        act: (_entity: EntityDef, position: Position, velocity: Velocity) => {
+            const dt = 1 / 60; // Fixed timestep
 
-      position.x += velocity.dx * dt;
-      position.y += velocity.dy * dt;
+            position.x += velocity.dx * dt;
+            position.y += velocity.dy * dt;
 
-      // Bounce off screen edges
-      if (position.x < 0 || position.x > 800) {
-        velocity.dx *= -1;
-        position.x = Math.max(0, Math.min(800, position.x));
-      }
-      if (position.y < 0 || position.y > 600) {
-        velocity.dy *= -1;
-        position.y = Math.max(0, Math.min(600, position.y));
-      }
-    }
-  },
-  true // Fixed update
+            // Bounce off screen edges
+            if (position.x < 0 || position.x > 800) {
+                velocity.dx *= -1;
+                position.x = Math.max(0, Math.min(800, position.x));
+            }
+            if (position.y < 0 || position.y > 600) {
+                velocity.dy *= -1;
+                position.y = Math.max(0, Math.min(600, position.y));
+            }
+        },
+    },
+    true // Fixed update
 );
 
 /**
  * Rotation animation system
  */
-engine.createSystem('RotationAnimationSystem',
-  { all: [Rotation], tags: ['enemy'] },
-  {
-    priority: 500,
-    act: (entity: EntityDef, rotation: Rotation) => {
-      rotation.angle += 0.02; // Rotate enemies
-    }
-  },
-  true // Fixed update
+engine.createSystem(
+    'RotationAnimationSystem',
+    { all: [Rotation], tags: ['enemy'] },
+    {
+        priority: 500,
+        act: (_entity: EntityDef, rotation: Rotation) => {
+            rotation.angle += 0.02; // Rotate enemies
+        },
+    },
+    true // Fixed update
 );
 
 // ============================================================================
@@ -591,31 +602,31 @@ engine.createSystem('RotationAnimationSystem',
  * Initialize and start the example
  */
 async function init(): Promise<void> {
-  console.log('[Example] Initializing Pixi-ECS example...');
+    console.log('[Example] Initializing Pixi-ECS example...');
 
-  await createExampleScene();
+    await createExampleScene();
 
-  engine.start();
+    engine.start();
 
-  console.log('[Example] Engine started');
-  console.log('[Example] To run with actual rendering, install pixi.js and uncomment the code');
+    console.log('[Example] Engine started');
+    console.log('[Example] To run with actual rendering, install pixi.js and uncomment the code');
 }
 
 /**
  * Main game loop
  */
 function gameLoop(): void {
-  engine.update();
+    engine.update();
 
-  /*
+    /*
   // Uncomment when pixi.js is available:
   // Pixi automatically renders via PIXI.Ticker
   // Or manually render:
   // pixiManager.getRenderer().render(pixiManager.stage);
   */
 
-  // Continue loop
-  // requestAnimationFrame(gameLoop);
+    // Continue loop
+    // requestAnimationFrame(gameLoop);
 }
 
 // ============================================================================
@@ -623,28 +634,25 @@ function gameLoop(): void {
 // ============================================================================
 
 export {
-  // Components
-  Position,
-  Velocity,
-  Rotation,
-  Scale,
-  PixiSprite,
-  PixiGraphics,
-  PixiContainer,
-  Opacity,
-  Visible,
-
-  // Manager
-  PixiAppManager,
-  pixiManager,
-
-  // Engine
-  engine,
-
-  // Functions
-  init,
-  gameLoop,
-  createExampleScene
+    // Components
+    Position,
+    Velocity,
+    Rotation,
+    Scale,
+    PixiSprite,
+    PixiGraphics,
+    PixiContainer,
+    Opacity,
+    Visible,
+    // Manager
+    PixiAppManager,
+    pixiManager,
+    // Engine
+    engine,
+    // Functions
+    init,
+    gameLoop,
+    createExampleScene,
 };
 
 // ============================================================================

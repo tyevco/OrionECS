@@ -12,14 +12,8 @@
  * - Multiple FSM definitions for different entity types
  */
 
-import type { EntityDef } from '../../packages/core/src/definitions';
-import { EngineBuilder } from '../../packages/core/src/engine';
-import {
-    StateMachine,
-    StateMachinePlugin,
-    transition,
-    when,
-} from '../../plugins/state-machine/src/index';
+import { EngineBuilder, type EntityDef } from '@orion-ecs/core';
+import { StateMachine, StateMachinePlugin, transition, when } from '@orion-ecs/state-machine';
 
 // ============================================================================
 // Components - Core Data

@@ -3,7 +3,7 @@
  * Demonstrates entity creation, movement, collision detection, and rendering
  */
 
-import { EngineBuilder } from '../../core/src/engine';
+import { EngineBuilder } from '@orion-ecs/core';
 
 // Components
 class Position {

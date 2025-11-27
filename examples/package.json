@@ -13,6 +13,7 @@
   "dependencies": {
     "@orion-ecs/core": "*",
     "@orion-ecs/decision-tree": "*",
+    "@orion-ecs/state-machine": "*",
     "pixi.js": "^8.0.0"
   },
   "devDependencies": {

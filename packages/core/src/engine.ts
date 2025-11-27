@@ -489,6 +489,12 @@ export class Engine {
     // Control whether commands are automatically executed during update
     private autoExecuteCommands: boolean = true;
 
+    // Store event unsubscribers for cleanup
+    private engineEventUnsubscribers: Array<() => void> = [];
+
+    // Track if engine has been destroyed
+    private _isDestroyed: boolean = false;
+
     constructor(
         private entityManager: EntityManager,
         private componentManager: ComponentManager,
@@ -504,27 +510,34 @@ export class Engine {
         private profilingEnabled: boolean = true
     ) {
         // Subscribe to entity changes to update queries
-        this.eventEmitter.on('onComponentAdded', (entity: Entity) => {
-            if (this.inTransaction) {
-                this.pendingQueryUpdates.add(entity);
-            } else {
-                this.queryManager.updateQueries(entity);
-            }
-        });
-        this.eventEmitter.on('onComponentRemoved', (entity: Entity) => {
-            if (this.inTransaction) {
-                this.pendingQueryUpdates.add(entity);
-            } else {
-                this.queryManager.updateQueries(entity);
-            }
-        });
-        this.eventEmitter.on('onTagChanged', (entity: Entity) => {
-            if (this.inTransaction) {
-                this.pendingQueryUpdates.add(entity);
-            } else {
-                this.queryManager.updateQueries(entity);
-            }
-        });
+        // Store unsubscribers for proper cleanup on destroy
+        this.engineEventUnsubscribers.push(
+            this.eventEmitter.on('onComponentAdded', (entity: Entity) => {
+                if (this.inTransaction) {
+                    this.pendingQueryUpdates.add(entity);
+                } else {
+                    this.queryManager.updateQueries(entity);
+                }
+            })
+        );
+        this.engineEventUnsubscribers.push(
+            this.eventEmitter.on('onComponentRemoved', (entity: Entity) => {
+                if (this.inTransaction) {
+                    this.pendingQueryUpdates.add(entity);
+                } else {
+                    this.queryManager.updateQueries(entity);
+                }
+            })
+        );
+        this.engineEventUnsubscribers.push(
+            this.eventEmitter.on('onTagChanged', (entity: Entity) => {
+                if (this.inTransaction) {
+                    this.pendingQueryUpdates.add(entity);
+                } else {
+                    this.queryManager.updateQueries(entity);
+                }
+            })
+        );
 
         // Initialize command buffer for deferred entity operations
         this.commandBuffer = new CommandBuffer(this, debugMode);
@@ -1867,6 +1880,74 @@ export class Engine {
         this.eventEmitter.emit('onStop');
         if (this.debugMode) {
             console.log('[ECS Debug] Engine stopped');
+        }
+    }
+
+    /**
+     * Check if the engine is currently running.
+     */
+    get isRunning(): boolean {
+        return this.running;
+    }
+
+    /**
+     * Check if the engine has been destroyed.
+     */
+    get isDestroyed(): boolean {
+        return this._isDestroyed;
+    }
+
+    /**
+     * Destroy the engine and clean up all resources.
+     * This includes:
+     * - Stopping the engine if running
+     * - Removing all systems and their event listeners
+     * - Clearing all entities
+     * - Disposing of entity manager event listeners
+     * - Disposing of change tracking manager (clears debounce timers)
+     * - Unsubscribing from all engine-level event listeners
+     *
+     * After calling destroy(), the engine should not be used anymore.
+     */
+    destroy(): void {
+        if (this._isDestroyed) return;
+
+        this._isDestroyed = true;
+
+        // Stop the engine if running
+        if (this.running) {
+            this.stop();
+        }
+
+        // Remove and clean up all systems (this calls system.destroy() for each)
+        this.removeAllSystems();
+
+        // Clear all entities
+        this.entityManager.clear();
+
+        // Dispose of entity manager event listeners
+        this.entityManager.dispose();
+
+        // Dispose of change tracking manager (clears debounce timers)
+        this.changeTrackingManager.dispose();
+
+        // Unsubscribe from engine-level event listeners
+        for (const unsubscribe of this.engineEventUnsubscribers) {
+            unsubscribe();
+        }
+        this.engineEventUnsubscribers = [];
+
+        // Clear pending query updates
+        this.pendingQueryUpdates.clear();
+
+        // Clear message bus subscriptions
+        this.messageManager.clear();
+
+        // Emit destroy event before clearing event emitter
+        this.eventEmitter.emit('onDestroy');
+
+        if (this.debugMode) {
+            console.log('[ECS Debug] Engine destroyed and cleaned up');
         }
     }
 

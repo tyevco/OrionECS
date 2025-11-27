@@ -12,13 +12,9 @@
  * Based on the prototypedestination project's MouseMonitor system.
  */
 
+import type { DragEventData, InputAPI, MouseEventData } from '@orion-ecs/input-manager';
+import { Bounds, type Vector2 } from '@orion-ecs/math';
 import type { EnginePlugin, EntityDef, PluginContext } from '@orion-ecs/plugin-api';
-import { Bounds, type Vector2 } from '../../../packages/math/src/index';
-import type {
-    DragEventData,
-    IInputAPI,
-    MouseEventData,
-} from '../../input-manager/src/InputManagerPlugin';
 
 /**
  * Makes an entity clickable
@@ -211,7 +207,7 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
         context.registerComponent(InteractionBounds);
 
         // Check if input plugin is available
-        const engine = context.getEngine() as { input?: IInputAPI };
+        const engine = context.getEngine() as { input?: InputAPI };
         if (!engine.input) {
             console.warn(
                 '[InteractionSystemPlugin] InputManagerPlugin not found. Interaction will not work.'
@@ -223,25 +219,25 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
         const input = engine.input;
 
         // Handle click events
-        input.on<MouseEventData>('click', (e) => {
+        input.on('click', (e: MouseEventData) => {
             this.handleClick(context, e.position);
         });
 
         // Handle drag events
-        input.on<DragEventData>('dragstart', (e) => {
+        input.on('dragstart', (e: DragEventData) => {
             this.handleDragStart(context, e.startPosition);
         });
 
-        input.on<DragEventData>('drag', (e) => {
+        input.on('drag', (e: DragEventData) => {
             this.handleDrag(context, e.deltaPosition);
         });
 
-        input.on<DragEventData>('dragend', (e) => {
+        input.on('dragend', (e: DragEventData) => {
             this.handleDragEnd(context, e.currentPosition);
         });
 
         // Handle mouse move for hover
-        input.on<MouseEventData>('mousemove', (e) => {
+        input.on('mousemove', (e: MouseEventData) => {
             this.handleMouseMove(context, e.position);
         });
 

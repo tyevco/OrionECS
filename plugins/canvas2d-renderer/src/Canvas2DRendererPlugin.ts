@@ -10,9 +10,9 @@
  * Based on the prototypedestination project's rendering systems.
  */
 
+import type { Color, Mesh } from '@orion-ecs/graphics';
+import type { Bounds } from '@orion-ecs/math';
 import type { EnginePlugin, EntityDef, PluginContext } from '@orion-ecs/plugin-api';
-import type { Color, Mesh } from '../../../packages/graphics/src/index';
-import type { Bounds } from '../../../packages/math/src/index';
 
 // Re-export utility types for consumers
 export type { Bounds, Mesh, Color };

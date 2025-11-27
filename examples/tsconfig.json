@@ -13,7 +13,32 @@
     "declaration": false,
     "declarationMap": false,
     "sourceMap": true,
-    "noEmit": true
+    "noEmit": true,
+    "baseUrl": "..",
+    "paths": {
+      "@orion-ecs/core": ["packages/core/src/index.ts"],
+      "@orion-ecs/core/*": ["packages/core/src/*"],
+      "@orion-ecs/plugin-api": ["packages/plugin-api/src/index.ts"],
+      "@orion-ecs/plugin-api/*": ["packages/plugin-api/src/*"],
+      "@orion-ecs/math": ["packages/math/src/index.ts"],
+      "@orion-ecs/math/*": ["packages/math/src/*"],
+      "@orion-ecs/graphics": ["packages/graphics/src/index.ts"],
+      "@orion-ecs/graphics/*": ["packages/graphics/src/*"],
+      "@orion-ecs/testing": ["packages/testing/src/index.ts"],
+      "@orion-ecs/testing/*": ["packages/testing/src/*"],
+      "@orion-ecs/physics": ["plugins/physics/src/index.ts"],
+      "@orion-ecs/spatial-partition": ["plugins/spatial-partition/src/index.ts"],
+      "@orion-ecs/debug-visualizer": ["plugins/debug-visualizer/src/index.ts"],
+      "@orion-ecs/profiling": ["plugins/profiling/src/index.ts"],
+      "@orion-ecs/resource-manager": ["plugins/resource-manager/src/index.ts"],
+      "@orion-ecs/state-machine": ["plugins/state-machine/src/index.ts"],
+      "@orion-ecs/timeline": ["plugins/timeline/src/index.ts"],
+      "@orion-ecs/decision-tree": ["plugins/decision-tree/src/index.ts"],
+      "@orion-ecs/input-manager": ["plugins/input-manager/src/index.ts"],
+      "@orion-ecs/canvas2d-renderer": ["plugins/canvas2d-renderer/src/index.ts"],
+      "@orion-ecs/interaction-system": ["plugins/interaction-system/src/index.ts"],
+      "@orion-ecs/network": ["plugins/network/src/index.ts"]
+    }
   },
   "include": ["**/*.ts", "games/**/*.ts", "integrations/**/*.ts"],
   "exclude": ["node_modules", "dist"]

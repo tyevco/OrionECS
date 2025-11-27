@@ -4,7 +4,7 @@
  */
 
 // Export archetype system
-export { Archetype, ArchetypeManager } from './archetype';
+export { Archetype, ArchetypeManager, MemoryEstimationConfig } from './archetype';
 export type {
     CommandExecutionResult,
     CommandType,
@@ -19,6 +19,7 @@ export {
 // Export core building blocks
 export {
     ARCHETYPE_STORAGE_INDEX,
+    CircularBuffer,
     ComponentArray,
     Entity,
     EntityIdGenerator,

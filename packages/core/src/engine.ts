@@ -48,6 +48,112 @@ import {
 } from './managers';
 
 /**
+ * Deep clone a component object, properly handling edge cases that JSON.parse(JSON.stringify())
+ * misses such as Date objects, undefined values, and nested objects.
+ *
+ * This function uses structuredClone when available (modern environments) and falls back
+ * to a manual implementation for older environments.
+ *
+ * Limitations (by design for component data):
+ * - Functions are not cloned (components should be data-only)
+ * - Symbols are not cloned (use numeric/string identifiers instead)
+ * - Circular references are detected and handled
+ *
+ * @param obj - The object to clone
+ * @param visited - Internal tracking for circular references
+ * @returns A deep copy of the object
+ *
+ * @internal
+ */
+function deepCloneComponent<T>(obj: T, visited = new WeakMap()): T {
+    // Handle primitives and null
+    if (obj === null || typeof obj !== 'object') {
+        return obj;
+    }
+
+    // Handle circular references
+    if (visited.has(obj as object)) {
+        return visited.get(obj as object);
+    }
+
+    // Try structuredClone first (available in Node.js 17+ and modern browsers)
+    // This handles Date, Map, Set, ArrayBuffer, TypedArrays, etc.
+    if (typeof structuredClone === 'function') {
+        try {
+            return structuredClone(obj);
+        } catch {
+            // Fall through to manual implementation if structuredClone fails
+            // (e.g., for objects with functions or symbols)
+        }
+    }
+
+    // Handle Date
+    if (obj instanceof Date) {
+        return new Date(obj.getTime()) as T;
+    }
+
+    // Handle RegExp
+    if (obj instanceof RegExp) {
+        return new RegExp(obj.source, obj.flags) as T;
+    }
+
+    // Handle Map
+    if (obj instanceof Map) {
+        const clone = new Map();
+        visited.set(obj, clone);
+        for (const [key, value] of obj) {
+            clone.set(deepCloneComponent(key, visited), deepCloneComponent(value, visited));
+        }
+        return clone as T;
+    }
+
+    // Handle Set
+    if (obj instanceof Set) {
+        const clone = new Set();
+        visited.set(obj, clone);
+        for (const value of obj) {
+            clone.add(deepCloneComponent(value, visited));
+        }
+        return clone as T;
+    }
+
+    // Handle TypedArrays
+    if (ArrayBuffer.isView(obj) && !(obj instanceof DataView)) {
+        const TypedArrayConstructor = obj.constructor as new (buffer: ArrayBuffer) => T;
+        return new TypedArrayConstructor((obj as unknown as { buffer: ArrayBuffer }).buffer.slice(0)) as T;
+    }
+
+    // Handle ArrayBuffer
+    if (obj instanceof ArrayBuffer) {
+        return obj.slice(0) as T;
+    }
+
+    // Handle Array
+    if (Array.isArray(obj)) {
+        const clone: unknown[] = [];
+        visited.set(obj, clone);
+        for (let i = 0; i < obj.length; i++) {
+            clone[i] = deepCloneComponent(obj[i], visited);
+        }
+        return clone as T;
+    }
+
+    // Handle plain objects
+    const clone = Object.create(Object.getPrototypeOf(obj));
+    visited.set(obj as object, clone);
+
+    for (const key of Object.keys(obj as object)) {
+        const value = (obj as Record<string, unknown>)[key];
+        // Skip functions (components should be data-only)
+        if (typeof value !== 'function') {
+            clone[key] = deepCloneComponent(value, visited);
+        }
+    }
+
+    return clone;
+}
+
+/**
  * Fluent builder for composing and configuring an ECS Engine instance.
  *
  * The EngineBuilder provides a chainable API for configuring all aspects of the engine
@@ -786,8 +892,9 @@ export class Engine {
         for (const componentType of entity.getComponentTypes()) {
             const originalComponent = entity.getComponent(componentType as ComponentIdentifier);
 
-            // Deep copy the component data using JSON serialization
-            const componentData = JSON.parse(JSON.stringify(originalComponent));
+            // Deep copy using proper cloning that handles Date, Map, Set, circular refs, etc.
+            // This replaces the unsafe JSON.parse(JSON.stringify()) approach
+            const componentData = deepCloneComponent(originalComponent) as object;
 
             // Apply component overrides if provided
             if (overrides?.components?.[componentType.name]) {

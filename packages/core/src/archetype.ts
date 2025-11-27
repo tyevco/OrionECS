@@ -8,6 +8,137 @@ import type { Entity } from './core';
 import type { ComponentIdentifier, QueryOptions } from './definitions';
 
 /**
+ * Registry for assigning unique identifiers to component types.
+ *
+ * This solves the archetype ID collision problem where components from different
+ * modules might share the same name. Each component class gets a unique numeric ID
+ * that's used in archetype ID generation.
+ *
+ * @internal
+ */
+class ComponentTypeRegistry {
+    private static instance: ComponentTypeRegistry;
+    private typeIds: WeakMap<ComponentIdentifier, number> = new WeakMap();
+    private nextId: number = 1;
+
+    private constructor() {}
+
+    static getInstance(): ComponentTypeRegistry {
+        if (!ComponentTypeRegistry.instance) {
+            ComponentTypeRegistry.instance = new ComponentTypeRegistry();
+        }
+        return ComponentTypeRegistry.instance;
+    }
+
+    /**
+     * Get or assign a unique ID for a component type.
+     * Uses the component class reference itself as the key, ensuring uniqueness
+     * even if multiple components have the same name property.
+     */
+    getTypeId(type: ComponentIdentifier): number {
+        let id = this.typeIds.get(type);
+        if (id === undefined) {
+            id = this.nextId++;
+            this.typeIds.set(type, id);
+        }
+        return id;
+    }
+
+    /**
+     * Generate a unique key for a component type that includes both
+     * the human-readable name and a unique ID to prevent collisions.
+     */
+    getTypeKey(type: ComponentIdentifier): string {
+        const id = this.getTypeId(type);
+        return `${type.name}#${id}`;
+    }
+}
+
+// Export singleton accessor for use in Archetype classes
+const componentTypeRegistry = ComponentTypeRegistry.getInstance();
+
+/**
+ * Configuration for memory estimation values.
+ * These can be adjusted for different JavaScript engines and platforms.
+ *
+ * @example Customizing for a specific environment
+ * ```typescript
+ * import { MemoryEstimationConfig } from '@orion-ecs/core';
+ *
+ * // Adjust for 32-bit environment
+ * MemoryEstimationConfig.POINTER_SIZE = 4;
+ * MemoryEstimationConfig.MAP_ENTRY_OVERHEAD = 12;
+ * ```
+ *
+ * @public
+ */
+export const MemoryEstimationConfig = {
+    /**
+     * Size of a reference/pointer in bytes.
+     * - 64-bit: 8 bytes (default)
+     * - 32-bit: 4 bytes
+     */
+    POINTER_SIZE: 8,
+
+    /**
+     * Estimated average size of a component instance in bytes.
+     * This varies based on component complexity:
+     * - Simple (2-3 properties): ~24 bytes
+     * - Medium (4-6 properties): ~32 bytes (default)
+     * - Complex (7+ properties): ~48+ bytes
+     */
+    COMPONENT_SIZE_ESTIMATE: 32,
+
+    /**
+     * Overhead per entry in Map/Set data structures.
+     * Varies by engine:
+     * - V8 (Chrome/Node.js): ~16 bytes
+     * - SpiderMonkey (Firefox): ~24 bytes
+     * - JavaScriptCore (Safari): ~16 bytes
+     */
+    MAP_ENTRY_OVERHEAD: 16,
+
+    /**
+     * Get estimated values based on detected environment.
+     * Call this once at startup to auto-configure for the current platform.
+     *
+     * @returns Object with detected configuration values
+     */
+    detectEnvironment(): { engine: string; is64Bit: boolean } {
+        let engine = 'unknown';
+        let is64Bit = true;
+
+        // Detect JavaScript engine
+        if (typeof process !== 'undefined' && process.versions?.v8) {
+            engine = 'V8';
+        } else if (typeof navigator !== 'undefined') {
+            const ua = navigator.userAgent;
+            if (ua.includes('Firefox')) {
+                engine = 'SpiderMonkey';
+                // SpiderMonkey has higher Map overhead
+                this.MAP_ENTRY_OVERHEAD = 24;
+            } else if (ua.includes('Safari') && !ua.includes('Chrome')) {
+                engine = 'JavaScriptCore';
+            } else if (ua.includes('Chrome')) {
+                engine = 'V8';
+            }
+        }
+
+        // Detect architecture (heuristic - not always accurate)
+        // In Node.js we can check process.arch
+        if (typeof process !== 'undefined' && process.arch) {
+            is64Bit = !process.arch.includes('32');
+            if (!is64Bit) {
+                this.POINTER_SIZE = 4;
+                this.MAP_ENTRY_OVERHEAD = Math.round(this.MAP_ENTRY_OVERHEAD * 0.75);
+            }
+        }
+
+        return { engine, is64Bit };
+    },
+};
+
+/**
  * Represents a unique combination of component types
  * Stores entities with the same component composition in dense arrays
  */
@@ -30,12 +161,22 @@ export class Archetype {
     // Cache of component type names for faster lookups
     private componentTypeNames: Set<string> = new Set();
 
+    // Iteration protection: track active iteration count to prevent concurrent modifications
+    private _iterationDepth: number = 0;
+
+    // Pending entity removals to process after iteration completes
+    private _pendingRemovals: Set<Entity> = new Set();
+
     constructor(componentTypes: ComponentIdentifier[]) {
         // Sort component types for consistent archetype IDs
-        this.componentTypes = componentTypes.toSorted((a, b) => a.name.localeCompare(b.name));
+        // Use the unique type key for sorting to ensure consistent ordering
+        this.componentTypes = componentTypes.toSorted((a, b) =>
+            componentTypeRegistry.getTypeKey(a).localeCompare(componentTypeRegistry.getTypeKey(b))
+        );
 
-        // Generate unique ID from sorted component names
-        this.id = this.componentTypes.map((type) => type.name).join(',');
+        // Generate unique ID from sorted component type keys
+        // Uses unique IDs to prevent collisions when same-named components exist across modules
+        this.id = this.componentTypes.map((type) => componentTypeRegistry.getTypeKey(type)).join(',');
 
         // Initialize component arrays
         for (const type of this.componentTypes) {
@@ -122,6 +263,10 @@ export class Archetype {
     /**
      * Remove an entity from this archetype
      * Uses swap-and-pop for O(1) removal
+     *
+     * Thread Safety: If called during iteration (forEach), the removal is deferred
+     * until iteration completes to prevent data corruption.
+     *
      * @param entity - Entity to remove
      * @returns Map of component type to component instance (for moving to new archetype)
      */
@@ -131,13 +276,47 @@ export class Archetype {
             return null;
         }
 
+        // If we're currently iterating, defer the removal to prevent corruption
+        if (this._iterationDepth > 0) {
+            this._pendingRemovals.add(entity);
+            // Return components now for the caller, but don't actually remove yet
+            const components = new Map<ComponentIdentifier, any>();
+            for (const type of this.componentTypes) {
+                const array = this.componentArrays.get(type);
+                if (array && index < array.length) {
+                    components.set(type, array[index]);
+                }
+            }
+            return components;
+        }
+
+        return this._removeEntityImmediate(entity);
+    }
+
+    /**
+     * Internal method to perform immediate entity removal (not deferred)
+     * @internal
+     */
+    private _removeEntityImmediate(entity: Entity): Map<ComponentIdentifier, any> | null {
+        const index = this.entityToIndex.get(entity.id);
+        if (index === undefined) {
+            return null;
+        }
+
         const lastIndex = this.entities.length - 1;
         const components = new Map<ComponentIdentifier, any>();
+
+        // Validate bounds before accessing arrays
+        if (index < 0 || index > lastIndex) {
+            // Stale index - entity was already removed or index is invalid
+            this.entityToIndex.delete(entity.id);
+            return null;
+        }
 
         // Save components before removal (for potential archetype move)
         for (const type of this.componentTypes) {
             const array = this.componentArrays.get(type);
-            if (array) {
+            if (array && index < array.length) {
                 components.set(type, array[index]);
             }
         }
@@ -146,15 +325,18 @@ export class Archetype {
         if (index !== lastIndex) {
             const lastEntity = this.entities[lastIndex];
 
-            // Swap entities
-            this.entities[index] = lastEntity;
-            this.entityToIndex.set(lastEntity.id, index);
+            // Validate lastEntity exists before swapping
+            if (lastEntity) {
+                // Swap entities
+                this.entities[index] = lastEntity;
+                this.entityToIndex.set(lastEntity.id, index);
 
-            // Swap components in all arrays
-            for (const type of this.componentTypes) {
-                const array = this.componentArrays.get(type);
-                if (array) {
-                    array[index] = array[lastIndex];
+                // Swap components in all arrays
+                for (const type of this.componentTypes) {
+                    const array = this.componentArrays.get(type);
+                    if (array && lastIndex < array.length) {
+                        array[index] = array[lastIndex];
+                    }
                 }
             }
         }
@@ -172,6 +354,30 @@ export class Archetype {
     }
 
     /**
+     * Process all pending entity removals that were deferred during iteration.
+     * Called automatically after forEach completes.
+     * @internal
+     */
+    private _processPendingRemovals(): void {
+        if (this._pendingRemovals.size === 0) {
+            return;
+        }
+
+        // Process all pending removals
+        for (const entity of this._pendingRemovals) {
+            this._removeEntityImmediate(entity);
+        }
+        this._pendingRemovals.clear();
+    }
+
+    /**
+     * Check if an entity has a pending removal (deferred during iteration)
+     */
+    hasPendingRemoval(entity: Entity): boolean {
+        return this._pendingRemovals.has(entity);
+    }
+
+    /**
      * Get component for an entity
      * @param entity - Entity to get component for
      * @param type - Component type
@@ -183,8 +389,18 @@ export class Archetype {
             return null;
         }
 
+        // Validate array bounds to handle stale indices from concurrent modifications
+        if (index < 0 || index >= this.entities.length) {
+            return null;
+        }
+
         const array = this.componentArrays.get(type);
         if (!array) {
+            return null;
+        }
+
+        // Additional bounds check on component array
+        if (index >= array.length) {
             return null;
         }
 
@@ -205,9 +421,23 @@ export class Archetype {
             );
         }
 
+        // Validate array bounds to handle stale indices from concurrent modifications
+        if (index < 0 || index >= this.entities.length) {
+            throw new Error(
+                `Entity ${entity.name || entity.numericId} has stale index ${index} in archetype ${this.id} (size: ${this.entities.length})`
+            );
+        }
+
         const array = this.componentArrays.get(type);
         if (!array) {
             throw new Error(`Component type ${type.name} not found in archetype ${this.id}`);
+        }
+
+        // Additional bounds check on component array
+        if (index >= array.length) {
+            throw new Error(
+                `Component array for ${type.name} has stale index ${index} in archetype ${this.id} (array size: ${array.length})`
+            );
         }
 
         array[index] = component;
@@ -237,6 +467,9 @@ export class Archetype {
     /**
      * Iterate over entities with direct component access
      * Optimized for cache locality - components are accessed sequentially
+     *
+     * Thread Safety: During iteration, entity removals are automatically deferred
+     * until iteration completes to prevent data corruption from concurrent modifications.
      */
     forEach(callback: (entity: Entity, ...components: any[]) => void): void {
         const componentArraysArray: any[][] = [];
@@ -249,11 +482,29 @@ export class Archetype {
             }
         }
 
-        // Iterate with direct array access for maximum performance
-        for (let i = 0; i < this.entities.length; i++) {
-            const entity = this.entities[i];
-            const components = componentArraysArray.map((arr) => arr[i]);
-            callback(entity, ...components);
+        // Mark that we're iterating to defer removals
+        this._iterationDepth++;
+
+        try {
+            // Iterate with direct array access for maximum performance
+            // Cache length to avoid issues if entities are marked for removal
+            const length = this.entities.length;
+            for (let i = 0; i < length; i++) {
+                const entity = this.entities[i];
+                // Skip entities that are pending removal
+                if (entity && !this._pendingRemovals.has(entity)) {
+                    const components = componentArraysArray.map((arr) => arr[i]);
+                    callback(entity, ...components);
+                }
+            }
+        } finally {
+            // Restore iteration depth
+            this._iterationDepth--;
+
+            // Process pending removals if we're no longer iterating
+            if (this._iterationDepth === 0) {
+                this._processPendingRemovals();
+            }
         }
     }
 
@@ -280,11 +531,15 @@ export class Archetype {
      * Get memory usage statistics.
      *
      * Note: Memory estimates are **approximate** and platform-dependent.
-     * The estimatedBytes value uses heuristics based on typical JavaScript
-     * object sizes in V8 and may vary significantly across:
+     * The estimatedBytes value uses configurable heuristics from MemoryEstimationConfig.
+     * By default, values are based on typical JavaScript object sizes in V8 (64-bit)
+     * and may vary significantly across:
      * - Different JavaScript engines (V8, SpiderMonkey, JavaScriptCore)
      * - 32-bit vs 64-bit environments
      * - Component complexity and property count
+     *
+     * To improve accuracy, call `MemoryEstimationConfig.detectEnvironment()` at startup
+     * or manually configure the estimation values for your target platform.
      *
      * For accurate memory profiling, use browser DevTools or Node.js --inspect.
      */
@@ -294,18 +549,14 @@ export class Archetype {
         /** Approximate memory usage in bytes (see method docs for accuracy notes) */
         estimatedBytes: number;
     } {
-        // These are estimates for V8 in 64-bit environments
-        // Actual sizes vary by engine and platform
-        const ENTITY_REFERENCE_SIZE = 8; // Pointer size (64-bit)
-        const COMPONENT_SIZE_ESTIMATE = 32; // Average component with ~3-4 properties
-        const MAP_ENTRY_OVERHEAD = 16; // Map/Set entry overhead per item
-
+        // Use configurable values from MemoryEstimationConfig
+        // These can be adjusted for different JS engines and platforms
         const entityCount = this.entities.length;
         const componentTypeCount = this.componentTypes.length;
         const estimatedBytes =
-            entityCount * ENTITY_REFERENCE_SIZE + // Entity array
-            entityCount * componentTypeCount * COMPONENT_SIZE_ESTIMATE + // Component arrays
-            entityCount * MAP_ENTRY_OVERHEAD; // Index map overhead
+            entityCount * MemoryEstimationConfig.POINTER_SIZE + // Entity array
+            entityCount * componentTypeCount * MemoryEstimationConfig.COMPONENT_SIZE_ESTIMATE + // Component arrays
+            entityCount * MemoryEstimationConfig.MAP_ENTRY_OVERHEAD; // Index map overhead
 
         return {
             entityCount,
@@ -340,15 +591,22 @@ export class ArchetypeManager {
 
     /**
      * Generate archetype ID from component types
+     *
+     * Uses unique type keys from ComponentTypeRegistry to prevent collisions
+     * when same-named components exist across different modules.
      */
     private generateArchetypeId(componentTypes: ComponentIdentifier[]): string {
         if (componentTypes.length === 0) {
             return '';
         }
-        // Sort by name for consistent ID
+        // Sort by unique type key for consistent ID
+        // This ensures components with the same name from different modules
+        // generate different archetype IDs
         return componentTypes
-            .toSorted((a, b) => a.name.localeCompare(b.name))
-            .map((type) => type.name)
+            .toSorted((a, b) =>
+                componentTypeRegistry.getTypeKey(a).localeCompare(componentTypeRegistry.getTypeKey(b))
+            )
+            .map((type) => componentTypeRegistry.getTypeKey(type))
             .join(',');
     }
 

@@ -4197,8 +4197,11 @@ describe('Engine v2 - Composition Architecture', () => {
             entity.addComponent(Velocity, 2, 3);
 
             // Entity should now be in Position+Velocity archetype
+            // Archetype IDs include unique identifiers, so check by component names
             stats = engine.getArchetypeStats();
-            const posVelArchetype = stats.archetypes.find((a: any) => a.id === 'Position,Velocity');
+            const posVelArchetype = stats.archetypes.find(
+                (a: any) => a.id.includes('Position') && a.id.includes('Velocity')
+            );
             expect(posVelArchetype).toBeDefined();
             expect(posVelArchetype.entityCount).toBeGreaterThan(0);
         });
@@ -4210,8 +4213,11 @@ describe('Engine v2 - Composition Architecture', () => {
 
             entity.removeComponent(Velocity);
 
+            // Archetype IDs include unique identifiers, so check by component names
             const stats = engine.getArchetypeStats();
-            const posArchetype = stats.archetypes.find((a: any) => a.id === 'Position');
+            const posArchetype = stats.archetypes.find(
+                (a: any) => a.id.includes('Position') && !a.id.includes('Velocity')
+            );
             expect(posArchetype).toBeDefined();
             expect(posArchetype.entityCount).toBeGreaterThan(0);
         });

@@ -10,6 +10,111 @@
  */
 
 // =============================================================================
+// Logging Types
+// =============================================================================
+
+/**
+ * Log level for filtering log output.
+ *
+ * @public
+ */
+export type LogLevel = 'debug' | 'info' | 'warn' | 'error';
+
+/**
+ * Logger interface for structured logging with automatic sanitization.
+ *
+ * The logger provides a centralized, secure logging mechanism that:
+ * - Automatically sanitizes user-controlled input to prevent log injection attacks
+ * - Supports structured logging with tags/namespaces
+ * - Provides variadic methods for different log levels
+ *
+ * @remarks
+ * All string arguments passed to the logger are automatically sanitized to remove:
+ * - ANSI escape sequences (terminal manipulation prevention)
+ * - Control characters (0x00-0x1F and 0x7F)
+ *
+ * @example
+ * ```typescript
+ * class MyPlugin implements EnginePlugin {
+ *   install(context: PluginContext): void {
+ *     const logger = context.logger.withTag('MyPlugin');
+ *
+ *     logger.debug('Plugin initializing...');
+ *     logger.info('Connected to server:', serverName);
+ *     logger.warn('Connection slow, latency:', latencyMs, 'ms');
+ *     logger.error('Failed to connect:', error);
+ *   }
+ * }
+ * ```
+ *
+ * @public
+ */
+export interface Logger {
+    /**
+     * Log a debug message (only visible when debug mode is enabled).
+     *
+     * @param args - Values to log (strings are automatically sanitized)
+     */
+    debug(...args: unknown[]): void;
+
+    /**
+     * Log an informational message.
+     *
+     * @param args - Values to log (strings are automatically sanitized)
+     */
+    info(...args: unknown[]): void;
+
+    /**
+     * Log a warning message.
+     *
+     * @param args - Values to log (strings are automatically sanitized)
+     */
+    warn(...args: unknown[]): void;
+
+    /**
+     * Log an error message.
+     *
+     * @param args - Values to log (strings are automatically sanitized)
+     */
+    error(...args: unknown[]): void;
+
+    /**
+     * Create a new logger instance with a tag prefix.
+     *
+     * Tags help identify the source of log messages, making it easier
+     * to filter and debug specific components.
+     *
+     * @param tag - Tag to prefix log messages with (e.g., plugin name)
+     * @returns A new Logger instance with the tag applied
+     *
+     * @example
+     * ```typescript
+     * const logger = context.logger.withTag('NetworkPlugin');
+     * logger.info('Connected'); // Output: [NetworkPlugin] Connected
+     * ```
+     */
+    withTag(tag: string): Logger;
+
+    /**
+     * Check if a log level is enabled.
+     *
+     * Useful for avoiding expensive string operations when the log
+     * level is disabled.
+     *
+     * @param level - The log level to check
+     * @returns True if the log level is enabled
+     *
+     * @example
+     * ```typescript
+     * if (logger.isEnabled('debug')) {
+     *   logger.debug('Expensive computation:', computeDebugInfo());
+     * }
+     * ```
+     */
+    isEnabled(level: LogLevel): boolean;
+}
+
+// =============================================================================
 // Entity Types
 // =============================================================================
 
@@ -508,6 +613,29 @@ export interface PluginContext {
      * ```
      */
     extend<T extends object>(extensionName: string, api: T): void;
+
+    // =========================================================================
+    // Logging
+    // =========================================================================
+
+    /**
+     * Logger instance for secure, structured logging.
+     *
+     * The logger automatically sanitizes string arguments to prevent log injection
+     * attacks. Use `logger.withTag()` to create a tagged logger for your plugin.
+     *
+     * @example
+     * ```typescript
+     * class MyPlugin implements EnginePlugin {
+     *   install(context: PluginContext): void {
+     *     const logger = context.logger.withTag('MyPlugin');
+     *     logger.info('Plugin initialized');
+     *     logger.debug('Debug details:', someValue);
+     *   }
+     * }
+     * ```
+     */
+    logger: Logger;
 
     // =========================================================================
     // Advanced

@@ -61,6 +61,8 @@ export type {
     EventTypes,
     ExtractPluginExtensions,
     InstalledPlugin,
+    Logger,
+    LogLevel,
     MemoryStats,
     ParentChangedEvent,
     ParentChangedListener,
@@ -78,6 +80,8 @@ export type {
 } from './definitions';
 // Export the new Engine and Builder
 export { Engine, EngineBuilder } from './engine';
+// Export logger utilities
+export { EngineLogger, sanitizeLogString } from './logger';
 // Export managers
 export {
     ChangeTrackingManager,

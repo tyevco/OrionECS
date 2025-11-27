@@ -256,6 +256,10 @@ export class SystemManager {
     // Cache for sorted groups to avoid allocations in hot path
     private sortedGroupsCache: SystemGroup[] | null = null;
     private groupsCacheValid: boolean = false;
+    // Cache for sorted group systems to reduce GC pressure in hot path
+    private groupVariableSystemsCache: Map<string, System<any>[]> = new Map();
+    private groupFixedSystemsCache: Map<string, System<any>[]> = new Map();
+    private groupSystemsCacheValid: boolean = false;
 
     constructor(fixedUpdateFPS: number = 60, maxFixedIterations: number = 10) {
         this.fixedUpdateInterval = 1000 / fixedUpdateFPS;
@@ -294,6 +298,8 @@ export class SystemManager {
             this.systems.push(system);
             this.systemsSorted = false;
         }
+        // Invalidate group systems cache when systems change
+        this.groupSystemsCacheValid = false;
         return system;
     }
 
@@ -442,6 +448,7 @@ export class SystemManager {
             }
             this.fixedSystemsSorted = true;
         }
+        // Group systems cache will be validated on first access after sorting
     }
 
     /**
@@ -468,14 +475,25 @@ export class SystemManager {
             if (!group.enabled) continue;
 
             // Execute systems in this group that are variable update systems (sorted by system priority)
-            // Note: filter() already creates a new array, so slice() is unnecessary
-            const groupSystems = group.systems
-                .filter((s: System<any>) => this.systems.includes(s))
-                .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
+            // Use cached sorted arrays to reduce GC pressure in hot path
+            let groupSystems: System<any>[];
+            if (this.groupSystemsCacheValid && this.groupVariableSystemsCache.has(group.name)) {
+                groupSystems = this.groupVariableSystemsCache.get(group.name)!;
+            } else {
+                groupSystems = group.systems
+                    .filter((s: System<any>) => this.systems.includes(s))
+                    .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
+                this.groupVariableSystemsCache.set(group.name, groupSystems);
+            }
 
             for (const system of groupSystems) {
                 system.step(deltaTime);
             }
+        }
+
+        // Mark group systems cache as valid after first full iteration
+        if (!this.groupSystemsCacheValid) {
+            this.groupSystemsCacheValid = true;
         }
 
         // Then, execute systems without a group
@@ -503,11 +521,16 @@ export class SystemManager {
                 if (!group.enabled) continue;
 
                 // Execute systems in this group that are fixed update systems (sorted by system priority)
-                // Note: This still creates arrays per iteration, but groups are typically small
-                // and the outer loop is the more critical hot path
-                const groupSystems = group.systems
-                    .filter((s: System<any>) => this.fixedUpdateSystems.includes(s))
-                    .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
+                // Use cached sorted arrays to reduce GC pressure in hot path
+                let groupSystems: System<any>[];
+                if (this.groupSystemsCacheValid && this.groupFixedSystemsCache.has(group.name)) {
+                    groupSystems = this.groupFixedSystemsCache.get(group.name)!;
+                } else {
+                    groupSystems = group.systems
+                        .filter((s: System<any>) => this.fixedUpdateSystems.includes(s))
+                        .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
+                    this.groupFixedSystemsCache.set(group.name, groupSystems);
+                }
 
                 for (const system of groupSystems) {
                     system.step(this.fixedUpdateInterval);
@@ -608,6 +631,8 @@ export class SystemManager {
             // Remove from array
             this.systems.splice(variableIndex, 1);
             this.systemsSorted = false;
+            // Invalidate group systems cache when systems change
+            this.groupSystemsCacheValid = false;
             return true;
         }
 
@@ -633,6 +658,8 @@ export class SystemManager {
             // Remove from array
             this.fixedUpdateSystems.splice(fixedIndex, 1);
             this.fixedSystemsSorted = false;
+            // Invalidate group systems cache when systems change
+            this.groupSystemsCacheValid = false;
             return true;
         }
 
@@ -661,6 +688,11 @@ export class SystemManager {
         for (const group of this.groups.values()) {
             group.systems = [];
         }
+
+        // Invalidate and clear group systems caches
+        this.groupSystemsCacheValid = false;
+        this.groupVariableSystemsCache.clear();
+        this.groupFixedSystemsCache.clear();
     }
 }
 

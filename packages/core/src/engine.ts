@@ -208,7 +208,11 @@ export class EngineBuilder<TExtensions extends object = object> {
     private plugins: EnginePlugin[] = [];
     private enableArchetypeSystem: boolean = true; // Enable archetypes by default
     private profilingEnabled: boolean = true; // Enable profiling by default for backward compatibility
-    private changeTrackingOptions: any = {
+    private changeTrackingOptions: {
+        enableProxyTracking: boolean;
+        batchMode: boolean;
+        debounceMs: number;
+    } = {
         enableProxyTracking: false,
         batchMode: false,
         debounceMs: 0,

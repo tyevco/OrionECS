@@ -393,10 +393,32 @@ export class WebSocketClientTransport implements ClientTransport {
     }
 
     /**
-     * Sanitize string for safe logging (remove newlines to prevent log injection)
+     * Sanitize string for safe logging to prevent log injection attacks.
+     * Removes newlines, ANSI escape sequences, and control characters.
      */
     private sanitizeLog(str: string): string {
-        return str.replace(/[\r\n]/g, '');
+        if (typeof str !== 'string') return String(str);
+        let result = '';
+        for (let i = 0; i < str.length; i++) {
+            const code = str.charCodeAt(i);
+            // Skip ANSI escape sequences (ESC [ ... letter)
+            if (code === 0x1b && str[i + 1] === '[') {
+                let j = i + 2;
+                while (j < str.length && ((str[j] >= '0' && str[j] <= '9') || str[j] === ';')) {
+                    j++;
+                }
+                if (j < str.length && str[j] >= 'A' && str[j] <= 'z') {
+                    i = j;
+                    continue;
+                }
+            }
+            // Skip control characters (0x00-0x1f and 0x7f)
+            if (code < 0x20 || code === 0x7f) {
+                continue;
+            }
+            result += str[i];
+        }
+        return result;
     }
 }
 

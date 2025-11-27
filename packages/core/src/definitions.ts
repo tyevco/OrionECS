@@ -9,7 +9,10 @@
  */
 
 // Import plugin types from @orion-ecs/plugin-api for local use
-import type { SystemMessage as PluginApiSystemMessage } from '@orion-ecs/plugin-api';
+import type {
+    Logger as PluginApiLogger,
+    SystemMessage as PluginApiSystemMessage,
+} from '@orion-ecs/plugin-api';
 
 // Re-export plugin types from @orion-ecs/plugin-api for backward compatibility
 // Plugin authors can import directly from @orion-ecs/plugin-api for a lighter dependency
@@ -17,11 +20,14 @@ export type {
     EnginePlugin,
     ExtractPluginExtensions,
     InstalledPlugin,
+    Logger,
+    LogLevel,
     SystemMessage,
 } from '@orion-ecs/plugin-api';
 
-// Alias for local use within this file
+// Aliases for local use within this file
 type SystemMessage = PluginApiSystemMessage;
+type Logger = PluginApiLogger;
 
 /**
  * Type representing a component class constructor.
@@ -770,6 +776,9 @@ export interface PluginContext {
 
     // Allow plugins to extend the engine with custom APIs
     extend<T extends object>(extensionName: string, api: T): void;
+
+    // Logger for secure, structured logging
+    logger: Logger;
 
     // Get engine instance for advanced use cases
     getEngine(): any; // Engine

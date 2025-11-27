@@ -27,6 +27,7 @@ import type {
     EntityPrefab,
     ExtractPluginExtensions,
     InstalledPlugin,
+    Logger,
     MemoryStats,
     PluginContext,
     PoolStats,
@@ -35,6 +36,7 @@ import type {
     SystemProfile,
     SystemType,
 } from './definitions';
+import { EngineLogger } from './logger';
 import {
     ChangeTrackingManager,
     ComponentManager,
@@ -495,6 +497,9 @@ export class Engine {
     // Track if engine has been destroyed
     private _isDestroyed: boolean = false;
 
+    // Logger instance for the engine
+    private _logger: EngineLogger;
+
     constructor(
         private entityManager: EntityManager,
         private componentManager: ComponentManager,
@@ -509,6 +514,8 @@ export class Engine {
         private debugMode: boolean,
         private profilingEnabled: boolean = true
     ) {
+        // Initialize logger
+        this._logger = new EngineLogger({ debugEnabled: debugMode });
         // Subscribe to entity changes to update queries
         // Store unsubscribers for proper cleanup on destroy
         this.engineEventUnsubscribers.push(
@@ -1590,6 +1597,29 @@ export class Engine {
         };
     }
 
+    // ========== Logging ==========
+
+    /**
+     * Get the engine logger for secure, structured logging.
+     *
+     * The logger automatically sanitizes string arguments to prevent log injection
+     * attacks by removing ANSI escape sequences and control characters.
+     *
+     * @returns The engine logger instance
+     *
+     * @example
+     * ```typescript
+     * const logger = engine.logger.withTag('MySystem');
+     * logger.debug('Processing entity:', entity.name);
+     * logger.info('System initialized');
+     * logger.warn('Performance warning:', metrics);
+     * logger.error('Failed to process:', error);
+     * ```
+     */
+    get logger(): Logger {
+        return this._logger;
+    }
+
     // ========== Change Tracking ==========
 
     /**
@@ -2217,6 +2247,7 @@ export class Engine {
                 // Dynamically add extension to engine instance
                 (this as any)[extensionName] = api;
             },
+            logger: this._logger,
             getEngine: (): any => {
                 return this;
             },

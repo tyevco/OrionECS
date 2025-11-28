@@ -5,12 +5,8 @@
  * entity components. Behaviors are implemented by separate ECS systems.
  */
 
-import type {
-    ComponentIdentifier,
-    EnginePlugin,
-    EntityDef,
-    PluginContext,
-} from '@orion-ecs/plugin-api';
+import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
+import type { ComponentIdentifier, EntityDef } from '../../../packages/core/src/index';
 import { DecisionTree } from './components';
 import {
     type DecisionNode,
@@ -250,6 +246,7 @@ export class DecisionTreePlugin implements EnginePlugin<{ decisions: DecisionTre
             },
 
             setEnabled: (entity: EntityDef, enabled: boolean): void => {
+                if (!entity.hasComponent(DecisionTree)) return;
                 const dt = entity.getComponent(DecisionTree);
                 if (dt) dt.enabled = enabled;
             },
@@ -259,14 +256,17 @@ export class DecisionTreePlugin implements EnginePlugin<{ decisions: DecisionTre
             },
 
             getTreeId: (entity: EntityDef): string | undefined => {
+                if (!entity.hasComponent(DecisionTree)) return undefined;
                 return entity.getComponent(DecisionTree)?.treeId;
             },
 
             getLastPath: (entity: EntityDef): string[] => {
+                if (!entity.hasComponent(DecisionTree)) return [];
                 return entity.getComponent(DecisionTree)?.lastPath ?? [];
             },
 
             evaluate: (entity: EntityDef): boolean => {
+                if (!entity.hasComponent(DecisionTree)) return false;
                 const dt = entity.getComponent(DecisionTree);
                 if (!dt) return false;
                 const tree = this.trees.get(dt.treeId);

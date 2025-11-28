@@ -7,21 +7,21 @@ export const Uri = {
     parse: (str: string) => ({ toString: () => str }),
 };
 
-export const Range = class {
+export class Range {
     constructor(
         public startLine: number,
         public startChar: number,
         public endLine: number,
         public endChar: number
     ) {}
-};
+}
 
-export const Position = class {
+export class Position {
     constructor(
         public line: number,
         public character: number
     ) {}
-};
+}
 
 export const TreeItemCollapsibleState = {
     None: 0,
@@ -170,6 +170,79 @@ export const languages = {
     registerCodeLensProvider: () => ({ dispose: () => {} }),
     registerCompletionItemProvider: () => ({ dispose: () => {} }),
     registerHoverProvider: () => ({ dispose: () => {} }),
+    registerRenameProvider: () => ({ dispose: () => {} }),
+    registerCodeActionsProvider: () => ({ dispose: () => {} }),
+};
+
+export const WorkspaceEdit = class {
+    private edits: Map<string, { range: Range; newText: string }[]> = new Map();
+
+    replace(uri: { fsPath: string }, range: Range, newText: string) {
+        const key = uri.fsPath;
+        if (!this.edits.has(key)) {
+            this.edits.set(key, []);
+        }
+        const editList = this.edits.get(key);
+        if (editList) {
+            editList.push({ range, newText });
+        }
+    }
+
+    delete(uri: { fsPath: string }, range: Range) {
+        this.replace(uri, range, '');
+    }
+
+    insert(uri: { fsPath: string }, position: Position, text: string) {
+        const range = new Range(
+            position.line,
+            position.character,
+            position.line,
+            position.character
+        );
+        this.replace(uri, range, text);
+    }
+
+    createFile(
+        _uri: { fsPath: string },
+        _options?: { overwrite?: boolean; ignoreIfExists?: boolean }
+    ) {
+        // Mock implementation
+    }
+
+    getEdits() {
+        return this.edits;
+    }
+};
+
+export const CodeAction = class {
+    title: string;
+    kind?: { value: string };
+    command?: unknown;
+
+    constructor(title: string, kind?: { value: string }) {
+        this.title = title;
+        this.kind = kind;
+    }
+};
+
+export const CodeActionKind = {
+    RefactorExtract: { value: 'refactor.extract' },
+    QuickFix: { value: 'quickfix' },
+    Refactor: { value: 'refactor' },
+};
+
+export const ProgressLocation = {
+    Notification: 15,
+    SourceControl: 1,
+    Window: 10,
+};
+
+export const CancellationTokenSource = class {
+    token = { isCancellationRequested: false };
+    cancel() {
+        this.token.isCancellationRequested = true;
+    }
+    dispose() {}
 };
 
 export const commands = {
@@ -195,6 +268,11 @@ export default {
     MarkdownString,
     CodeLens,
     SnippetString,
+    WorkspaceEdit,
+    CodeAction,
+    CodeActionKind,
+    ProgressLocation,
+    CancellationTokenSource,
     window,
     workspace,
     languages,

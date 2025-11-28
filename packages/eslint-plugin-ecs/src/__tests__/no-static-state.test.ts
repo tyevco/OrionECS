@@ -506,6 +506,17 @@ ruleTester.run('no-static-state (usage detection)', noStaticState, {
       `,
             options: [{ detectFromUsage: true }],
         },
+        // Plugin detected from usage, no static state
+        {
+            code: `
+        class MyCustom {
+          install(context: any) {}
+        }
+        const engine = { use: (p: any) => {} };
+        engine.use(new MyCustom());
+      `,
+            options: [{ detectFromUsage: true }],
+        },
     ],
     invalid: [
         // Component detected from addComponent usage
@@ -532,6 +543,45 @@ ruleTester.run('no-static-state (usage detection)', noStaticState, {
       `,
             options: [{ detectFromUsage: true }],
             errors: [{ messageId: 'noStaticPropertyInSystem' }],
+        },
+        // Plugin detected from engine.use() with static state
+        {
+            code: `
+        class MyCustom {
+          static instance = null;
+          install(context: any) {}
+        }
+        const engine = { use: (p: any) => {} };
+        engine.use(new MyCustom());
+      `,
+            options: [{ detectFromUsage: true }],
+            errors: [{ messageId: 'noStaticPropertyInPlugin' }],
+        },
+        // Plugin detected from builder.use() with static state
+        {
+            code: `
+        class NetworkManager {
+          static connections = new Map();
+          install(context: any) {}
+        }
+        const builder = { use: (p: any) => builder };
+        builder.use(new NetworkManager());
+      `,
+            options: [{ detectFromUsage: true }],
+            errors: [{ messageId: 'noStaticPropertyInPlugin' }],
+        },
+        // Plugin with static method detected from usage
+        {
+            code: `
+        class AudioManager {
+          static getInstance() { return null; }
+          install(context: any) {}
+        }
+        const engine = { use: (p: any) => {} };
+        engine.use(new AudioManager());
+      `,
+            options: [{ detectFromUsage: true }],
+            errors: [{ messageId: 'noStaticMethodInPlugin' }],
         },
     ],
 });

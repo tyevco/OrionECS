@@ -4,7 +4,11 @@ const createRule = ESLintUtils.RuleCreator(
     (name) => `https://github.com/tyevco/OrionECS/blob/main/docs/eslint-rules/${name}.md`
 );
 
-type MessageIds = 'missingDependency' | 'conflictingComponent';
+type MessageIds =
+    | 'missingDependency'
+    | 'conflictingComponent'
+    | 'prefabMissingDependency'
+    | 'prefabConflictingComponent';
 
 type Options = [
     {
@@ -73,6 +77,24 @@ function findProperty(
 }
 
 /**
+ * Extract component type from a prefab component entry like { type: Position, args: [...] }
+ */
+function getComponentTypeFromPrefabEntry(node: TSESTree.Node): string | null {
+    if (node.type !== 'ObjectExpression') return null;
+
+    for (const prop of node.properties) {
+        if (
+            prop.type === 'Property' &&
+            prop.key.type === 'Identifier' &&
+            prop.key.name === 'type'
+        ) {
+            return getComponentName(prop.value);
+        }
+    }
+    return null;
+}
+
+/**
  * Rule: component-order
  *
  * Ensures components are added to entities in the correct order based on their dependencies.
@@ -81,6 +103,9 @@ function findProperty(
  *
  * Also checks for conflicts - if a component conflicts with another, they shouldn't
  * both be added to the same entity.
+ *
+ * Additionally validates prefabs registered via registerPrefab to ensure their
+ * component arrays respect dependency order and don't contain conflicting components.
  */
 export const componentOrder = createRule<Options, MessageIds>({
     name: 'component-order',
@@ -94,6 +119,10 @@ export const componentOrder = createRule<Options, MessageIds>({
                 'Component "{{componentName}}" requires "{{dependencyName}}" to be added first. Add {{dependencyName}} before {{componentName}}.',
             conflictingComponent:
                 'Component "{{componentName}}" conflicts with "{{conflictName}}" which was already added to this entity.',
+            prefabMissingDependency:
+                'Prefab "{{prefabName}}": Component "{{componentName}}" requires "{{dependencyName}}" to appear earlier in the components array.',
+            prefabConflictingComponent:
+                'Prefab "{{prefabName}}": Component "{{componentName}}" conflicts with "{{conflictName}}". These components cannot be in the same prefab.',
         },
         schema: [
             {
@@ -239,6 +268,83 @@ export const componentOrder = createRule<Options, MessageIds>({
         }
 
         /**
+         * Process a registerPrefab call to validate component order and conflicts
+         */
+        function processPrefabRegistration(node: TSESTree.CallExpression): void {
+            if (node.callee.type !== 'MemberExpression') return;
+            if (node.callee.property.type !== 'Identifier') return;
+            if (node.callee.property.name !== 'registerPrefab') return;
+
+            // Get prefab name (first argument)
+            const prefabNameArg = node.arguments[0];
+            let prefabName = 'unknown';
+            if (
+                prefabNameArg &&
+                prefabNameArg.type === 'Literal' &&
+                typeof prefabNameArg.value === 'string'
+            ) {
+                prefabName = prefabNameArg.value;
+            }
+
+            // Get prefab object (second argument)
+            const prefabArg = node.arguments[1];
+            if (!prefabArg || prefabArg.type !== 'ObjectExpression') return;
+
+            // Find the components array
+            const componentsProp = findProperty(prefabArg, 'components');
+            if (!componentsProp || componentsProp.value.type !== 'ArrayExpression') return;
+
+            const componentsArray = componentsProp.value;
+            const addedComponents = new Set<string>();
+
+            // Process each component entry in order
+            for (const element of componentsArray.elements) {
+                if (!element) continue;
+
+                const componentName = getComponentTypeFromPrefabEntry(element);
+                if (!componentName) continue;
+
+                // Check if dependencies are satisfied (must appear earlier in array)
+                const deps = componentDependencies.get(componentName);
+                if (deps) {
+                    for (const dep of deps) {
+                        if (!addedComponents.has(dep)) {
+                            context.report({
+                                node: element,
+                                messageId: 'prefabMissingDependency',
+                                data: {
+                                    prefabName,
+                                    componentName,
+                                    dependencyName: dep,
+                                },
+                            });
+                        }
+                    }
+                }
+
+                // Check for conflicts with already added components
+                const conflicts = componentConflicts.get(componentName);
+                if (conflicts) {
+                    for (const conflict of conflicts) {
+                        if (addedComponents.has(conflict)) {
+                            context.report({
+                                node: element,
+                                messageId: 'prefabConflictingComponent',
+                                data: {
+                                    prefabName,
+                                    componentName,
+                                    conflictName: conflict,
+                                },
+                            });
+                        }
+                    }
+                }
+
+                addedComponents.add(componentName);
+            }
+        }
+
+        /**
          * Reset entity tracking when entering a new function scope
          * This prevents false positives across different functions
          */
@@ -247,10 +353,11 @@ export const componentOrder = createRule<Options, MessageIds>({
         }
 
         return {
-            // Detect dependencies from registerComponentValidator
+            // Detect dependencies from registerComponentValidator and validate usage
             CallExpression(node) {
                 processValidatorRegistration(node);
                 processAddComponent(node);
+                processPrefabRegistration(node);
             },
 
             // Reset tracking on function boundaries

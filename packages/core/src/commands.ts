@@ -12,6 +12,7 @@
 
 import type { Entity } from './core';
 import type { ComponentIdentifier, EntityDef } from './definitions';
+import { deepCloneComponent } from './utils';
 
 /**
  * Minimal interface for Engine to avoid circular dependencies.
@@ -927,7 +928,7 @@ export class CommandBuffer {
                 entityId: command.entityId,
                 componentType: command.componentType,
                 action: 'removed',
-                componentData: JSON.parse(JSON.stringify(componentData)),
+                componentData: deepCloneComponent(componentData) as Record<string, unknown>,
             });
             entity.removeComponent(command.componentType);
             result.componentsRemoved++;

@@ -14,21 +14,14 @@ import type { ComponentIdentifier, QueryOptions } from './definitions';
  * modules might share the same name. Each component class gets a unique numeric ID
  * that's used in archetype ID generation.
  *
+ * Each ArchetypeManager owns its own ComponentTypeRegistry instance, allowing
+ * multiple independent Engine instances to maintain separate component type mappings.
+ *
  * @internal
  */
-class ComponentTypeRegistry {
-    private static instance: ComponentTypeRegistry;
+export class ComponentTypeRegistry {
     private typeIds: WeakMap<ComponentIdentifier, number> = new WeakMap();
     private nextId: number = 1;
-
-    private constructor() {}
-
-    static getInstance(): ComponentTypeRegistry {
-        if (!ComponentTypeRegistry.instance) {
-            ComponentTypeRegistry.instance = new ComponentTypeRegistry();
-        }
-        return ComponentTypeRegistry.instance;
-    }
 
     /**
      * Get or assign a unique ID for a component type.
@@ -53,9 +46,6 @@ class ComponentTypeRegistry {
         return `${type.name}#${id}`;
     }
 }
-
-// Export singleton accessor for use in Archetype classes
-const componentTypeRegistry = ComponentTypeRegistry.getInstance();
 
 /**
  * Configuration for memory estimation values.
@@ -167,18 +157,21 @@ export class Archetype {
     // Pending entity removals to process after iteration completes
     private _pendingRemovals: Set<Entity> = new Set();
 
-    constructor(componentTypes: ComponentIdentifier[]) {
+    // Reference to the registry for generating type keys
+    private registry: ComponentTypeRegistry;
+
+    constructor(componentTypes: ComponentIdentifier[], registry: ComponentTypeRegistry) {
+        this.registry = registry;
+
         // Sort component types for consistent archetype IDs
         // Use the unique type key for sorting to ensure consistent ordering
         this.componentTypes = componentTypes.toSorted((a, b) =>
-            componentTypeRegistry.getTypeKey(a).localeCompare(componentTypeRegistry.getTypeKey(b))
+            this.registry.getTypeKey(a).localeCompare(this.registry.getTypeKey(b))
         );
 
         // Generate unique ID from sorted component type keys
         // Uses unique IDs to prevent collisions when same-named components exist across modules
-        this.id = this.componentTypes
-            .map((type) => componentTypeRegistry.getTypeKey(type))
-            .join(',');
+        this.id = this.componentTypes.map((type) => this.registry.getTypeKey(type)).join(',');
 
         // Initialize component arrays
         for (const type of this.componentTypes) {
@@ -569,7 +562,10 @@ export class Archetype {
 }
 
 /**
- * Manages all archetypes and entity movement between them
+ * Manages all archetypes and entity movement between them.
+ *
+ * Each ArchetypeManager owns its own ComponentTypeRegistry, ensuring that
+ * multiple Engine instances can operate independently without sharing state.
  */
 export class ArchetypeManager {
     // Map from archetype ID to archetype
@@ -585,9 +581,15 @@ export class ArchetypeManager {
     private _archetypeCreationCount: number = 0;
     private _entityMovementCount: number = 0;
 
+    // Engine-scoped registry for component type IDs
+    private registry: ComponentTypeRegistry;
+
     constructor() {
+        // Create engine-scoped registry for component type IDs
+        this.registry = new ComponentTypeRegistry();
+
         // Create empty archetype for entities with no components
-        this.emptyArchetype = new Archetype([]);
+        this.emptyArchetype = new Archetype([], this.registry);
         this.archetypes.set(this.emptyArchetype.id, this.emptyArchetype);
     }
 
@@ -606,11 +608,9 @@ export class ArchetypeManager {
         // generate different archetype IDs
         return componentTypes
             .toSorted((a, b) =>
-                componentTypeRegistry
-                    .getTypeKey(a)
-                    .localeCompare(componentTypeRegistry.getTypeKey(b))
+                this.registry.getTypeKey(a).localeCompare(this.registry.getTypeKey(b))
             )
-            .map((type) => componentTypeRegistry.getTypeKey(type))
+            .map((type) => this.registry.getTypeKey(type))
             .join(',');
     }
 
@@ -628,7 +628,7 @@ export class ArchetypeManager {
         let archetype = this.archetypes.get(id);
 
         if (!archetype) {
-            archetype = new Archetype(componentTypes);
+            archetype = new Archetype(componentTypes, this.registry);
             this.archetypes.set(id, archetype);
             this._archetypeCreationCount++;
         }
@@ -835,8 +835,8 @@ export class ArchetypeManager {
     clear(): void {
         this.archetypes.clear();
         this.entityToArchetype.clear();
-        // Recreate empty archetype
-        this.emptyArchetype = new Archetype([]);
+        // Recreate empty archetype with the same registry
+        this.emptyArchetype = new Archetype([], this.registry);
         this.archetypes.set(this.emptyArchetype.id, this.emptyArchetype);
         this._archetypeCreationCount = 0;
         this._entityMovementCount = 0;

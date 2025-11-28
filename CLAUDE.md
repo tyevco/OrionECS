@@ -888,6 +888,15 @@ gh issue create --title "📊 Comprehensive Codebase Analysis - Findings & Recom
 
 For comprehensive analysis reports, nightly reviews, or detailed findings that are too long for an issue body, **upload the full report as a markdown file attachment** to the GitHub issue.
 
+**Full Report Should Include:**
+- **Executive Summary**: High-level overview of findings
+- **Detailed Breakdown**: File-by-file or component-by-component analysis
+- **Specific Issues Found**: Each issue with file path, line numbers, and description
+- **Code Examples**: Relevant snippets showing problems or recommendations
+- **Metrics**: Quantitative data (coverage %, error counts, performance numbers)
+- **Prioritized Recommendations**: Ranked list of suggested actions
+- **Dependencies/Blockers**: What needs to happen first
+
 **How to Attach Reports:**
 1. Write the full report to a temporary `.md` file
 2. Use `gh issue edit` or `gh issue comment` with the file attachment
@@ -895,18 +904,34 @@ For comprehensive analysis reports, nightly reviews, or detailed findings that a
 
 **Example Workflow:**
 ```bash
-# Write report to a temp file
+# Write detailed report to a temp file
 cat > /tmp/analysis-report.md << 'EOF'
 # Full Analysis Report
 
 ## Executive Summary
-...detailed findings...
+Brief overview of what was reviewed and key findings.
+
+## Detailed Breakdown
+
+### core/src/engine.ts
+- Line 145: Missing error handling for edge case X
+- Line 302-315: Performance concern with nested loop
+- Line 488: Type could be narrowed for better safety
+
+### core/src/managers.ts
+- Line 67: Potential memory leak in event listener
+- Line 234: TODO comment should be addressed
 
 ## Metrics
-...comprehensive data...
+- Files reviewed: 12
+- Issues found: 8 (3 high, 4 medium, 1 low)
+- Test coverage: 87%
 
-## Recommendations
-...full list with details...
+## Prioritized Recommendations
+1. **HIGH**: Fix memory leak in managers.ts:67
+2. **HIGH**: Add error handling in engine.ts:145
+3. **MEDIUM**: Optimize loop in engine.ts:302-315
+...
 EOF
 
 # Attach to issue comment

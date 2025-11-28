@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/timeline",
-  "version": "0.1.0",
+  "version": "1.0.0",
   "description": "ECS-native timeline plugin for OrionECS - orchestrate component changes over time with type-safe tweens and sequences",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

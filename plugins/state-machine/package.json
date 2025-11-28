@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/state-machine",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "ECS-native finite state machine plugin for OrionECS with type-safe transitions and predicates",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

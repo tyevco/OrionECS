@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/spatial-partition",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Spatial partitioning plugin for OrionECS with quadtree and grid-based collision detection",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

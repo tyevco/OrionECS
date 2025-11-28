@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/testing",
-  "version": "0.3.0",
+  "version": "1.0.0",
   "description": "Testing utilities for OrionECS - comprehensive tools for testing ECS systems and components",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",
@@ -35,7 +35,7 @@
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "@orion-ecs/core": "^0.3.0"
+    "@orion-ecs/core": "^0.4.0"
   },
   "devDependencies": {
     "@types/jest": "^30.0.0",

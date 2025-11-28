@@ -142,6 +142,30 @@ This rule exists because bypassing validation:
 - Undermines the purpose of having validation in place
 - Makes the codebase harder to maintain
 
+### Respecting Intentional Linter Bypasses
+
+When reviewing code, **respect existing inline linter bypass comments as intentional decisions** made by developers. If you see comments like `// eslint-disable-next-line` or `// @ts-ignore` already in the codebase, do not flag them as issues or attempt to remove them—they were placed deliberately.
+
+**Acceptable Patterns in This Codebase:**
+
+1. **Constructor spread arguments**: The pattern `constructor(...args: any[])` is the **standard pattern** for component classes in this ECS framework. This allows flexible component instantiation via `entity.addComponent(ComponentClass, ...args)`. Do not flag `any[]` in constructor parameters as a linting issue.
+
+   ```typescript
+   // This is the standard and correct pattern - do not flag
+   class Position {
+     constructor(...args: any[]) {
+       // Component initialization
+     }
+   }
+   ```
+
+2. **Existing inline disables**: If a linter disable comment exists in committed code, treat it as an intentional architectural decision. Focus on whether the code functions correctly, not on the presence of the disable comment.
+
+**When Adding New Code:**
+- Avoid adding new linter bypass comments unless absolutely necessary
+- If you must add one, include a comment explaining why
+- Prefer fixing the underlying issue over bypassing the linter
+
 ### Build and Test
 - `npm run build` - Build with tsup (outputs CommonJS and ESM to `dist/` with type declarations)
 - `npm test` - Run comprehensive unit tests using Jest

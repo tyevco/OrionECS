@@ -14,9 +14,11 @@ import type { Engine } from '@orion-ecs/core';
 import { TestEngineBuilder } from '@orion-ecs/testing';
 import {
     ClientInputState,
+    clearNetworkDirty,
     InputBuffer,
     InterpolationBuffer,
     LocalPlayer,
+    markNetworkDirty,
     NetworkId,
     NetworkInput,
     NetworkPosition,
@@ -284,14 +286,14 @@ describe('Network Components', () => {
         test('should mark as dirty', () => {
             const networkId = new NetworkId('entity_1', 'player_1', 'player', false);
             expect(networkId.dirty).toBe(false);
-            networkId.markDirty();
+            markNetworkDirty(networkId);
             expect(networkId.dirty).toBe(true);
         });
 
         test('should clear dirty flag', () => {
             const networkId = new NetworkId();
             expect(networkId.dirty).toBe(true);
-            networkId.clearDirty();
+            clearNetworkDirty(networkId);
             expect(networkId.dirty).toBe(false);
         });
 

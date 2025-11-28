@@ -11,7 +11,8 @@ import type { InputState, SequencedInput, SerializedNetworkEntity } from './type
 // ============================================================================
 
 /**
- * Network identity component - marks an entity for network synchronization
+ * Network identity component - marks an entity for network synchronization.
+ * This is a data-only component; use markNetworkDirty() and clearNetworkDirty() functions.
  */
 export class NetworkId {
     constructor(
@@ -27,14 +28,6 @@ export class NetworkId {
         public lastUpdateTick: number = 0
     ) {}
 
-    markDirty(): void {
-        this.dirty = true;
-    }
-
-    clearDirty(): void {
-        this.dirty = false;
-    }
-
     toJSON(): object {
         return {
             networkEntityId: this.networkEntityId,
@@ -42,6 +35,22 @@ export class NetworkId {
             entityType: this.entityType,
         };
     }
+}
+
+/**
+ * Mark a NetworkId component as dirty (needs synchronization).
+ * @param networkId - The NetworkId component to mark as dirty
+ */
+export function markNetworkDirty(networkId: NetworkId): void {
+    networkId.dirty = true;
+}
+
+/**
+ * Clear the dirty flag on a NetworkId component.
+ * @param networkId - The NetworkId component to clear
+ */
+export function clearNetworkDirty(networkId: NetworkId): void {
+    networkId.dirty = false;
 }
 
 /**

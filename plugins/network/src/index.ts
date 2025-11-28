@@ -14,9 +14,11 @@
 // Components
 export {
     ClientInputState,
+    clearNetworkDirty,
     InputBuffer,
     InterpolationBuffer,
     LocalPlayer,
+    markNetworkDirty,
     NetworkId,
     NetworkInput,
     NetworkPosition,

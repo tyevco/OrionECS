@@ -12,6 +12,24 @@
 
 import type { EnginePlugin, PluginContext, SystemProfile } from '@orion-ecs/plugin-api';
 
+// =============================================================================
+// Engine Reference Interface
+// =============================================================================
+
+/**
+ * Minimal engine interface for ProfilerAPI.
+ * Defines the engine methods required for performance profiling.
+ */
+interface EngineRef {
+    /** Get system performance profiles */
+    getSystemProfiles?(): SystemProfile[];
+    /** Get memory statistics from the engine */
+    getMemoryStats?(): {
+        activeEntities?: number;
+        componentArrays?: Record<string, number>;
+    };
+}
+
 /**
  * Frame profile data
  */
@@ -105,7 +123,7 @@ export interface IProfilerAPI {
  * Profiler API implementation class.
  */
 export class ProfilerAPI implements IProfilerAPI {
-    private engine: any;
+    private engine: EngineRef;
     private recording: boolean = false;
     private currentSession: ProfilingSession | null = null;
     private frameCount: number = 0;
@@ -115,7 +133,7 @@ export class ProfilerAPI implements IProfilerAPI {
     private lastSnapshotTime: number = 0;
     private onBudgetExceeded?: (system: string, time: number) => void;
 
-    constructor(engine: any) {
+    constructor(engine: EngineRef) {
         this.engine = engine;
     }
 

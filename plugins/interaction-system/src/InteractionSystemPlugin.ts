@@ -16,20 +16,96 @@ import type { DragEventData, InputAPI, MouseEventData } from '@orion-ecs/input-m
 import { Bounds, type Vector2 } from '@orion-ecs/math';
 import type { EnginePlugin, EntityDef, PluginContext } from '@orion-ecs/plugin-api';
 
+// =============================================================================
+// Interaction Event Types
+// =============================================================================
+
 /**
- * Makes an entity clickable
+ * Event emitted when a clickable entity is clicked.
+ * Subscribe with: context.on('interaction:click', handler)
+ */
+export interface ClickEvent {
+    entity: EntityDef;
+    position: Vector2;
+}
+
+/**
+ * Event emitted when a draggable entity starts being dragged.
+ * Subscribe with: context.on('interaction:dragStart', handler)
+ */
+export interface DragStartEvent {
+    entity: EntityDef;
+    position: Vector2;
+}
+
+/**
+ * Event emitted when a draggable entity is being dragged.
+ * Subscribe with: context.on('interaction:drag', handler)
+ */
+export interface DragEvent {
+    entity: EntityDef;
+    delta: Vector2;
+}
+
+/**
+ * Event emitted when a draggable entity stops being dragged.
+ * Subscribe with: context.on('interaction:dragEnd', handler)
+ */
+export interface DragEndEvent {
+    entity: EntityDef;
+    position: Vector2;
+}
+
+/**
+ * Event emitted when an entity is selected.
+ * Subscribe with: context.on('interaction:select', handler)
+ */
+export interface SelectEvent {
+    entity: EntityDef;
+}
+
+/**
+ * Event emitted when an entity is deselected.
+ * Subscribe with: context.on('interaction:deselect', handler)
+ */
+export interface DeselectEvent {
+    entity: EntityDef;
+}
+
+/**
+ * Event emitted when mouse enters an entity.
+ * Subscribe with: context.on('interaction:hoverEnter', handler)
+ */
+export interface HoverEnterEvent {
+    entity: EntityDef;
+}
+
+/**
+ * Event emitted when mouse exits an entity.
+ * Subscribe with: context.on('interaction:hoverExit', handler)
+ */
+export interface HoverExitEvent {
+    entity: EntityDef;
+}
+
+// =============================================================================
+// Interaction Components (Data-Only)
+// =============================================================================
+
+/**
+ * Makes an entity clickable.
+ * Listen for clicks via 'interaction:click' event.
  */
 export class Clickable {
     constructor(
         public enabled: boolean = true,
         public layer: number = 0
     ) {}
-
-    public onClick?: (entity: EntityDef, position: Vector2) => void;
 }
 
 /**
- * Makes an entity draggable
+ * Makes an entity draggable.
+ * Listen for drag events via 'interaction:dragStart', 'interaction:drag', 'interaction:dragEnd' events.
  */
 export class Draggable {
     constructor(
@@ -38,16 +114,13 @@ export class Draggable {
         public dragButton: number = 0 // 0 = left, 1 = middle, 2 = right
     ) {}
 
-    public onDragStart?: (entity: EntityDef, position: Vector2) => void;
-    public onDrag?: (entity: EntityDef, delta: Vector2) => void;
-    public onDragEnd?: (entity: EntityDef, position: Vector2) => void;
-
     // Internal state
     public isDragging: boolean = false;
 }
 
 /**
- * Makes an entity selectable
+ * Makes an entity selectable.
+ * Listen for selection events via 'interaction:select' and 'interaction:deselect' events.
  */
 export class Selectable {
     constructor(
@@ -56,12 +129,11 @@ export class Selectable {
     ) {}
 
     public selected: boolean = false;
-    public onSelect?: (entity: EntityDef) => void;
-    public onDeselect?: (entity: EntityDef) => void;
 }
 
 /**
- * Makes an entity hoverable
+ * Makes an entity hoverable.
+ * Listen for hover events via 'interaction:hoverEnter' and 'interaction:hoverExit' events.
  */
 export class Hoverable {
     constructor(
@@ -70,8 +142,6 @@ export class Hoverable {
     ) {}
 
     public hovered: boolean = false;
-    public onHoverEnter?: (entity: EntityDef) => void;
-    public onHoverExit?: (entity: EntityDef) => void;
 }
 
 /**
@@ -117,6 +187,15 @@ export interface IInteractionAPI {
 export class InteractionAPI implements IInteractionAPI {
     private selectedEntities: Set<EntityDef> = new Set();
     private hoveredEntities: Set<EntityDef> = new Set();
+    private context: PluginContext | null = null;
+
+    /**
+     * Initialize with plugin context for event emission.
+     * @internal
+     */
+    _init(context: PluginContext): void {
+        this.context = context;
+    }
 
     /**
      * Gets all currently selected entities
@@ -133,9 +212,7 @@ export class InteractionAPI implements IInteractionAPI {
         if (selectable && !selectable.selected) {
             selectable.selected = true;
             this.selectedEntities.add(entity);
-            if (selectable.onSelect) {
-                selectable.onSelect(entity);
-            }
+            this.context?.emit('interaction:select', { entity } as SelectEvent);
         }
     }
 
@@ -147,9 +224,7 @@ export class InteractionAPI implements IInteractionAPI {
         if (selectable && selectable.selected) {
             selectable.selected = false;
             this.selectedEntities.delete(entity);
-            if (selectable.onDeselect) {
-                selectable.onDeselect(entity);
-            }
+            this.context?.emit('interaction:deselect', { entity } as DeselectEvent);
         }
     }
 
@@ -199,6 +274,9 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
     private currentDrag: { entity: EntityDef; startPos: Vector2 } | null = null;
 
     install(context: PluginContext): void {
+        // Initialize API with context for event emission
+        this.api._init(context);
+
         // Register components
         context.registerComponent(Clickable);
         context.registerComponent(Draggable);
@@ -253,28 +331,40 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
                 act: (entity: EntityDef, interactionBounds: InteractionBounds) => {
                     if (!interactionBounds.autoUpdate) return;
 
-                    // Try to get Transform from Canvas2DRenderer plugin dynamically
-                    // This is a cross-plugin integration pattern where we don't have direct type access
-                    const engineWithRenderer = context.getEngine() as {
-                        canvas2d?: {
-                            Transform?: new (...args: unknown[]) => { x: number; y: number };
-                        };
-                    };
+                    // Transform component interface for cross-plugin integration
+                    interface TransformLike {
+                        x: number;
+                        y: number;
+                    }
+
+                    // Canvas2DRenderer plugin API interface
+                    interface Canvas2DAPI {
+                        Transform?: new (...args: unknown[]) => TransformLike;
+                        Position?: new (...args: unknown[]) => TransformLike;
+                    }
+
+                    // Try to get component classes from Canvas2DRenderer plugin
+                    const engine = context.getEngine() as { canvas2d?: Canvas2DAPI };
 
                     // If Canvas2DRenderer plugin is not installed, skip auto-update
-                    if (!engineWithRenderer.canvas2d) return;
+                    if (!engine.canvas2d) return;
 
-                    // Try to find a transform-like component on the entity
-                    // Since we can't statically type cross-plugin dependencies, we use a duck-typing approach
-                    const componentTypes = ['Transform', 'Position'] as const;
-                    let transform: { x: number; y: number } | null = null;
+                    // Try to find a transform-like component using proper component access
+                    let transform: TransformLike | null = null;
 
-                    for (const typeName of componentTypes) {
-                        // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        const possibleTransform = (entity as any)[`_${typeName.toLowerCase()}`];
-                        if (possibleTransform && typeof possibleTransform.x === 'number') {
-                            transform = possibleTransform;
-                            break;
+                    // Check for Transform component
+                    if (engine.canvas2d.Transform) {
+                        const TransformClass = engine.canvas2d.Transform;
+                        if (entity.hasComponent(TransformClass)) {
+                            transform = entity.getComponent(TransformClass);
+                        }
+                    }
+
+                    // Fallback: check for Position component
+                    if (!transform && engine.canvas2d.Position) {
+                        const PositionClass = engine.canvas2d.Position;
+                        if (entity.hasComponent(PositionClass)) {
+                            transform = entity.getComponent(PositionClass);
                         }
                     }
 
@@ -321,9 +411,8 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
             if (!clickable.enabled) continue;
 
             if (bounds.bounds.contains(position)) {
-                if (clickable.onClick) {
-                    clickable.onClick(entity, position);
-                }
+                // Emit click event
+                context.emit('interaction:click', { entity, position } as ClickEvent);
 
                 // Check for selectable
                 const selectable = entity.getComponent(Selectable);
@@ -365,9 +454,8 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
                 draggable.isDragging = true;
                 this.currentDrag = { entity, startPos: position.clone() };
 
-                if (draggable.onDragStart) {
-                    draggable.onDragStart(entity, position);
-                }
+                // Emit drag start event
+                context.emit('interaction:dragStart', { entity, position } as DragStartEvent);
 
                 break; // Only drag one entity
             }
@@ -377,25 +465,22 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
     /**
      * Handles drag events
      */
-    private handleDrag(_context: PluginContext, delta: Vector2): void {
+    private handleDrag(context: PluginContext, delta: Vector2): void {
         if (!this.currentDrag) return;
 
         const { entity } = this.currentDrag;
         const draggable = entity.getComponent(Draggable);
 
         if (draggable && draggable.isDragging) {
-            if (draggable.onDrag) {
-                draggable.onDrag(entity, delta);
-            }
-            // Note: Default drag behavior removed - users must provide onDrag callback
-            // This avoids unsafe cross-plugin component access
+            // Emit drag event
+            context.emit('interaction:drag', { entity, delta } as DragEvent);
         }
     }
 
     /**
      * Handles drag end events
      */
-    private handleDragEnd(_context: PluginContext, position: Vector2): void {
+    private handleDragEnd(context: PluginContext, position: Vector2): void {
         if (!this.currentDrag) return;
 
         const { entity } = this.currentDrag;
@@ -404,9 +489,8 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
         if (draggable && draggable.isDragging) {
             draggable.isDragging = false;
 
-            if (draggable.onDragEnd) {
-                draggable.onDragEnd(entity, position);
-            }
+            // Emit drag end event
+            context.emit('interaction:dragEnd', { entity, position } as DragEndEvent);
         }
 
         this.currentDrag = null;
@@ -419,8 +503,6 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
         const engine = context.getEngine();
         const hoverables = engine.queryEntities({ all: [Hoverable, InteractionBounds] });
 
-        const currentlyHovered = new Set<EntityDef>();
-
         // Check which entities are hovered
         for (const entity of hoverables) {
             const hoverable = entity.getComponent(Hoverable)!;
@@ -431,24 +513,20 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
             const isHovered = bounds.bounds.contains(position);
 
             if (isHovered) {
-                currentlyHovered.add(entity);
-
                 // Trigger hover enter if not already hovered
                 if (!hoverable.hovered) {
                     hoverable.hovered = true;
                     this.api._setHovered(entity, true);
-                    if (hoverable.onHoverEnter) {
-                        hoverable.onHoverEnter(entity);
-                    }
+                    // Emit hover enter event
+                    context.emit('interaction:hoverEnter', { entity } as HoverEnterEvent);
                 }
             } else {
                 // Trigger hover exit if was hovered
                 if (hoverable.hovered) {
                     hoverable.hovered = false;
                     this.api._setHovered(entity, false);
-                    if (hoverable.onHoverExit) {
-                        hoverable.onHoverExit(entity);
-                    }
+                    // Emit hover exit event
+                    context.emit('interaction:hoverExit', { entity } as HoverExitEvent);
                 }
             }
         }
@@ -466,7 +544,15 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
  * import { EngineBuilder } from '../../../packages/core/src/index';
  * import { Canvas2DRendererPlugin, Transform, Sprite } from './Canvas2DRendererPlugin';
  * import { InputManagerPlugin } from './InputManagerPlugin';
- * import { InteractionSystemPlugin, Clickable, Draggable, Selectable, InteractionBounds } from './InteractionSystemPlugin';
+ * import {
+ *   InteractionSystemPlugin,
+ *   Clickable,
+ *   Draggable,
+ *   Selectable,
+ *   InteractionBounds,
+ *   ClickEvent,
+ *   DragEvent
+ * } from './InteractionSystemPlugin';
  * import { Mesh, Color } from '@orion-ecs/graphics';
  * import { Bounds } from '@orion-ecs/math';
  *
@@ -492,18 +578,20 @@ export class InteractionSystemPlugin implements EnginePlugin<{ interaction: IInt
  * button.addComponent(Draggable);
  * button.addComponent(Selectable);
  *
- * // Add callbacks
- * const clickable = button.getComponent(Clickable);
- * clickable.onClick = (entity, pos) => {
- *   console.log('Button clicked at', pos);
- * };
+ * // Subscribe to interaction events
+ * engine.on('interaction:click', (event: ClickEvent) => {
+ *   console.log('Entity clicked at', event.position);
+ * });
  *
- * const draggable = button.getComponent(Draggable);
- * draggable.onDrag = (entity, delta) => {
- *   const transform = entity.getComponent(Transform);
- *   transform.x += delta.x;
- *   transform.y += delta.y;
- * };
+ * engine.on('interaction:drag', (event: DragEvent) => {
+ *   const transform = event.entity.getComponent(Transform);
+ *   transform.x += event.delta.x;
+ *   transform.y += event.delta.y;
+ * });
+ *
+ * engine.on('interaction:select', (event) => {
+ *   console.log('Entity selected:', event.entity.name);
+ * });
  *
  * engine.start();
  */

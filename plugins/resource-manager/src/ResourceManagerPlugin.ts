@@ -11,6 +11,27 @@
 
 import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
 
+// =============================================================================
+// Resource Data Types
+// =============================================================================
+
+/**
+ * Texture data structure.
+ */
+export interface TextureData {
+    width: number;
+    height: number;
+    url: string;
+}
+
+/**
+ * Audio buffer data structure.
+ */
+export interface AudioBufferData {
+    duration: number;
+    url: string;
+}
+
 /**
  * Base resource interface
  */
@@ -45,7 +66,7 @@ export class TextureResource implements Resource {
     static resourceTypeName = 'Texture';
 
     private _loaded = false;
-    private _data: any = null;
+    private _data: TextureData | null = null;
 
     constructor(public readonly key: string) {}
 
@@ -67,7 +88,7 @@ export class TextureResource implements Resource {
         this._loaded = false;
     }
 
-    get data(): any {
+    get data(): TextureData | null {
         return this._data;
     }
 
@@ -83,7 +104,7 @@ export class AudioResource implements Resource {
     static resourceTypeName = 'Audio';
 
     private _loaded = false;
-    private _buffer: any = null;
+    private _buffer: AudioBufferData | null = null;
 
     constructor(public readonly key: string) {}
 
@@ -104,7 +125,7 @@ export class AudioResource implements Resource {
         this._loaded = false;
     }
 
-    get buffer(): any {
+    get buffer(): AudioBufferData | null {
         return this._buffer;
     }
 

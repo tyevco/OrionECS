@@ -16,6 +16,7 @@ import { pluginLoggingFormat } from './rules/plugin-logging-format';
 // Phase 3: Best Practice Rules
 import { pluginStructureValidation } from './rules/plugin-structure-validation';
 import { preferComposition } from './rules/prefer-composition';
+import { preferEngineLogger } from './rules/prefer-engine-logger';
 import { preferQueueFree } from './rules/prefer-queueFree';
 import { queryValidator } from './rules/query-validator';
 // Phase 2: Correctness Rules
@@ -57,6 +58,7 @@ export const rules = {
     'system-naming-convention': systemNamingConvention,
     'plugin-logging-format': pluginLoggingFormat,
     'no-nested-transactions': noNestedTransactions,
+    'prefer-engine-logger': preferEngineLogger,
 };
 
 // Recommended configuration - warns on most rules
@@ -90,6 +92,7 @@ const recommendedRules = {
     '@orion-ecs/ecs/system-naming-convention': 'off', // Off by default, style preference
     '@orion-ecs/ecs/plugin-logging-format': 'off', // Off by default, style preference
     '@orion-ecs/ecs/no-nested-transactions': 'error', // Prevents runtime errors
+    '@orion-ecs/ecs/prefer-engine-logger': 'warn', // Encourages secure, consistent logging
 } as const;
 
 // Strict configuration - errors on most rules
@@ -123,6 +126,7 @@ const strictRules = {
     '@orion-ecs/ecs/system-naming-convention': 'warn',
     '@orion-ecs/ecs/plugin-logging-format': 'warn',
     '@orion-ecs/ecs/no-nested-transactions': 'error',
+    '@orion-ecs/ecs/prefer-engine-logger': 'error', // Enforces secure, consistent logging
 } as const;
 
 // Export configurations

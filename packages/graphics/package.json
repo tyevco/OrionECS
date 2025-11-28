@@ -18,7 +18,7 @@
   ],
   "scripts": {
     "build": "tsup",
-    "test": "echo \"No tests yet\" && exit 0",
+    "test": "jest",
     "docs:generate": "typedoc",
     "docs:watch": "typedoc --watch",
     "docs:serve": "npx http-server docs -p 8081 -o"

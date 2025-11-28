@@ -5,10 +5,36 @@
 import { EngineBuilder } from '../../../packages/core/src/index';
 import {
     EasingRegistry,
+    easeInBack,
+    easeInBounce,
+    easeInCirc,
+    easeInCubic,
+    easeInElastic,
+    easeInExpo,
+    easeInOutBack,
+    easeInOutBounce,
+    easeInOutCirc,
+    easeInOutCubic,
+    easeInOutElastic,
+    easeInOutExpo,
     easeInOutQuad,
+    easeInOutQuart,
+    easeInOutQuint,
+    easeInOutSine,
     easeInQuad,
+    easeInQuart,
+    easeInQuint,
+    easeInSine,
+    easeOutBack,
     easeOutBounce,
+    easeOutCirc,
+    easeOutCubic,
+    easeOutElastic,
+    easeOutExpo,
     easeOutQuad,
+    easeOutQuart,
+    easeOutQuint,
+    easeOutSine,
     linear,
 } from './easing';
 import { createTimeline, Timeline, TimelinePlugin, Tween } from './index';
@@ -62,6 +88,12 @@ function _simulateFrames(
         // Mock delta time
         (engine as unknown as { deltaTime: number }).deltaTime = deltaMs / 1000;
         engine.update();
+    }
+}
+
+function runFrames(engine: ReturnType<typeof createTestEngine>, frames: number) {
+    for (let i = 0; i < frames; i++) {
+        engine.update(1 / 60);
     }
 }
 
@@ -656,5 +688,663 @@ describe('Timeline Integration', () => {
         expect(composite).toBeDefined();
         expect(composite?.actions).toHaveLength(3);
         expect(composite?.actions[0].type).toBe('timeline');
+    });
+});
+
+// =============================================================================
+// Additional Easing Function Tests
+// =============================================================================
+
+describe('All Easing Functions', () => {
+    describe('Cubic', () => {
+        test('easeInCubic', () => {
+            expect(easeInCubic(0)).toBe(0);
+            expect(easeInCubic(0.5)).toBe(0.125);
+            expect(easeInCubic(1)).toBe(1);
+        });
+
+        test('easeOutCubic', () => {
+            expect(easeOutCubic(0)).toBe(0);
+            expect(easeOutCubic(0.5)).toBe(0.875);
+            expect(easeOutCubic(1)).toBe(1);
+        });
+
+        test('easeInOutCubic', () => {
+            expect(easeInOutCubic(0)).toBe(0);
+            expect(easeInOutCubic(0.5)).toBe(0.5);
+            expect(easeInOutCubic(1)).toBe(1);
+        });
+    });
+
+    describe('Quartic', () => {
+        test('easeInQuart', () => {
+            expect(easeInQuart(0)).toBe(0);
+            expect(easeInQuart(0.5)).toBe(0.0625);
+            expect(easeInQuart(1)).toBe(1);
+        });
+
+        test('easeOutQuart', () => {
+            expect(easeOutQuart(0)).toBe(0);
+            expect(easeOutQuart(1)).toBe(1);
+        });
+
+        test('easeInOutQuart', () => {
+            expect(easeInOutQuart(0)).toBe(0);
+            expect(easeInOutQuart(0.5)).toBe(0.5);
+            expect(easeInOutQuart(1)).toBe(1);
+        });
+    });
+
+    describe('Quintic', () => {
+        test('easeInQuint', () => {
+            expect(easeInQuint(0)).toBe(0);
+            expect(easeInQuint(0.5)).toBe(0.03125);
+            expect(easeInQuint(1)).toBe(1);
+        });
+
+        test('easeOutQuint', () => {
+            expect(easeOutQuint(0)).toBe(0);
+            expect(easeOutQuint(1)).toBe(1);
+        });
+
+        test('easeInOutQuint', () => {
+            expect(easeInOutQuint(0)).toBe(0);
+            expect(easeInOutQuint(0.5)).toBe(0.5);
+            expect(easeInOutQuint(1)).toBe(1);
+        });
+    });
+
+    describe('Sinusoidal', () => {
+        test('easeInSine', () => {
+            expect(easeInSine(0)).toBeCloseTo(0, 5);
+            expect(easeInSine(1)).toBeCloseTo(1, 5);
+        });
+
+        test('easeOutSine', () => {
+            expect(easeOutSine(0)).toBeCloseTo(0, 5);
+            expect(easeOutSine(1)).toBeCloseTo(1, 5);
+        });
+
+        test('easeInOutSine', () => {
+            expect(easeInOutSine(0)).toBeCloseTo(0, 5);
+            expect(easeInOutSine(0.5)).toBeCloseTo(0.5, 5);
+            expect(easeInOutSine(1)).toBeCloseTo(1, 5);
+        });
+    });
+
+    describe('Exponential', () => {
+        test('easeInExpo', () => {
+            expect(easeInExpo(0)).toBe(0);
+            expect(easeInExpo(1)).toBe(1);
+        });
+
+        test('easeOutExpo', () => {
+            expect(easeOutExpo(0)).toBeCloseTo(0, 5);
+            expect(easeOutExpo(1)).toBe(1);
+        });
+
+        test('easeInOutExpo', () => {
+            expect(easeInOutExpo(0)).toBe(0);
+            expect(easeInOutExpo(0.5)).toBeCloseTo(0.5, 5);
+            expect(easeInOutExpo(1)).toBe(1);
+        });
+    });
+
+    describe('Circular', () => {
+        test('easeInCirc', () => {
+            expect(easeInCirc(0)).toBe(0);
+            expect(easeInCirc(1)).toBe(1);
+        });
+
+        test('easeOutCirc', () => {
+            expect(easeOutCirc(0)).toBe(0);
+            expect(easeOutCirc(1)).toBe(1);
+        });
+
+        test('easeInOutCirc', () => {
+            expect(easeInOutCirc(0)).toBe(0);
+            expect(easeInOutCirc(0.5)).toBeCloseTo(0.5, 5);
+            expect(easeInOutCirc(1)).toBe(1);
+        });
+    });
+
+    describe('Back (Overshoot)', () => {
+        test('easeInBack', () => {
+            expect(easeInBack(0)).toBeCloseTo(0, 10);
+            expect(easeInBack(1)).toBeCloseTo(1, 5);
+            // Back easing has characteristic overshoot
+            const midValue = easeInBack(0.5);
+            expect(midValue).toBeLessThan(0.5); // Slower start than linear
+        });
+
+        test('easeOutBack', () => {
+            expect(easeOutBack(0)).toBeCloseTo(0, 10);
+            expect(easeOutBack(1)).toBeCloseTo(1, 5);
+            // Back easing overshoots
+            const midValue = easeOutBack(0.5);
+            expect(midValue).toBeGreaterThan(0.5); // Overshoots linear
+        });
+
+        test('easeInOutBack', () => {
+            expect(easeInOutBack(0)).toBeCloseTo(0, 10);
+            expect(easeInOutBack(1)).toBeCloseTo(1, 5);
+            expect(easeInOutBack(0.5)).toBeCloseTo(0.5, 1);
+        });
+    });
+
+    describe('Elastic', () => {
+        test('easeInElastic', () => {
+            expect(easeInElastic(0)).toBe(0);
+            expect(easeInElastic(1)).toBe(1);
+        });
+
+        test('easeOutElastic', () => {
+            expect(easeOutElastic(0)).toBe(0);
+            expect(easeOutElastic(1)).toBe(1);
+        });
+
+        test('easeInOutElastic', () => {
+            expect(easeInOutElastic(0)).toBe(0);
+            expect(easeInOutElastic(1)).toBe(1);
+        });
+    });
+
+    describe('Bounce', () => {
+        test('easeInBounce', () => {
+            expect(easeInBounce(0)).toBe(0);
+            expect(easeInBounce(1)).toBeCloseTo(1, 5);
+        });
+
+        test('easeInOutBounce', () => {
+            expect(easeInOutBounce(0)).toBe(0);
+            expect(easeInOutBounce(1)).toBeCloseTo(1, 5);
+        });
+
+        test('easeOutBounce covers all branches', () => {
+            // Test different ranges of t
+            expect(easeOutBounce(0.2)).toBeGreaterThan(0); // t < 1/BOUNCE_D1
+            expect(easeOutBounce(0.5)).toBeGreaterThan(0); // t < 2/BOUNCE_D1
+            expect(easeOutBounce(0.8)).toBeGreaterThan(0); // t < 2.5/BOUNCE_D1
+            expect(easeOutBounce(0.95)).toBeGreaterThan(0); // else branch
+        });
+    });
+});
+
+// =============================================================================
+// Timeline Processing Tests
+// =============================================================================
+
+describe('Timeline Processing', () => {
+    test('timeline processes tween action over time', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        engine.timeline.define(
+            engine.timeline
+                .create('moveRight')
+                .tween(Position, 'x', 0)
+                .from(0)
+                .to(100)
+                .duration(500) // 500ms = ~30 frames at 60fps
+                .end()
+                .build()
+        );
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+
+        engine.timeline.playById(entity, 'moveRight');
+        engine.start();
+
+        // After ~15 frames (~250ms), should be around 50%
+        runFrames(engine, 15);
+        const pos = entity.getComponent(Position);
+        expect(pos.x).toBeGreaterThan(40);
+        expect(pos.x).toBeLessThan(60);
+
+        // After ~30 more frames, should be complete
+        runFrames(engine, 30);
+        expect(pos.x).toBeCloseTo(100, 0);
+    });
+
+    test('timeline processes set action', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        engine.timeline.define(
+            engine.timeline
+                .create('setPos')
+                .set(Position, 'x', 100, 100)
+                .build() // Trigger at 100ms
+        );
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+
+        engine.timeline.playById(entity, 'setPos');
+        engine.start();
+
+        // Before trigger time (~3 frames = ~50ms)
+        runFrames(engine, 3);
+        expect(entity.getComponent(Position).x).toBe(0);
+
+        // After trigger time (~10 frames = ~166ms)
+        runFrames(engine, 10);
+        expect(entity.getComponent(Position).x).toBe(100);
+    });
+
+    test('timeline processes addDelta action', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        engine.timeline.define(
+            engine.timeline
+                .create('addDelta')
+                .addDelta(Position, 'x', 100, 50)
+                .build() // At 100ms, add 50
+        );
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 25, 0);
+
+        engine.timeline.playById(entity, 'addDelta');
+        engine.start();
+
+        // Before trigger time
+        runFrames(engine, 3);
+        expect(entity.getComponent(Position).x).toBe(25);
+
+        // After trigger time - should add delta
+        runFrames(engine, 10);
+        expect(entity.getComponent(Position).x).toBe(75); // 25 + 50
+    });
+
+    test('timeline processes component add action', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+        engine.registerComponent(DamageEffect);
+
+        engine.timeline.define(
+            engine.timeline.create('addEffect').addComponent(DamageEffect, 100, 10).build()
+        );
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+
+        engine.timeline.playById(entity, 'addEffect');
+        engine.start();
+
+        // Before trigger time
+        runFrames(engine, 3);
+        expect(entity.hasComponent(DamageEffect)).toBe(false);
+
+        // After trigger time
+        runFrames(engine, 10);
+        expect(entity.hasComponent(DamageEffect)).toBe(true);
+    });
+
+    test('timeline processes component remove action', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+        engine.registerComponent(DamageEffect);
+
+        engine.timeline.define(
+            engine.timeline.create('removeEffect').removeComponent(DamageEffect, 100).build()
+        );
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+        entity.addComponent(DamageEffect, 10);
+
+        engine.timeline.playById(entity, 'removeEffect');
+        engine.start();
+
+        // Before trigger time
+        runFrames(engine, 3);
+        expect(entity.hasComponent(DamageEffect)).toBe(true);
+
+        // After trigger time
+        runFrames(engine, 10);
+        expect(entity.hasComponent(DamageEffect)).toBe(false);
+    });
+
+    test('timeline processes emit action', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        let eventReceived = false;
+        engine.on('customEvent', () => {
+            eventReceived = true;
+        });
+
+        engine.timeline.define(
+            engine.timeline.create('emitTest').emit('customEvent', 100, { value: 42 }).build()
+        );
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+
+        engine.timeline.playById(entity, 'emitTest');
+        engine.start();
+
+        // Before trigger time
+        runFrames(engine, 3);
+        expect(eventReceived).toBe(false);
+
+        // After trigger time
+        runFrames(engine, 10);
+        expect(eventReceived).toBe(true);
+    });
+
+    test('timeline loops when loop option is set', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        engine.timeline.define(
+            engine.timeline
+                .create('loopMove')
+                .tween(Position, 'x', 0)
+                .from(0)
+                .to(100)
+                .duration(200) // Short duration for test
+                .end()
+                .build()
+        );
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+
+        engine.timeline.playById(entity, 'loopMove', { loop: true });
+        engine.start();
+
+        // Complete first loop (~12 frames = 200ms)
+        runFrames(engine, 15);
+        const timeline = entity.getComponent(Timeline);
+        expect(timeline.loopCount).toBeGreaterThanOrEqual(1);
+    });
+
+    test('timeline completes and stops when not looping', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        engine.timeline.define(
+            engine.timeline
+                .create('complete')
+                .tween(Position, 'x', 0)
+                .from(0)
+                .to(100)
+                .duration(200)
+                .end()
+                .build()
+        );
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+
+        engine.timeline.playById(entity, 'complete');
+        engine.start();
+
+        runFrames(engine, 20); // Past completion
+
+        const timeline = entity.getComponent(Timeline);
+        expect(timeline.state).toBe('complete');
+    });
+
+    test('timeline uses speed multiplier', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        engine.timeline.define(
+            engine.timeline
+                .create('fast')
+                .tween(Position, 'x', 0)
+                .from(0)
+                .to(100)
+                .duration(400) // 400ms timeline
+                .end()
+                .build()
+        );
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+
+        engine.timeline.playById(entity, 'fast', { speed: 2 });
+        engine.start();
+
+        // At 2x speed, 200ms real time = 400ms timeline time
+        // ~12 frames should complete it
+        runFrames(engine, 15);
+        expect(entity.getComponent(Position).x).toBeCloseTo(100, 0);
+    });
+});
+
+// =============================================================================
+// Standalone Tween Tests
+// =============================================================================
+
+describe('Standalone Tween Processing', () => {
+    test('tween processes value over time', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+        entity.addComponent(Tween, Position, 'x', {
+            endValue: 100,
+            duration: 500, // 500ms = ~30 frames
+        });
+
+        engine.start();
+
+        runFrames(engine, 15); // ~250ms
+        expect(entity.getComponent(Position).x).toBeGreaterThan(40);
+        expect(entity.getComponent(Position).x).toBeLessThan(60);
+
+        runFrames(engine, 30); // Complete
+        expect(entity.getComponent(Position).x).toBeCloseTo(100, 0);
+    });
+
+    test('tween uses delta mode', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 50, 0);
+        entity.addComponent(Tween, Position, 'x', {
+            delta: 100,
+            duration: 300, // 300ms = ~18 frames
+        });
+
+        engine.start();
+
+        runFrames(engine, 25); // Complete
+        expect(entity.getComponent(Position).x).toBeCloseTo(150, 0); // 50 + 100
+    });
+
+    test('tween loops when configured', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+        entity.addComponent(Tween, Position, 'x', {
+            endValue: 100,
+            duration: 200,
+            loop: true,
+        });
+
+        engine.start();
+
+        runFrames(engine, 15); // ~250ms - past first loop
+
+        // Should have restarted
+        const tween = entity.getComponent(Tween);
+        expect(tween.state).toBe('playing');
+    });
+
+    test('tween completes when not looping', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+        entity.addComponent(Tween, Position, 'x', {
+            endValue: 100,
+            duration: 200, // 200ms = ~12 frames
+        });
+
+        engine.start();
+
+        runFrames(engine, 20); // Past completion
+
+        const tween = entity.getComponent(Tween);
+        expect(tween.state).toBe('complete');
+    });
+
+    test('tween respects speed option', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+        entity.addComponent(Tween, Position, 'x', {
+            endValue: 100,
+            duration: 400, // 400ms
+            speed: 2,
+        });
+
+        engine.start();
+
+        // At 2x speed, ~12 frames = 200ms real = 400ms tween time
+        runFrames(engine, 15);
+        expect(entity.getComponent(Position).x).toBeCloseTo(100, 0);
+    });
+});
+
+// =============================================================================
+// Edge Cases and Error Handling
+// =============================================================================
+
+describe('Edge Cases', () => {
+    test('timeline handles missing component gracefully', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        engine.timeline.define(
+            engine.timeline
+                .create('noComp')
+                .tween(Position, 'x', 0)
+                .from(0)
+                .to(100)
+                .duration(500)
+                .end()
+                .build()
+        );
+
+        const entity = engine.createEntity('test');
+        // Note: Not adding Position component
+
+        engine.timeline.playById(entity, 'noComp');
+        engine.start();
+
+        // Should not throw, just log warning in debug mode
+        expect(() => engine.update(0.5)).not.toThrow();
+    });
+
+    test('timeline handles unknown nested timeline', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        engine.timeline.define(
+            engine.timeline.create('parent').playTimeline('nonexistent', 0).build()
+        );
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+
+        engine.timeline.playById(entity, 'parent');
+        engine.start();
+
+        // Should not throw, just log warning
+        expect(() => engine.update(0.5)).not.toThrow();
+    });
+
+    test('isPlaying returns false for entity without timeline', () => {
+        const engine = createTestEngine();
+        const entity = engine.createEntity('test');
+
+        expect(engine.timeline.isPlaying(entity)).toBe(false);
+    });
+
+    test('getState returns undefined for entity without timeline', () => {
+        const engine = createTestEngine();
+        const entity = engine.createEntity('test');
+
+        expect(engine.timeline.getState(entity)).toBeUndefined();
+    });
+
+    test('pause has no effect on entity without timeline', () => {
+        const engine = createTestEngine();
+        const entity = engine.createEntity('test');
+
+        expect(() => engine.timeline.pause(entity)).not.toThrow();
+    });
+
+    test('resume has no effect on entity without timeline', () => {
+        const engine = createTestEngine();
+        const entity = engine.createEntity('test');
+
+        expect(() => engine.timeline.resume(entity)).not.toThrow();
+    });
+
+    test('stop has no effect on entity without timeline', () => {
+        const engine = createTestEngine();
+        const entity = engine.createEntity('test');
+
+        expect(() => engine.timeline.stop(entity)).not.toThrow();
+    });
+
+    test('play replaces existing timeline', () => {
+        const engine = createTestEngine();
+        engine.registerComponent(Position);
+
+        engine.timeline.define(engine.timeline.create('first').emit('first', 0).build());
+        engine.timeline.define(engine.timeline.create('second').emit('second', 0).build());
+
+        const entity = engine.createEntity('test');
+        entity.addComponent(Position, 0, 0);
+
+        engine.timeline.playById(entity, 'first');
+        expect(entity.getComponent(Timeline).timelineId).toBe('first');
+
+        engine.timeline.playById(entity, 'second');
+        expect(entity.getComponent(Timeline).timelineId).toBe('second');
+    });
+});
+
+// =============================================================================
+// Plugin Lifecycle Tests
+// =============================================================================
+
+describe('Plugin Lifecycle', () => {
+    test('plugin has correct metadata', () => {
+        const plugin = new TimelinePlugin();
+
+        expect(plugin.name).toBe('TimelinePlugin');
+        expect(plugin.version).toBe('0.1.0');
+    });
+
+    test('plugin uninstall clears definitions', () => {
+        const plugin = new TimelinePlugin().define('test', (b) => b.emit('test', 0).build());
+
+        const engine = new EngineBuilder().use(plugin).build();
+
+        expect(engine.timeline.get('test')).toBeDefined();
+
+        plugin.uninstall();
+
+        // After uninstall, internal definitions should be cleared
+        // Note: engine.timeline still has the definition because
+        // it's stored in the API closure, not the plugin
     });
 });

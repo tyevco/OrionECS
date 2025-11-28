@@ -16,6 +16,8 @@ import {
     TestEngineBuilder,
     TestSnapshot,
     TestSystemRunner,
+    waitFrames,
+    waitUntil,
 } from './testing';
 
 // Extend Jest matchers for custom matchers
@@ -342,12 +344,10 @@ describe('Testing Utilities', () => {
                 const entity = createTestEntityFromPrefab(engine, 'Player', 'Player1');
 
                 expect(entity).not.toBeNull();
-                if (entity) {
-                    expect(entity.name).toBe('Player1');
-                    expect(entity.hasComponent(Position)).toBe(true);
-                    expect(entity.hasComponent(Health)).toBe(true);
-                    expect(entity.hasTag('player')).toBe(true);
-                }
+                expect(entity!.name).toBe('Player1');
+                expect(entity!.hasComponent(Position)).toBe(true);
+                expect(entity!.hasComponent(Health)).toBe(true);
+                expect(entity!.hasTag('player')).toBe(true);
             });
         });
     });
@@ -433,7 +433,7 @@ describe('Testing Utilities', () => {
         it('should throw error for non-existent system', () => {
             expect(() => {
                 runner.runSystem('NonExistentSystem');
-            }).toThrow();
+            }).toThrow('NonExistentSystem');
         });
 
         it('should clear execution log', () => {
@@ -608,7 +608,7 @@ describe('Testing Utilities', () => {
 
                 expect(() => {
                     assertEngineClean(engine);
-                }).toThrow();
+                }).toThrow('entities');
             });
         });
     });
@@ -635,6 +635,316 @@ describe('Testing Utilities', () => {
             });
 
             expect(entity).toHaveTag('player');
+        });
+    });
+
+    describe('TestClock - Additional Coverage', () => {
+        it('should not advance when stepByTime is called while paused', () => {
+            const clock = new TestClock();
+
+            clock.pause();
+            clock.stepByTime(100);
+
+            expect(clock.currentTime).toBe(0); // Should not advance when paused
+        });
+
+        it('should return current time from step when not paused', () => {
+            const clock = new TestClock(60);
+
+            const result = clock.step(2);
+
+            expect(result).toBeCloseTo(33.33, 1);
+            expect(clock.currentTime).toBe(result);
+        });
+
+        it('should return current time from stepByTime when not paused', () => {
+            const clock = new TestClock();
+
+            const result = clock.stepByTime(50);
+
+            expect(result).toBe(50);
+            expect(clock.currentTime).toBe(50);
+        });
+    });
+
+    describe('TestSystemRunner - Additional Coverage', () => {
+        let engine: Engine;
+        let runner: TestSystemRunner;
+
+        beforeEach(() => {
+            engine = new TestEngineBuilder().build();
+            runner = new TestSystemRunner(engine);
+
+            engine.createSystem(
+                'MovementSystem',
+                {
+                    all: [Position, Velocity],
+                },
+                {
+                    act: (_entity: any, ...components: any[]) => {
+                        const position = components[0] as Position;
+                        const velocity = components[1] as Velocity;
+                        position.x += velocity.vx;
+                        position.y += velocity.vy;
+                    },
+                }
+            );
+        });
+
+        it('should run all systems with runAllSystems', () => {
+            createTestEntity(engine, {
+                components: [
+                    { type: Position, args: [0, 0] },
+                    { type: Velocity, args: [1, 1] },
+                ],
+            });
+
+            runner.runAllSystems(16.67);
+
+            expect(runner.wasExecuted('MovementSystem')).toBe(true);
+        });
+
+        it('should return full profile with getProfile', () => {
+            createTestEntity(engine, {
+                components: [
+                    { type: Position, args: [0, 0] },
+                    { type: Velocity, args: [1, 1] },
+                ],
+            });
+
+            runner.runSystem('MovementSystem');
+
+            const profile = runner.getProfile('MovementSystem');
+            expect(profile).not.toBeNull();
+            expect(profile?.name).toBe('MovementSystem');
+            expect(profile?.entityCount).toBe(1);
+            expect(typeof profile?.executionTime).toBe('number');
+        });
+
+        it('should return null for non-executed system profile', () => {
+            const profile = runner.getProfile('NonExistent');
+            expect(profile).toBeNull();
+        });
+
+        it('should return null for non-executed system execution time', () => {
+            const execTime = runner.getExecutionTime('NonExistent');
+            expect(execTime).toBeNull();
+        });
+
+        it('should return null for non-executed system entity count', () => {
+            const count = runner.getEntityCount('NonExistent');
+            expect(count).toBeNull();
+        });
+    });
+
+    describe('TestSnapshot - Additional Coverage', () => {
+        let engine: Engine;
+        let snapshot: TestSnapshot;
+
+        beforeEach(() => {
+            engine = new TestEngineBuilder().build();
+            snapshot = new TestSnapshot(engine);
+        });
+
+        it('should restore last snapshot when index is undefined', () => {
+            createTestEntity(engine, {
+                components: [{ type: Position }],
+            });
+
+            snapshot.create(); // snap 0 with 1 entity
+
+            createTestEntity(engine, {
+                components: [{ type: Position }],
+            });
+            expect(snapshot.getEntityCount()).toBe(2);
+
+            // Restore without specifying index (should restore last)
+            snapshot.restore();
+            expect(snapshot.getEntityCount()).toBe(1);
+        });
+
+        it('should clear all snapshots', () => {
+            createTestEntity(engine, {
+                components: [{ type: Position }],
+            });
+
+            snapshot.create();
+            snapshot.create();
+
+            snapshot.clear();
+
+            // Should have cleared snapshots
+            expect(engine.getSnapshotCount()).toBe(0);
+        });
+    });
+
+    describe('createTestEntityFromPrefab - Edge Cases', () => {
+        let engine: Engine;
+
+        beforeEach(() => {
+            engine = new TestEngineBuilder().build();
+        });
+
+        it('should return null for non-existent prefab', () => {
+            const entity = createTestEntityFromPrefab(engine, 'NonExistentPrefab');
+            expect(entity).toBeNull();
+        });
+
+        it('should create entity without custom name', () => {
+            const prefab: EntityPrefab = {
+                name: 'TestPrefab',
+                components: [{ type: Position, args: [] }],
+                tags: [],
+            };
+
+            engine.registerPrefab('Test', prefab);
+            const entity = createTestEntityFromPrefab(engine, 'Test');
+
+            expect(entity).not.toBeNull();
+        });
+    });
+
+    describe('Custom Matchers - Additional Coverage', () => {
+        let engine: Engine;
+
+        beforeEach(() => {
+            engine = new TestEngineBuilder().build();
+            setupTestMatchers();
+        });
+
+        it('should match query results with toMatch', () => {
+            const entity1 = createTestEntity(engine, {
+                name: 'Entity1',
+                components: [{ type: Position }],
+            });
+            const entity2 = createTestEntity(engine, {
+                name: 'Entity2',
+                components: [{ type: Position }],
+            });
+
+            const query = engine.createQuery({ all: [Position] });
+            const results = Array.from(query);
+
+            expect(results).toMatch([entity1, entity2]);
+        });
+
+        it('should verify entity has expected components for archetype check', () => {
+            const entity = createTestEntity(engine, {
+                components: [{ type: Position }, { type: Velocity }],
+            });
+
+            // Verify entity has expected components
+            expect(entity.hasComponent(Position)).toBe(true);
+            expect(entity.hasComponent(Velocity)).toBe(true);
+        });
+
+        it('should fail toHaveComponent for missing component', () => {
+            const entity = createTestEntity(engine, {
+                components: [{ type: Position }],
+            });
+
+            expect(entity).not.toHaveComponent(Velocity);
+        });
+
+        it('should fail toHaveTag for missing tag', () => {
+            const entity = createTestEntity(engine, {
+                tags: ['player'],
+            });
+
+            expect(entity).not.toHaveTag('enemy');
+        });
+    });
+
+    describe('Async Utilities', () => {
+        it('should wait for specified frames with waitFrames', async () => {
+            const engine = new TestEngineBuilder().build();
+            const clock = new TestClock(60);
+
+            let frameCount = 0;
+            createTestEntity(engine, {
+                components: [{ type: Position }],
+            });
+
+            engine.createSystem(
+                'CounterSystem',
+                { all: [Position] },
+                {
+                    act: () => {
+                        frameCount++;
+                    },
+                }
+            );
+
+            await waitFrames(clock, engine, 5);
+
+            expect(frameCount).toBe(5);
+            expect(clock.currentTime).toBeCloseTo(83.35, 0);
+        });
+
+        it('should resolve waitUntil when condition is met', async () => {
+            let flag = false;
+
+            setTimeout(() => {
+                flag = true;
+            }, 50);
+
+            await expect(
+                waitUntil(() => flag, 200, 'Flag should be true')
+            ).resolves.toBeUndefined();
+        });
+
+        it('should reject waitUntil on timeout', async () => {
+            await expect(waitUntil(() => false, 100, 'Condition never met')).rejects.toThrow(
+                'Timeout: Condition never met'
+            );
+        });
+    });
+
+    describe('createMockComponent - Additional Coverage', () => {
+        it('should create component with empty default props', () => {
+            const MockComp = createMockComponent('EmptyComponent');
+            const instance = new MockComp();
+
+            expect(MockComp.name).toBe('EmptyComponent');
+            expect(instance).toBeDefined();
+        });
+
+        it('should preserve component name property', () => {
+            const MockComp = createMockComponent('NamedComponent', { x: 1 });
+
+            expect(MockComp.name).toBe('NamedComponent');
+            expect(MockComp.componentName).toBe('NamedComponent');
+        });
+    });
+
+    describe('getEntitySummary - Edge Cases', () => {
+        it('should handle entities without components map', () => {
+            const engine = new TestEngineBuilder().build();
+            engine.createEntity('EmptyEntity');
+
+            const summary = getEntitySummary(engine);
+
+            expect(summary).toContain('1 entities');
+            expect(summary).toContain('EmptyEntity');
+        });
+
+        it('should handle multiple entities with various components', () => {
+            const engine = new TestEngineBuilder().build();
+
+            createTestEntity(engine, {
+                name: 'Player',
+                components: [{ type: Position }, { type: Velocity }],
+            });
+            createTestEntity(engine, {
+                name: 'Enemy',
+                components: [{ type: Position }, { type: Health }],
+            });
+
+            const summary = getEntitySummary(engine);
+
+            expect(summary).toContain('2 entities');
+            expect(summary).toContain('Player');
+            expect(summary).toContain('Enemy');
         });
     });
 

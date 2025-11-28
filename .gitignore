@@ -221,3 +221,7 @@ plugins/*/docs/
 
 # tsup bundled config files
 **/tsup.config.bundled_*.mjs
+
+# Coverage reports
+coverage/
+**/coverage/

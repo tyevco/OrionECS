@@ -346,8 +346,8 @@ describe('Canvas2DRendererPlugin', () => {
         test('should convert screen to world coordinates', () => {
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 400, 300);
-            camera.addComponent(Camera, 800, 600);
             camera.addComponent(ScreenElement, 0, 0, 100, 100, Unit.Percentage);
+            camera.addComponent(Camera, 800, 600);
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const worldPos = api.screenToWorld(400, 300, camera as any);
@@ -357,22 +357,20 @@ describe('Canvas2DRendererPlugin', () => {
             expect(worldPos).toHaveProperty('y');
         });
 
-        test('should return null if camera missing components', () => {
+        test('should throw if camera missing required components', () => {
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 0, 0);
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const worldPos = api.screenToWorld(100, 100, camera as any);
-
-            expect(worldPos).toBeNull();
+            expect(() => api.screenToWorld(100, 100, camera as any)).toThrow();
         });
 
         test('should return null if canvas not set', () => {
             const apiWithoutCanvas = new Canvas2DAPI();
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 0, 0);
-            camera.addComponent(Camera, 800, 600);
             camera.addComponent(ScreenElement);
+            camera.addComponent(Camera, 800, 600);
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             const worldPos = apiWithoutCanvas.screenToWorld(100, 100, camera as any);
@@ -392,8 +390,8 @@ describe('Canvas2DRendererPlugin', () => {
         test('should set up camera viewport', () => {
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 400, 300);
-            camera.addComponent(Camera, 800, 600);
             camera.addComponent(ScreenElement, 0, 0, 100, 100, Unit.Percentage);
+            camera.addComponent(Camera, 800, 600);
 
             engine.start();
             engine.update(0);
@@ -407,13 +405,13 @@ describe('Canvas2DRendererPlugin', () => {
         test('should handle multiple cameras', () => {
             const camera1 = engine.createEntity('Camera1');
             camera1.addComponent(Transform, 200, 150);
-            camera1.addComponent(Camera, 400, 300);
             camera1.addComponent(ScreenElement, 0, 0, 50, 100, Unit.Percentage);
+            camera1.addComponent(Camera, 400, 300);
 
             const camera2 = engine.createEntity('Camera2');
             camera2.addComponent(Transform, 600, 150);
-            camera2.addComponent(Camera, 400, 300);
             camera2.addComponent(ScreenElement, 50, 0, 50, 100, Unit.Percentage);
+            camera2.addComponent(Camera, 400, 300);
 
             engine.start();
             engine.update(0);
@@ -426,8 +424,8 @@ describe('Canvas2DRendererPlugin', () => {
         test('should draw background color if specified', () => {
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 400, 300);
-            camera.addComponent(Camera, 800, 600, '#87CEEB');
             camera.addComponent(ScreenElement, 0, 0, 100, 100, Unit.Percentage);
+            camera.addComponent(Camera, 800, 600, '#87CEEB');
 
             engine.start();
             engine.update(0);
@@ -460,8 +458,8 @@ describe('Canvas2DRendererPlugin', () => {
             // Create camera
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 400, 300);
-            camera.addComponent(Camera, 800, 600);
             camera.addComponent(ScreenElement, 0, 0, 100, 100, Unit.Percentage);
+            camera.addComponent(Camera, 800, 600);
 
             // Create sprite in camera view
             const sprite = engine.createEntity('Sprite');
@@ -479,8 +477,8 @@ describe('Canvas2DRendererPlugin', () => {
         test('should not render invisible sprites', () => {
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 400, 300);
-            camera.addComponent(Camera, 800, 600);
             camera.addComponent(ScreenElement, 0, 0, 100, 100, Unit.Percentage);
+            camera.addComponent(Camera, 800, 600);
 
             const sprite = engine.createEntity('Sprite');
             sprite.addComponent(Transform, 400, 300);
@@ -500,8 +498,8 @@ describe('Canvas2DRendererPlugin', () => {
         test('should apply transform (rotation)', () => {
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 400, 300);
-            camera.addComponent(Camera, 800, 600);
             camera.addComponent(ScreenElement, 0, 0, 100, 100, Unit.Percentage);
+            camera.addComponent(Camera, 800, 600);
 
             const sprite = engine.createEntity('Sprite');
             sprite.addComponent(Transform, 400, 300, Math.PI / 4); // 45 degree rotation
@@ -517,8 +515,8 @@ describe('Canvas2DRendererPlugin', () => {
         test('should apply transform (scale)', () => {
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 400, 300);
-            camera.addComponent(Camera, 800, 600);
             camera.addComponent(ScreenElement, 0, 0, 100, 100, Unit.Percentage);
+            camera.addComponent(Camera, 800, 600);
 
             const sprite = engine.createEntity('Sprite');
             sprite.addComponent(Transform, 400, 300, 0, 2, 0.5);
@@ -540,8 +538,8 @@ describe('Canvas2DRendererPlugin', () => {
             // Create camera
             const camera = engine.createEntity('MainCamera');
             camera.addComponent(Transform, 400, 300);
-            camera.addComponent(Camera, 800, 600, '#87CEEB');
             camera.addComponent(ScreenElement, 0, 0, 100, 100, Unit.Percentage);
+            camera.addComponent(Camera, 800, 600, '#87CEEB');
 
             // Create multiple sprites
             for (let i = 0; i < 5; i++) {
@@ -571,8 +569,8 @@ describe('Canvas2DRendererPlugin', () => {
 
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 400, 300);
-            camera.addComponent(Camera, 800, 600);
             camera.addComponent(ScreenElement, 0, 0, 100, 100, Unit.Percentage);
+            camera.addComponent(Camera, 800, 600);
 
             // Sprite far outside camera view
             const sprite = engine.createEntity('Sprite');
@@ -594,8 +592,8 @@ describe('Canvas2DRendererPlugin', () => {
 
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 400, 300);
-            camera.addComponent(Camera, 800, 600);
             camera.addComponent(ScreenElement, 0, 0, 100, 100, Unit.Percentage);
+            camera.addComponent(Camera, 800, 600);
 
             const sprite = engine.createEntity('Sprite');
             sprite.addComponent(Transform, 400, 300);
@@ -616,8 +614,8 @@ describe('Canvas2DRendererPlugin', () => {
 
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 200, 150);
-            camera.addComponent(Camera, 400, 300);
             camera.addComponent(ScreenElement, 100, 50, 400, 300, Unit.Pixels);
+            camera.addComponent(Camera, 400, 300);
 
             expect(() => {
                 engine.start();

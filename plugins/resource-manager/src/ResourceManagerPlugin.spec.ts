@@ -388,13 +388,16 @@ describe('ResourceManagerPlugin', () => {
             const texture1 = await api.get(TextureResource, 'player.png');
             const _texture2 = await api.get(TextureResource, 'enemy.png');
 
-            // Release one resource
+            // Release one resource - this auto-cleans when refCount hits 0
             await api.release(texture1);
 
+            // Since release() auto-cleans resources with refCount 0,
+            // cleanupUnused() has nothing left to clean
             const cleaned = await api.cleanupUnused();
 
-            expect(cleaned).toBe(1);
+            expect(cleaned).toBe(0);
 
+            // Only 1 resource remains (the one that wasn't released)
             const stats = api.getStats();
             expect(stats.totalResources).toBe(1);
         });

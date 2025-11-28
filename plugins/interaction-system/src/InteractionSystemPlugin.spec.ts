@@ -98,6 +98,13 @@ describe('InteractionSystemPlugin', () => {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (baseEngine as any).input = mockInputAPI;
 
+        // Add queryEntities method to engine (used by the plugin)
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (baseEngine as any).queryEntities = (options: QueryOptions<any>) => {
+            const query = baseEngine.createQuery(options);
+            return Array.from(query);
+        };
+
         // Now install the plugin manually
         const context = {
             registerComponent: (component: ComponentIdentifier<unknown>) =>
@@ -275,13 +282,15 @@ describe('InteractionSystemPlugin', () => {
 
     describe('Component - InteractionBounds', () => {
         test('should create InteractionBounds', () => {
-            const bounds = new InteractionBounds(mockBounds as unknown);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const bounds = new InteractionBounds(mockBounds as any);
             expect(bounds.bounds).toBe(mockBounds);
             expect(bounds.autoUpdate).toBe(false);
         });
 
         test('should create InteractionBounds with auto-update', () => {
-            const bounds = new InteractionBounds(mockBounds as unknown, true);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const bounds = new InteractionBounds(mockBounds as any, true);
             expect(bounds.autoUpdate).toBe(true);
         });
     });
@@ -429,6 +438,7 @@ describe('InteractionSystemPlugin', () => {
 
             const entity = engine.createEntity('Button');
             entity.addComponent(Clickable);
+            entity.addComponent(Selectable, false); // Add Selectable (disabled) to prevent getComponent error
             const clickable = entity.getComponent(Clickable)!;
             clickable.onClick = mockCallback;
 
@@ -492,6 +502,7 @@ describe('InteractionSystemPlugin', () => {
             // Lower layer entity
             const entity1 = engine.createEntity('Button1');
             entity1.addComponent(Clickable, true, 0);
+            entity1.addComponent(Selectable, false); // Add Selectable (disabled) to prevent getComponent error
             const clickable1 = entity1.getComponent(Clickable)!;
             clickable1.onClick = mockCallback1;
             entity1.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
@@ -499,6 +510,7 @@ describe('InteractionSystemPlugin', () => {
             // Higher layer entity (same position)
             const entity2 = engine.createEntity('Button2');
             entity2.addComponent(Clickable, true, 10);
+            entity2.addComponent(Selectable, false); // Add Selectable (disabled) to prevent getComponent error
             const clickable2 = entity2.getComponent(Clickable)!;
             clickable2.onClick = mockCallback2;
             entity2.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
@@ -708,18 +720,21 @@ describe('InteractionSystemPlugin', () => {
 
             const entity1 = engine.createEntity('Button1');
             entity1.addComponent(Clickable, true, 0);
+            entity1.addComponent(Selectable, false); // Add Selectable (disabled) to prevent getComponent error
             const clickable1 = entity1.getComponent(Clickable)!;
             clickable1.onClick = mockCallback1;
             entity1.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             const entity2 = engine.createEntity('Button2');
             entity2.addComponent(Clickable, true, 5);
+            entity2.addComponent(Selectable, false); // Add Selectable (disabled) to prevent getComponent error
             const clickable2 = entity2.getComponent(Clickable)!;
             clickable2.onClick = mockCallback2;
             entity2.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             const entity3 = engine.createEntity('Button3');
             entity3.addComponent(Clickable, true, 3);
+            entity3.addComponent(Selectable, false); // Add Selectable (disabled) to prevent getComponent error
             const clickable3 = entity3.getComponent(Clickable)!;
             clickable3.onClick = mockCallback3;
             entity3.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));

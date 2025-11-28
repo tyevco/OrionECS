@@ -16,7 +16,7 @@ The Input Manager Plugin provides complete input handling features including:
 ## Installation
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { InputManagerPlugin } from '@orion-ecs/input-manager';
 
 const engine = new EngineBuilder()
@@ -29,7 +29,7 @@ const engine = new EngineBuilder()
 ### Basic Setup
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { InputManagerPlugin, MouseButton } from '@orion-ecs/input-manager';
 
 // Create engine with plugin

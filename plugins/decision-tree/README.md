@@ -15,7 +15,7 @@ The Decision Tree Plugin provides a declarative approach to AI decision-making w
 ## Installation
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { DecisionTreePlugin } from '@orion-ecs/decision-tree';
 
 const engine = new EngineBuilder()

@@ -24,7 +24,7 @@ The Resource Manager Plugin provides intelligent resource management including:
 ## Installation
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { ResourceManagerPlugin } from '@orion-ecs/resource-manager';
 
 const engine = new EngineBuilder()
@@ -37,7 +37,7 @@ const engine = new EngineBuilder()
 ### Basic Resource Usage
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import {
   ResourceManagerPlugin,
   TextureResource,

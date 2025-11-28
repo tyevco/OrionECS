@@ -58,7 +58,7 @@ cd my-first-ecs
 npm init -y
 
 # Install OrionECS
-npm install orion-ecs
+npm install @orion-ecs/core
 
 # Install TypeScript and development dependencies
 npm install --save-dev typescript ts-node @types/node
@@ -69,7 +69,7 @@ npx tsc --init
 
 **Explanation:**
 - `npm init -y`: Creates a package.json file with default settings
-- `npm install orion-ecs`: Installs the OrionECS framework
+- `npm install @orion-ecs/core`: Installs the OrionECS framework
 - TypeScript dependencies: Allow us to use TypeScript for better development experience
 - `tsc --init`: Creates a tsconfig.json with sensible defaults
 
@@ -151,7 +151,7 @@ Now let's create the engine and add some entities. Create `src/index.ts`:
 
 ```typescript
 // src/index.ts
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { Position, Velocity, Renderable } from './components';
 
 // Build the engine with debug mode enabled
@@ -369,7 +369,7 @@ export class Renderable {
 
 **src/index.ts:**
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { Position, Velocity, Renderable } from './components';
 
 // Build the engine
@@ -662,14 +662,14 @@ acceleratingEntity.addComponent(Renderable, '⇒', 'red');
 
 ## Troubleshooting
 
-### Issue 1: "Cannot find module 'orion-ecs'"
+### Issue 1: "Cannot find module '@orion-ecs/core'"
 
 **Problem:** TypeScript can't find the OrionECS module
 
 **Solution:**
 ```bash
 # Make sure OrionECS is installed
-npm install orion-ecs
+npm install @orion-ecs/core
 
 # Clear cache and reinstall if needed
 rm -rf node_modules package-lock.json

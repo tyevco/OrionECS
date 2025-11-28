@@ -52,7 +52,7 @@ const world = new World();
 
 **OrionECS:**
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 
 const engine = new EngineBuilder()
   .withDebugMode(true)
@@ -365,7 +365,7 @@ function gameLoop(time) {
 
 **OrionECS:**
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 
 // Components (no schema)
 class Position {

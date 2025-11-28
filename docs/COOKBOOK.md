@@ -1189,7 +1189,7 @@ function aiFlee(entity: EntityDef, position: Position, state: AIState, memory: A
 **Test systems in isolation:**
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 
 describe('MovementSystem', () => {
   let engine;

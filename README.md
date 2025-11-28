@@ -1,6 +1,6 @@
 # Orion ECS
 
-[![npm version](https://img.shields.io/npm/v/orion-ecs.svg)](https://www.npmjs.com/package/orion-ecs)
+[![npm version](https://img.shields.io/npm/v/@orion-ecs/core.svg)](https://www.npmjs.com/package/@orion-ecs/core)
 [![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](https://www.typescriptlang.org/)
 [![Documentation](https://img.shields.io/badge/docs-API%20Reference-brightgreen)](https://tyevco.github.io/OrionECS/api/)
@@ -41,7 +41,7 @@ Orion ECS is a comprehensive and high-performance Entity Component System (ECS) 
 You can install Orion ECS using npm:
 
 ```bash
-npm install orion-ecs
+npm install @orion-ecs/core
 ```
 
 ## Documentation
@@ -57,7 +57,7 @@ npm install orion-ecs
 Here's a basic example of how to use Orion ECS:
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 
 // Create a new engine with 60 FPS fixed updates and debug mode
 const game = new EngineBuilder()
@@ -372,7 +372,7 @@ game.restoreSnapshot(0); // Restore specific snapshot
 Orion ECS features a powerful plugin architecture that allows you to extend the engine with custom functionality without modifying the core code.
 
 ```typescript
-import { EngineBuilder, EnginePlugin, PluginContext } from 'orion-ecs';
+import { EngineBuilder, EnginePlugin, PluginContext } from '@orion-ecs/core';
 
 // Create a plugin
 class PhysicsPlugin implements EnginePlugin {

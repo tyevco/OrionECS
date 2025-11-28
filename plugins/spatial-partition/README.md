@@ -23,7 +23,7 @@ The Spatial Partition Plugin provides optimized spatial queries for games with m
 ## Installation
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { SpatialPartitionPlugin } from '@orion-ecs/spatial-partition';
 
 const engine = new EngineBuilder()
@@ -36,7 +36,7 @@ const engine = new EngineBuilder()
 ### Basic Spatial Queries
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { SpatialPartitionPlugin, SpatialPosition } from '@orion-ecs/spatial-partition';
 
 // Create engine with plugin

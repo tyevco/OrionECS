@@ -18,7 +18,7 @@ The Interaction System Plugin provides comprehensive UI interaction features inc
 ## Installation
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { Canvas2DRendererPlugin } from '@orion-ecs/canvas2d-renderer';
 import { InputManagerPlugin } from '@orion-ecs/input-manager';
 import { InteractionSystemPlugin } from '@orion-ecs/interaction-system';
@@ -35,7 +35,7 @@ const engine = new EngineBuilder()
 ### Basic Interactive Button
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { Canvas2DRendererPlugin, Transform, Sprite } from '@orion-ecs/canvas2d-renderer';
 import { InputManagerPlugin } from '@orion-ecs/input-manager';
 import {

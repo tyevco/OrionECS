@@ -65,7 +65,7 @@ After running this example:
 
 ## Troubleshooting
 
-**"Cannot find module 'orion-ecs'"**
+**"Cannot find module '@orion-ecs/core'"**
 
 Make sure you're in the repository root and have built the core package:
 ```bash

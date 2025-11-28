@@ -18,7 +18,7 @@
 - Links to prerequisite tutorials
 
 **Setup:**
-- OrionECS installed (`npm install orion-ecs`)
+- OrionECS installed (`npm install @orion-ecs/core`)
 - Basic TypeScript/JavaScript knowledge
 - Node.js environment set up
 

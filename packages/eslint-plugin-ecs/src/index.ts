@@ -1,10 +1,18 @@
 // Existing rules
 
+// Phase 8: Type Safety & Physics Rules
+import { componentDefaultParams } from './rules/component-default-params';
 import { componentLifecycleComplete } from './rules/component-lifecycle-complete';
 import { componentOrder } from './rules/component-order';
 import { componentTypes } from './rules/component-types';
 import { componentValidator } from './rules/component-validator';
 import { dataOnlyComponents } from './rules/data-only-components';
+// Phase 5: Entity & Hierarchy Rules
+import { entityUniqueNames } from './rules/entity-unique-names';
+import { fixedUpdateForPhysics } from './rules/fixed-update-for-physics';
+import { hierarchyCyclePrevention } from './rules/hierarchy-cycle-prevention';
+// Phase 7: Reactive Programming Rules
+import { markComponentDirty } from './rules/mark-component-dirty';
 import { noAsyncInSystemCallbacks } from './rules/no-async-in-system-callbacks';
 import { noComponentLogic } from './rules/no-component-logic';
 import { noEntityMutationOutsideSystem } from './rules/no-entity-mutation-outside-system';
@@ -13,12 +21,21 @@ import { noNestedTransactions } from './rules/no-nested-transactions';
 // Phase 1: Critical Safety Rules
 import { noQueryInActCallback } from './rules/no-query-in-act-callback';
 import { noStaticState } from './rules/no-static-state';
+// Phase 6: Advanced Plugin Rules
+import { pluginContextCleanup } from './rules/plugin-context-cleanup';
+import { pluginDependencyValidation } from './rules/plugin-dependency-validation';
 import { pluginLoggingFormat } from './rules/plugin-logging-format';
 // Phase 3: Best Practice Rules
 import { pluginStructureValidation } from './rules/plugin-structure-validation';
+import { pluginUnboundedCollection } from './rules/plugin-unbounded-collection';
+// Phase 4: Performance & Optimization Rules
+import { preferBatchOperations } from './rules/prefer-batch-operations';
+import { preferComponentPooling } from './rules/prefer-component-pooling';
 import { preferComposition } from './rules/prefer-composition';
 import { preferEngineLogger } from './rules/prefer-engine-logger';
+import { preferPrefabForTemplates } from './rules/prefer-prefab-for-templates';
 import { preferQueueFree } from './rules/prefer-queueFree';
+import { querySpecificity } from './rules/query-specificity';
 import { queryValidator } from './rules/query-validator';
 // Phase 2: Correctness Rules
 import { requireHasComponentBeforeGetComponent } from './rules/require-hasComponent-before-getComponent';
@@ -27,6 +44,7 @@ import { subscriptionCleanupRequired } from './rules/subscription-cleanup-requir
 import { systemNamingConvention } from './rules/system-naming-convention';
 import { systemPriorityExplicit } from './rules/system-priority-explicit';
 import { useCommandBufferInSystem } from './rules/use-command-buffer-in-system';
+import { useWatchComponentsFilter } from './rules/use-watchComponents-filter';
 
 // Export individual rules for direct access
 export const rules = {
@@ -61,6 +79,29 @@ export const rules = {
     'no-nested-transactions': noNestedTransactions,
     'prefer-engine-logger': preferEngineLogger,
     'no-static-state': noStaticState,
+
+    // Phase 4: Performance & Optimization Rules
+    'prefer-batch-operations': preferBatchOperations,
+    'prefer-prefab-for-templates': preferPrefabForTemplates,
+    'prefer-component-pooling': preferComponentPooling,
+    'query-specificity': querySpecificity,
+
+    // Phase 5: Entity & Hierarchy Rules
+    'entity-unique-names': entityUniqueNames,
+    'hierarchy-cycle-prevention': hierarchyCyclePrevention,
+
+    // Phase 6: Advanced Plugin Rules
+    'plugin-dependency-validation': pluginDependencyValidation,
+    'plugin-unbounded-collection': pluginUnboundedCollection,
+    'plugin-context-cleanup': pluginContextCleanup,
+
+    // Phase 7: Reactive Programming Rules
+    'mark-component-dirty': markComponentDirty,
+    'use-watchComponents-filter': useWatchComponentsFilter,
+
+    // Phase 8: Type Safety & Physics Rules
+    'component-default-params': componentDefaultParams,
+    'fixed-update-for-physics': fixedUpdateForPhysics,
 };
 
 // Recommended configuration - warns on most rules
@@ -96,6 +137,29 @@ const recommendedRules = {
     '@orion-ecs/ecs/no-nested-transactions': 'error', // Prevents runtime errors
     '@orion-ecs/ecs/prefer-engine-logger': 'warn', // Encourages secure, consistent logging
     '@orion-ecs/ecs/no-static-state': 'warn', // Warns about static state in components
+
+    // Phase 4: Performance & Optimization Rules
+    '@orion-ecs/ecs/prefer-batch-operations': 'warn', // Encourages performance best practices
+    '@orion-ecs/ecs/prefer-prefab-for-templates': 'off', // Off by default, can be noisy
+    '@orion-ecs/ecs/prefer-component-pooling': 'off', // Off by default, requires analysis
+    '@orion-ecs/ecs/query-specificity': 'warn', // Encourages specific queries
+
+    // Phase 5: Entity & Hierarchy Rules
+    '@orion-ecs/ecs/entity-unique-names': 'warn', // Helps debugging
+    '@orion-ecs/ecs/hierarchy-cycle-prevention': 'error', // Prevents runtime errors
+
+    // Phase 6: Advanced Plugin Rules
+    '@orion-ecs/ecs/plugin-dependency-validation': 'warn', // Prevents runtime crashes
+    '@orion-ecs/ecs/plugin-unbounded-collection': 'warn', // Prevents memory leaks
+    '@orion-ecs/ecs/plugin-context-cleanup': 'warn', // Prevents memory leaks
+
+    // Phase 7: Reactive Programming Rules
+    '@orion-ecs/ecs/mark-component-dirty': 'off', // Off by default, only for reactive systems
+    '@orion-ecs/ecs/use-watchComponents-filter': 'warn', // Improves performance
+
+    // Phase 8: Type Safety & Physics Rules
+    '@orion-ecs/ecs/component-default-params': 'off', // Off by default, style preference
+    '@orion-ecs/ecs/fixed-update-for-physics': 'error', // Ensures correct physics behavior
 } as const;
 
 // Strict configuration - errors on most rules
@@ -131,6 +195,29 @@ const strictRules = {
     '@orion-ecs/ecs/no-nested-transactions': 'error',
     '@orion-ecs/ecs/prefer-engine-logger': 'error', // Enforces secure, consistent logging
     '@orion-ecs/ecs/no-static-state': 'error', // Errors on static state in components
+
+    // Phase 4: Performance & Optimization Rules
+    '@orion-ecs/ecs/prefer-batch-operations': 'error',
+    '@orion-ecs/ecs/prefer-prefab-for-templates': 'warn',
+    '@orion-ecs/ecs/prefer-component-pooling': 'warn',
+    '@orion-ecs/ecs/query-specificity': 'error',
+
+    // Phase 5: Entity & Hierarchy Rules
+    '@orion-ecs/ecs/entity-unique-names': 'error',
+    '@orion-ecs/ecs/hierarchy-cycle-prevention': 'error',
+
+    // Phase 6: Advanced Plugin Rules
+    '@orion-ecs/ecs/plugin-dependency-validation': 'error',
+    '@orion-ecs/ecs/plugin-unbounded-collection': 'error',
+    '@orion-ecs/ecs/plugin-context-cleanup': 'error',
+
+    // Phase 7: Reactive Programming Rules
+    '@orion-ecs/ecs/mark-component-dirty': 'warn',
+    '@orion-ecs/ecs/use-watchComponents-filter': 'error',
+
+    // Phase 8: Type Safety & Physics Rules
+    '@orion-ecs/ecs/component-default-params': 'warn',
+    '@orion-ecs/ecs/fixed-update-for-physics': 'error',
 } as const;
 
 // Export configurations

@@ -281,6 +281,20 @@ class Resources {
     ) {}
 }
 
+/**
+ * Game state singleton for RTS-specific global state
+ */
+class RTSGameState {
+    playerResources: Map<number, Resources> = new Map();
+    selectedEntities: Set<symbol> = new Set();
+
+    constructor() {
+        // Initialize default player resources
+        this.playerResources.set(1, new Resources(RTS_CONFIG.startingResources, 0));
+        this.playerResources.set(2, new Resources(RTS_CONFIG.startingResources, 0));
+    }
+}
+
 // ============================================================================
 // Utility Functions - Resources
 // ============================================================================
@@ -464,6 +478,7 @@ class SpatialGrid {
  * Simple A* pathfinding on a grid
  */
 class Pathfinder {
+    private gridSize: number;
     private worldWidth: number;
     private worldHeight: number;
 
@@ -520,13 +535,8 @@ const pathfinder = new Pathfinder(
 
 const engine = new EngineBuilder().withDebugMode(true).withFixedUpdateFPS(60).build();
 
-// Player resources
-const playerResources = new Map<number, Resources>();
-playerResources.set(1, new Resources(RTS_CONFIG.startingResources, 0));
-playerResources.set(2, new Resources(RTS_CONFIG.startingResources, 0));
-
-// Selection state
-const selectedEntities = new Set<symbol>();
+// Initialize game state singleton
+engine.setSingleton(RTSGameState);
 
 // ============================================================================
 // Entity Creation Functions
@@ -817,8 +827,9 @@ engine.createSystem(
                 const dt = 1 / 60;
                 const harvested = resourceNodeHarvest(resourceNode, dt);
 
-                // Add to player resources
-                const playerRes = playerResources.get(owner.playerId);
+                // Add to player resources using singleton
+                const gameState = engine.getSingleton(RTSGameState);
+                const playerRes = gameState?.playerResources.get(owner.playerId);
                 if (playerRes) {
                     if (resourceNode.resourceType === 'minerals') {
                         resourcesAdd(playerRes, { minerals: harvested, gas: 0 });
@@ -914,17 +925,20 @@ function selectInRect(
         clearSelection();
     }
 
+    const gameState = engine.getSingleton(RTSGameState);
+    if (!gameState) return;
+
     const entities = spatialGrid.queryRect(minX, minY, maxX, maxY);
 
     for (const entity of entities) {
         if (entity.hasComponent(Selectable)) {
             const selectable = entity.getComponent(Selectable);
             selectable.isSelected = true;
-            selectedEntities.add(entity.id);
+            gameState.selectedEntities.add(entity.id);
         }
     }
 
-    console.log(`[Selection] Selected ${selectedEntities.size} entities`);
+    console.log(`[Selection] Selected ${gameState.selectedEntities.size} entities`);
 }
 
 /**
@@ -934,6 +948,9 @@ function selectAt(x: number, y: number, radius: number = 20, replace: boolean = 
     if (replace) {
         clearSelection();
     }
+
+    const gameState = engine.getSingleton(RTSGameState);
+    if (!gameState) return;
 
     const entities = spatialGrid.queryRadius(new Position(x, y), radius);
 
@@ -958,7 +975,7 @@ function selectAt(x: number, y: number, radius: number = 20, replace: boolean = 
     if (closest) {
         const selectable = closest.getComponent(Selectable);
         selectable.isSelected = true;
-        selectedEntities.add(closest.id);
+        gameState.selectedEntities.add(closest.id);
         console.log(`[Selection] Selected ${closest.name}`);
     }
 }
@@ -967,19 +984,24 @@ function selectAt(x: number, y: number, radius: number = 20, replace: boolean = 
  * Clear all selections
  */
 function clearSelection(): void {
+    const gameState = engine.getSingleton(RTSGameState);
+
     for (const entity of engine.getAllEntities()) {
         if (entity.hasComponent(Selectable)) {
             entity.getComponent(Selectable).isSelected = false;
         }
     }
-    selectedEntities.clear();
+    gameState?.selectedEntities.clear();
 }
 
 /**
  * Issue command to selected entities
  */
 function issueCommand(command: Command): void {
-    for (const entityId of selectedEntities) {
+    const gameState = engine.getSingleton(RTSGameState);
+    if (!gameState) return;
+
+    for (const entityId of gameState.selectedEntities) {
         const entity = engine.getAllEntities().find((e) => e.id === entityId);
 
         if (entity?.hasComponent(CommandQueue)) {
@@ -988,7 +1010,9 @@ function issueCommand(command: Command): void {
         }
     }
 
-    console.log(`[Command] Issued ${command.type} command to ${selectedEntities.size} entities`);
+    console.log(
+        `[Command] Issued ${command.type} command to ${gameState.selectedEntities.size} entities`
+    );
 }
 
 // ============================================================================
@@ -1097,6 +1121,7 @@ function update(): void {
  * Get game statistics
  */
 function getStats(): any {
+    const gameState = engine.getSingleton(RTSGameState);
     const gridStats = spatialGrid.getStats();
     const entityCount = engine.getAllEntities().length;
     const unitCount = engine.getEntitiesWithTag('unit').length;
@@ -1112,13 +1137,15 @@ function getStats(): any {
         },
         spatialGrid: gridStats,
         selection: {
-            selectedCount: selectedEntities.size,
+            selectedCount: gameState?.selectedEntities.size ?? 0,
         },
-        players: Array.from(playerResources.entries()).map(([id, res]) => ({
-            id,
-            minerals: res.minerals,
-            gas: res.gas,
-        })),
+        players: gameState
+            ? Array.from(gameState.playerResources.entries()).map(([id, res]) => ({
+                  id,
+                  minerals: res.minerals,
+                  gas: res.gas,
+              }))
+            : [],
     };
 }
 
@@ -1140,6 +1167,7 @@ export {
     PathFollower,
     Vision,
     Resources,
+    RTSGameState,
     // Component Utility Functions
     distanceBetween,
     clonePosition,
@@ -1182,9 +1210,7 @@ export {
     clearSelection,
     issueCommand,
     getStats,
-    // State
-    selectedEntities,
-    playerResources,
+    // Config
     RTS_CONFIG,
 };
 

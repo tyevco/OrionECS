@@ -446,27 +446,37 @@ engine.createSystem(
                 const spreadAngle = Math.PI / 8; // 22.5 degrees
 
                 for (let i = 0; i < bulletCount; i++) {
-                    const bullet = engine.createFromPrefab(
-                        'PlayerBullet',
-                        `PlayerBullet_${Date.now()}_${i}`
-                    );
-                    const bulletPos = bullet.getComponent(Position);
-                    const bulletVel = bullet.getComponent(Velocity);
+                    // Capture loop variable for closure
+                    const bulletIndex = i;
+                    const shipX = position.x;
+                    const shipY = position.y;
 
-                    // Position bullet at ship position
-                    bulletPos.x = position.x;
-                    bulletPos.y = position.y - 20;
+                    // Use CommandBuffer for deferred bullet creation during system iteration
+                    engine.commands
+                        .spawnFromPrefab(
+                            'PlayerBullet',
+                            `PlayerBullet_${Date.now()}_${bulletIndex}`
+                        )
+                        .configure((bullet) => {
+                            const bulletPos = bullet.getComponent(Position);
+                            const bulletVel = bullet.getComponent(Velocity);
 
-                    // Calculate spread angle for multiple bullets
-                    let angle = -Math.PI / 2; // Straight up
-                    if (bulletCount > 1) {
-                        const offset = (i - (bulletCount - 1) / 2) / (bulletCount - 1);
-                        angle += offset * spreadAngle;
-                    }
+                            // Position bullet at ship position
+                            bulletPos.x = shipX;
+                            bulletPos.y = shipY - 20;
 
-                    // Set bullet velocity
-                    bulletVel.dx = Math.cos(angle) * PLAYER_BULLET_SPEED;
-                    bulletVel.dy = Math.sin(angle) * PLAYER_BULLET_SPEED;
+                            // Calculate spread angle for multiple bullets
+                            let angle = -Math.PI / 2; // Straight up
+                            if (bulletCount > 1) {
+                                const offset =
+                                    (bulletIndex - (bulletCount - 1) / 2) / (bulletCount - 1);
+                                angle += offset * spreadAngle;
+                            }
+
+                            // Set bullet velocity
+                            bulletVel.dx = Math.cos(angle) * PLAYER_BULLET_SPEED;
+                            bulletVel.dy = Math.sin(angle) * PLAYER_BULLET_SPEED;
+                        });
                 }
 
                 // Publish shoot event
@@ -572,19 +582,19 @@ engine.createSystem(
                     const dy = playerPos.y - position.y;
                     const angle = Math.atan2(dy, dx);
 
-                    // Create bullet
-                    const bullet = engine.createFromPrefab(
-                        'EnemyBullet',
-                        `EnemyBullet_${Date.now()}`
-                    );
-                    const bulletPos = bullet.getComponent(Position);
-                    const bulletVel = bullet.getComponent(Velocity);
+                    // Use CommandBuffer for deferred bullet creation during system iteration
+                    engine.commands
+                        .spawnFromPrefab('EnemyBullet', `EnemyBullet_${Date.now()}`)
+                        .configure((bullet) => {
+                            const bulletPos = bullet.getComponent(Position);
+                            const bulletVel = bullet.getComponent(Velocity);
 
-                    bulletPos.x = position.x;
-                    bulletPos.y = position.y + 20;
+                            bulletPos.x = position.x;
+                            bulletPos.y = position.y + 20;
 
-                    bulletVel.dx = Math.cos(angle) * ENEMY_BULLET_SPEED;
-                    bulletVel.dy = Math.sin(angle) * ENEMY_BULLET_SPEED;
+                            bulletVel.dx = Math.cos(angle) * ENEMY_BULLET_SPEED;
+                            bulletVel.dy = Math.sin(angle) * ENEMY_BULLET_SPEED;
+                        });
                 }
             }
 
@@ -723,14 +733,19 @@ function damageEntity(entity: EntityDef, damage: number): void {
                 player.score += enemy.scoreValue;
             }
 
-            // Chance to drop power-up
+            // Chance to drop power-up using CommandBuffer
             if (Math.random() < 0.2) {
                 const powerUpType = Math.random() < 0.5 ? 'PowerUpHealth' : 'PowerUpWeapon';
-                const powerUp = engine.createFromPrefab(powerUpType, `PowerUp_${Date.now()}`);
-                const position = entity.getComponent(Position);
-                const powerUpPos = powerUp.getComponent(Position);
-                powerUpPos.x = position.x;
-                powerUpPos.y = position.y;
+                const posX = entity.getComponent(Position).x;
+                const posY = entity.getComponent(Position).y;
+
+                engine.commands
+                    .spawnFromPrefab(powerUpType, `PowerUp_${Date.now()}`)
+                    .configure((powerUp) => {
+                        const powerUpPos = powerUp.getComponent(Position);
+                        powerUpPos.x = posX;
+                        powerUpPos.y = posY;
+                    });
             }
 
             // Publish enemy destroyed event
@@ -910,21 +925,21 @@ engine.createSystem(
 
 /**
  * Manages enemy wave spawning
+ * Uses singleton pattern for game state management
  */
-let waveManager: WaveData | null = null;
-
 engine.createSystem(
     'WaveManagementSystem',
     { all: [] }, // No entity query
     {
         priority: 200,
         before: () => {
-            // Initialize wave manager on first run
-            if (!waveManager) {
-                waveManager = new WaveData();
+            // Initialize wave manager singleton on first run
+            if (!engine.getSingleton(WaveData)) {
+                engine.setSingleton(WaveData);
             }
         },
         act: () => {
+            const waveManager = engine.getSingleton(WaveData);
             if (!waveManager) return;
 
             const dt = 1 / 60; // Fixed timestep
@@ -979,6 +994,7 @@ engine.createSystem(
     {
         priority: 150,
         act: () => {
+            const waveManager = engine.getSingleton(WaveData);
             if (!waveManager || waveManager.waveComplete) return;
 
             const enemiesNeeded = getEnemiesPerWave(waveManager.currentWave);
@@ -1005,7 +1021,7 @@ engine.createSystem(
 );
 
 /**
- * Spawn an enemy based on wave number
+ * Spawn an enemy based on wave number using CommandBuffer
  */
 function spawnEnemy(wave: number): void {
     const rand = Math.random();
@@ -1018,19 +1034,20 @@ function spawnEnemy(wave: number): void {
         prefabName = 'EnemyTank';
     }
 
-    const enemy = engine.createFromPrefab(prefabName, `Enemy_${Date.now()}`);
-    const position = enemy.getComponent(Position);
-
-    // Random horizontal position
-    position.x = Math.random() * (SCREEN_WIDTH - 100) + 50;
-    position.y = -50;
+    // Use CommandBuffer for deferred enemy creation during system iteration
+    const spawnX = Math.random() * (SCREEN_WIDTH - 100) + 50;
+    engine.commands.spawnFromPrefab(prefabName, `Enemy_${Date.now()}`).configure((enemy) => {
+        const position = enemy.getComponent(Position);
+        position.x = spawnX;
+        position.y = -50;
+    });
 }
 
 /**
- * Spawn a boss enemy
+ * Spawn a boss enemy using CommandBuffer
  */
 function spawnBoss(): void {
-    engine.createFromPrefab('Boss', `Boss_${Date.now()}`);
+    engine.commands.spawnFromPrefab('Boss', `Boss_${Date.now()}`);
     engine.messageBus.publish('boss-spawn', {}, 'EnemySpawnerSystem');
 }
 
@@ -1064,7 +1081,7 @@ engine.createSystem(
             // - Lives: player.lives
             // - Health bar: health.current / health.max
             // - Power level: player.powerLevel
-            // - Wave number: waveManager?.currentWave
+            // - Wave number: engine.getSingleton(WaveData)?.currentWave
         },
     },
     false // Variable update
@@ -1122,8 +1139,8 @@ function initGame(): void {
     const player = engine.createFromPrefab('Player', 'Player1');
     console.log('Player created:', player.name);
 
-    // Initialize wave manager
-    waveManager = new WaveData();
+    // Initialize wave manager singleton
+    engine.setSingleton(WaveData);
 
     // Start engine
     engine.start();
@@ -1172,8 +1189,6 @@ export {
     gameLoop,
     // Engine
     engine,
-    // Wave Manager
-    waveManager,
 };
 
 // ============================================================================

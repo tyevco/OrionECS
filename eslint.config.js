@@ -13,6 +13,7 @@ import tseslint from '@typescript-eslint/parser';
  * - ecs/no-entity-mutation-outside-system: Warns about entity mutations outside systems
  * - ecs/component-validator: Catches issues in registerComponentValidator calls
  * - ecs/component-order: Ensures components are added in correct dependency order
+ * - ecs/query-validator: Validates system queries for logical errors
  *
  * Usage:
  *   npm run lint:ecs
@@ -101,6 +102,9 @@ const config = [
 
                       // Component order - ensure dependencies are added before dependents
                       'ecs/component-order': 'warn',
+
+                      // Query validator - catch logical errors in system queries
+                      'ecs/query-validator': 'error',
                   }
                 : {}),
         },

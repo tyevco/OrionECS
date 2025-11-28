@@ -254,6 +254,68 @@ rules: {
 
 **Note:** The rule automatically learns dependencies and conflicts from `registerComponentValidator` calls in the same file. Manual configuration is only needed for cross-file dependencies or when not using validators.
 
+### `ecs/query-validator`
+
+Validates system queries (`createSystem`) to catch logical errors and contradictions.
+
+**Why?** Invalid queries will either never match any entities (wasting CPU cycles) or indicate a misunderstanding of the query logic. Catching these at lint time prevents subtle bugs.
+
+```typescript
+// Bad - Position in both all and none (impossible query)
+engine.createSystem('Impossible', {
+  all: [Position, Velocity],
+  none: [Position]  // Error! Can't require and exclude same component
+}, { act: (entity) => {} });
+
+// Bad - Same tag required and excluded
+engine.createSystem('ImpossibleTags', {
+  all: [Position],
+  tags: ['active'],
+  withoutTags: ['active']  // Error! Contradictory tag requirements
+}, { act: (entity) => {} });
+
+// Bad - Conflicting components both required
+engine.registerComponentValidator(Ghost, { conflicts: [Solid] });
+engine.createSystem('ImpossibleConflict', {
+  all: [Solid, Ghost]  // Error! These components can't coexist
+}, { act: (entity) => {} });
+
+// Bad - Duplicate components
+engine.createSystem('Duplicate', {
+  all: [Position, Velocity, Position]  // Error! Position listed twice
+}, { act: (entity) => {} });
+
+// Good - Valid query
+engine.createSystem('Movement', {
+  all: [Position, Velocity],
+  none: [Frozen],
+  tags: ['active'],
+  withoutTags: ['disabled']
+}, { act: (entity, pos, vel) => {} });
+```
+
+**Issues Detected:**
+- Components in both `all` and `none` arrays
+- Tags in both `tags` and `withoutTags` arrays
+- Duplicate components in `all` or `none`
+- Duplicate tags in `tags` or `withoutTags`
+- Conflicting components both required in `all`
+
+**Options:**
+- `conflicts`: Manual conflict map (component name → conflicting components)
+
+```javascript
+// Configure known conflicts if not using registerComponentValidator
+rules: {
+  'ecs/query-validator': ['error', {
+    conflicts: {
+      Ghost: ['Solid', 'Physical'],
+      Flying: ['Grounded'],
+    },
+  }],
+}
+```
+
 ## Configuration
 
 ### Recommended Config
@@ -272,6 +334,7 @@ export default [
       'ecs/no-entity-mutation-outside-system': 'off',
       'ecs/component-validator': 'error',
       'ecs/component-order': 'warn',
+      'ecs/query-validator': 'error',
     },
   },
 ];
@@ -288,6 +351,7 @@ rules: {
   'ecs/no-entity-mutation-outside-system': 'warn',
   'ecs/component-validator': 'error',
   'ecs/component-order': 'error',
+  'ecs/query-validator': 'error',
 }
 ```
 

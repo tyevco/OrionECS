@@ -1,4 +1,5 @@
 import * as vscode from 'vscode';
+import { ArchetypeVisualizerPanel } from '../panels/ArchetypeVisualizerPanel';
 import { EntityInspectorPanel } from '../panels/EntityInspectorPanel';
 import { SystemVisualizerPanel } from '../panels/SystemVisualizerPanel';
 import type { ECSReferenceProvider } from '../providers/ECSReferenceProvider';
@@ -9,12 +10,14 @@ import {
 } from '../utils/refactoringUtils';
 import type { ComponentsTreeProvider } from '../views/ComponentsTreeProvider';
 import type { EntitiesTreeProvider } from '../views/EntitiesTreeProvider';
+import type { EntityHierarchyTreeProvider } from '../views/EntityHierarchyTreeProvider';
 import type { SystemsTreeProvider } from '../views/SystemsTreeProvider';
 
 export interface CommandContext {
     componentsProvider: ComponentsTreeProvider;
     systemsProvider: SystemsTreeProvider;
     entitiesProvider: EntitiesTreeProvider;
+    entityHierarchyProvider: EntityHierarchyTreeProvider;
     referenceProvider: ECSReferenceProvider;
     outputChannel: vscode.OutputChannel;
     extensionUri: vscode.Uri;
@@ -28,6 +31,7 @@ export function registerCommands(
         componentsProvider,
         systemsProvider,
         entitiesProvider,
+        entityHierarchyProvider,
         referenceProvider,
         outputChannel,
     } = providers;
@@ -167,6 +171,34 @@ export function registerCommands(
             SystemVisualizerPanel.createOrShow(providers.extensionUri, outputChannel);
             outputChannel.appendLine('Opened System Visualizer');
         })
+    );
+
+    // Show Archetype Visualizer command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('orion-ecs.showArchetypeVisualizer', async () => {
+            ArchetypeVisualizerPanel.createOrShow(providers.extensionUri, outputChannel);
+            outputChannel.appendLine('Opened Archetype Visualizer');
+        })
+    );
+
+    // Refresh Entity Hierarchy command
+    context.subscriptions.push(
+        vscode.commands.registerCommand('orion-ecs.refreshEntityHierarchy', () => {
+            entityHierarchyProvider.refresh();
+            outputChannel.appendLine('Refreshed Entity Hierarchy');
+        })
+    );
+
+    // Select Entity in Hierarchy command (triggered when clicking on an entity)
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            'orion-ecs.selectEntityInHierarchy',
+            async (entityId: string) => {
+                // Open the Entity Inspector and select this entity
+                EntityInspectorPanel.createOrShow(providers.extensionUri, outputChannel);
+                outputChannel.appendLine(`Selected entity in hierarchy: ${entityId}`);
+            }
+        )
     );
 
     // Open Documentation command

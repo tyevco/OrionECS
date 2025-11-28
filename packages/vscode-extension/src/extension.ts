@@ -12,6 +12,7 @@ import {
 } from './providers/ExtractComponentCodeActionProvider';
 import { ComponentsTreeProvider } from './views/ComponentsTreeProvider';
 import { EntitiesTreeProvider } from './views/EntitiesTreeProvider';
+import { EntityHierarchyTreeProvider } from './views/EntityHierarchyTreeProvider';
 import { SystemsTreeProvider } from './views/SystemsTreeProvider';
 
 let outputChannel: vscode.OutputChannel;
@@ -24,12 +25,20 @@ export function activate(context: vscode.ExtensionContext) {
     const componentsProvider = new ComponentsTreeProvider();
     const systemsProvider = new SystemsTreeProvider();
     const entitiesProvider = new EntitiesTreeProvider();
+    const entityHierarchyProvider = new EntityHierarchyTreeProvider(outputChannel);
 
     context.subscriptions.push(
         vscode.window.registerTreeDataProvider('orion-ecs.componentsView', componentsProvider),
         vscode.window.registerTreeDataProvider('orion-ecs.systemsView', systemsProvider),
-        vscode.window.registerTreeDataProvider('orion-ecs.entitiesView', entitiesProvider)
+        vscode.window.registerTreeDataProvider('orion-ecs.entitiesView', entitiesProvider),
+        vscode.window.registerTreeDataProvider(
+            'orion-ecs.entityHierarchyView',
+            entityHierarchyProvider
+        )
     );
+
+    // Initialize the hierarchy provider (connects to debug bridge when available)
+    entityHierarchyProvider.initialize();
 
     // Register CodeLens provider for component usage
     const codeLensProvider = new ComponentCodeLensProvider();
@@ -129,6 +138,7 @@ export function activate(context: vscode.ExtensionContext) {
         componentsProvider,
         systemsProvider,
         entitiesProvider,
+        entityHierarchyProvider,
         referenceProvider,
         outputChannel,
         extensionUri: context.extensionUri,

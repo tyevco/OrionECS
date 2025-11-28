@@ -139,14 +139,20 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
     /** Delta time for current frame */
     private deltaTime: number = 0;
 
-    /** Queued transitions to process */
+    /** Queued transitions to process (bounded to prevent memory leaks) */
     private queuedTransitions = new Map<
         symbol,
         { stateType: ComponentIdentifier; args: unknown[] }
     >();
 
+    /** Maximum size of the queued transitions to prevent unbounded growth */
+    private static readonly MAX_QUEUE_SIZE = 1000;
+
     /** Entities subscribed to messages */
     private messageSubscriptions?: () => void;
+
+    /** Subscription for entity deletion cleanup */
+    private entityDeletedSubscription?: () => void;
 
     // ==========================================================================
     // Predicate Registration (Type Accumulation)
@@ -199,6 +205,12 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
         // Subscribe to message bus for message-based transitions
         this.subscribeToMessages(context);
 
+        // Subscribe to entity deletion to clean up queued transitions (prevents memory leak)
+        this.entityDeletedSubscription = context.on('onEntityReleased', ((...args: unknown[]) => {
+            const entity = args[0] as EntityDef;
+            this.queuedTransitions.delete(entity.id);
+        }) as (...args: unknown[]) => void);
+
         // Extend engine with state machine API
         context.extend('stateMachine', this.createAPI());
     }
@@ -206,6 +218,9 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
     uninstall(): void {
         if (this.messageSubscriptions) {
             this.messageSubscriptions();
+        }
+        if (this.entityDeletedSubscription) {
+            this.entityDeletedSubscription();
         }
         this.definitions.clear();
         this.predicateFns.clear();
@@ -484,6 +499,18 @@ export class StateMachinePlugin<TPredicates extends BasePredicateRegistry = Base
                 stateType: ComponentIdentifier,
                 ...args: unknown[]
             ): void => {
+                // Prevent unbounded queue growth (memory leak protection)
+                if (this.queuedTransitions.size >= StateMachinePlugin.MAX_QUEUE_SIZE) {
+                    console.warn(
+                        '[StateMachinePlugin] Transition queue full, dropping oldest entries'
+                    );
+                    // Remove oldest entries (first 10% of the queue)
+                    const toRemove = Math.ceil(StateMachinePlugin.MAX_QUEUE_SIZE * 0.1);
+                    const keys = Array.from(this.queuedTransitions.keys()).slice(0, toRemove);
+                    for (const key of keys) {
+                        this.queuedTransitions.delete(key);
+                    }
+                }
                 this.queuedTransitions.set(entity.id, { stateType, args });
             },
 

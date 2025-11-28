@@ -9,7 +9,7 @@
  * - Custom API extension for spatial operations
  */
 
-import type { EnginePlugin, PluginContext, EntityDef } from '@orion-ecs/plugin-api';
+import type { EnginePlugin, EntityDef, PluginContext } from '@orion-ecs/plugin-api';
 
 // Spatial components
 export class SpatialPosition {
@@ -90,7 +90,9 @@ export class SpatialAPI implements ISpatialAPI {
         this.cellSize = options.cellSize;
         this.bounds = options.bounds;
         this.grid.clear();
-        console.log(`[SpatialAPI] Partition created: cellSize=${this.cellSize}, bounds=${JSON.stringify(this.bounds)}`);
+        console.log(
+            `[SpatialAPI] Partition created: cellSize=${this.cellSize}, bounds=${JSON.stringify(this.bounds)}`
+        );
     }
 
     /**
@@ -216,12 +218,12 @@ export class SpatialAPI implements ISpatialAPI {
                     const entityPos = this.entities.get(entity.id);
                     if (!entityPos) continue;
 
-                    // Check if entity is within rectangle
+                    // Check if entity is within rectangle (exclusive upper bound)
                     if (
                         entityPos.x >= x &&
-                        entityPos.x <= x + width &&
+                        entityPos.x < x + width &&
                         entityPos.y >= y &&
-                        entityPos.y <= y + height
+                        entityPos.y < y + height
                     ) {
                         results.push(entity);
                     }
@@ -293,13 +295,13 @@ export class SpatialPartitionPlugin implements EnginePlugin<{ spatial: ISpatialA
         context.createSystem(
             'SpatialIndexSystem',
             {
-                all: [SpatialPosition]
+                all: [SpatialPosition],
             },
             {
                 priority: 200,
                 act: (entity, position: SpatialPosition) => {
                     this.spatialAPI.updateEntity(entity, position.x, position.y);
-                }
+                },
             },
             false // Variable update
         );

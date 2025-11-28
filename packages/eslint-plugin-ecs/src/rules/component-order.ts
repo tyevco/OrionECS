@@ -1,8 +1,14 @@
-import { ESLintUtils, type TSESTree } from '@typescript-eslint/utils';
+import {
+    ESLintUtils,
+    type ParserServicesWithTypeInformation,
+    type TSESTree,
+} from '@typescript-eslint/utils';
+import type * as ts from 'typescript';
 import {
     type ComponentRegistry,
     getComponentRegistry,
     hasTypeInformation,
+    resolveTypeInfo,
 } from '../utils/component-registry';
 
 const createRule = ESLintUtils.RuleCreator(
@@ -25,7 +31,7 @@ type Options = [
 ];
 
 /**
- * Extract component name from a node
+ * Extract component name from a node (simple AST-based extraction)
  */
 function getComponentName(node: TSESTree.Node | undefined): string | null {
     if (!node) return null;
@@ -37,6 +43,43 @@ function getComponentName(node: TSESTree.Node | undefined): string | null {
 }
 
 /**
+ * Type-aware context for resolving component names
+ */
+interface TypeAwareContext {
+    parserServices: ParserServicesWithTypeInformation;
+    checker: ts.TypeChecker;
+}
+
+/**
+ * Resolve component name using TypeScript type checker.
+ * This handles imports, type aliases, and external packages.
+ */
+function resolveComponentNameWithTypes(
+    node: TSESTree.Node | undefined,
+    typeContext: TypeAwareContext | null
+): string | null {
+    if (!node) return null;
+
+    // If we have type information, use it
+    if (typeContext) {
+        try {
+            const tsNode = typeContext.parserServices.esTreeNodeToTSNodeMap.get(node);
+            if (tsNode) {
+                const typeInfo = resolveTypeInfo(tsNode, typeContext.checker);
+                if (typeInfo) {
+                    return typeInfo.name;
+                }
+            }
+        } catch {
+            // Fall back to AST-based extraction if type resolution fails
+        }
+    }
+
+    // Fall back to simple name extraction
+    return getComponentName(node);
+}
+
+/**
  * Get the entity variable name from a call expression
  */
 function getEntityName(node: TSESTree.CallExpression): string | null {
@@ -45,21 +88,6 @@ function getEntityName(node: TSESTree.CallExpression): string | null {
         return node.callee.object.name;
     }
     return null;
-}
-
-/**
- * Extract component names from an array expression
- */
-function getComponentNames(node: TSESTree.Node | undefined): string[] {
-    if (!node || node.type !== 'ArrayExpression') return [];
-
-    const names: string[] = [];
-    for (const element of node.elements) {
-        if (!element) continue;
-        const name = getComponentName(element);
-        if (name) names.push(name);
-    }
-    return names;
 }
 
 /**
@@ -83,8 +111,12 @@ function findProperty(
 
 /**
  * Extract component type from a prefab component entry like { type: Position, args: [...] }
+ * Uses type-aware resolution when context is provided.
  */
-function getComponentTypeFromPrefabEntry(node: TSESTree.Node): string | null {
+function getComponentTypeFromPrefabEntry(
+    node: TSESTree.Node,
+    typeCtx: TypeAwareContext | null
+): string | null {
     if (node.type !== 'ObjectExpression') return null;
 
     for (const prop of node.properties) {
@@ -93,7 +125,8 @@ function getComponentTypeFromPrefabEntry(node: TSESTree.Node): string | null {
             prop.key.type === 'Identifier' &&
             prop.key.name === 'type'
         ) {
-            return getComponentName(prop.value);
+            // Use type-aware resolution for the component type
+            return resolveComponentNameWithTypes(prop.value, typeCtx);
         }
     }
     return null;
@@ -169,11 +202,21 @@ export const componentOrder = createRule<Options, MessageIds>({
             Object.entries(options.conflicts || {}).map(([k, v]) => [k, new Set(v)])
         );
 
-        // Try to get cross-file component registry if type information is available
+        // Set up type-aware context if type information is available
+        let typeContext: TypeAwareContext | null = null;
         let crossFileRegistry: ComponentRegistry | null = null;
         const parserServices = context.sourceCode.parserServices;
+
         if (hasTypeInformation(parserServices)) {
+            // Create type-aware context for resolving component names
+            typeContext = {
+                parserServices,
+                checker: parserServices.program.getTypeChecker(),
+            };
+
+            // Get cross-file component registry
             crossFileRegistry = getComponentRegistry(parserServices);
+
             // Merge cross-file metadata into our local maps
             for (const [componentName, metadata] of crossFileRegistry.components) {
                 // Merge dependencies
@@ -200,6 +243,21 @@ export const componentOrder = createRule<Options, MessageIds>({
         const entityComponents = new Map<string, Set<string>>();
 
         /**
+         * Extract component names from an array, using type-aware resolution when available
+         */
+        function getComponentNamesTypeAware(node: TSESTree.Node | undefined): string[] {
+            if (!node || node.type !== 'ArrayExpression') return [];
+
+            const names: string[] = [];
+            for (const element of node.elements) {
+                if (!element) continue;
+                const name = resolveComponentNameWithTypes(element, typeContext);
+                if (name) names.push(name);
+            }
+            return names;
+        }
+
+        /**
          * Process a registerComponentValidator call to extract dependencies/conflicts
          */
         function processValidatorRegistration(node: TSESTree.CallExpression): void {
@@ -208,16 +266,17 @@ export const componentOrder = createRule<Options, MessageIds>({
             if (node.callee.property.name !== 'registerComponentValidator') return;
 
             const componentArg = node.arguments[0];
-            const componentName = getComponentName(componentArg);
+            // Use type-aware resolution for the component name
+            const componentName = resolveComponentNameWithTypes(componentArg, typeContext);
             if (!componentName) return;
 
             const optionsArg = node.arguments[1];
             if (!optionsArg || optionsArg.type !== 'ObjectExpression') return;
 
-            // Extract dependencies
+            // Extract dependencies using type-aware resolution
             const dependenciesProp = findProperty(optionsArg, 'dependencies');
             if (dependenciesProp) {
-                const deps = getComponentNames(dependenciesProp.value);
+                const deps = getComponentNamesTypeAware(dependenciesProp.value);
                 if (deps.length > 0) {
                     const existing = componentDependencies.get(componentName) || new Set();
                     for (const dep of deps) {
@@ -227,10 +286,10 @@ export const componentOrder = createRule<Options, MessageIds>({
                 }
             }
 
-            // Extract conflicts
+            // Extract conflicts using type-aware resolution
             const conflictsProp = findProperty(optionsArg, 'conflicts');
             if (conflictsProp) {
-                const conflicts = getComponentNames(conflictsProp.value);
+                const conflicts = getComponentNamesTypeAware(conflictsProp.value);
                 if (conflicts.length > 0) {
                     const existing = componentConflicts.get(componentName) || new Set();
                     for (const conflict of conflicts) {
@@ -253,7 +312,8 @@ export const componentOrder = createRule<Options, MessageIds>({
             if (!entityName) return;
 
             const componentArg = node.arguments[0];
-            const componentName = getComponentName(componentArg);
+            // Use type-aware resolution to properly resolve imported components
+            const componentName = resolveComponentNameWithTypes(componentArg, typeContext);
             if (!componentName) return;
 
             // Get the set of components already added to this entity
@@ -332,7 +392,8 @@ export const componentOrder = createRule<Options, MessageIds>({
             for (const element of componentsArray.elements) {
                 if (!element) continue;
 
-                const componentName = getComponentTypeFromPrefabEntry(element);
+                // Use type-aware resolution for prefab component types
+                const componentName = getComponentTypeFromPrefabEntry(element, typeContext);
                 if (!componentName) continue;
 
                 // Check if dependencies are satisfied (must appear earlier in array)

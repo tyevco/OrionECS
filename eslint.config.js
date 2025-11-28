@@ -1,4 +1,9 @@
 import tseslint from '@typescript-eslint/parser';
+import path from 'path';
+import { fileURLToPath } from 'url';
+
+const __filename = fileURLToPath(import.meta.url);
+const __dirname = path.dirname(__filename);
 
 /**
  * ESLint Configuration for OrionECS
@@ -14,6 +19,10 @@ import tseslint from '@typescript-eslint/parser';
  * - ecs/component-validator: Catches issues in registerComponentValidator calls
  * - ecs/component-order: Ensures components are added in correct dependency order
  * - ecs/query-validator: Validates system queries for logical errors
+ *
+ * Type-Aware Linting:
+ *   Rules can access TypeScript type information for cross-file analysis,
+ *   including resolving imports and checking types from external packages.
  *
  * Usage:
  *   npm run lint:ecs
@@ -41,6 +50,9 @@ const config = [
             parserOptions: {
                 ecmaVersion: 2023,
                 sourceType: 'module',
+                // Enable type-aware linting for cross-file analysis
+                project: './tsconfig.json',
+                tsconfigRootDir: __dirname,
             },
         },
         linterOptions: {

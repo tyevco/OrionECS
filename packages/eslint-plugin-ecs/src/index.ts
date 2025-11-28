@@ -12,6 +12,7 @@ import { noMagicTagStrings } from './rules/no-magic-tag-strings';
 import { noNestedTransactions } from './rules/no-nested-transactions';
 // Phase 1: Critical Safety Rules
 import { noQueryInActCallback } from './rules/no-query-in-act-callback';
+import { noStaticState } from './rules/no-static-state';
 import { pluginLoggingFormat } from './rules/plugin-logging-format';
 // Phase 3: Best Practice Rules
 import { pluginStructureValidation } from './rules/plugin-structure-validation';
@@ -59,6 +60,7 @@ export const rules = {
     'plugin-logging-format': pluginLoggingFormat,
     'no-nested-transactions': noNestedTransactions,
     'prefer-engine-logger': preferEngineLogger,
+    'no-static-state': noStaticState,
 };
 
 // Recommended configuration - warns on most rules
@@ -93,6 +95,7 @@ const recommendedRules = {
     '@orion-ecs/ecs/plugin-logging-format': 'off', // Off by default, style preference
     '@orion-ecs/ecs/no-nested-transactions': 'error', // Prevents runtime errors
     '@orion-ecs/ecs/prefer-engine-logger': 'warn', // Encourages secure, consistent logging
+    '@orion-ecs/ecs/no-static-state': 'warn', // Warns about static state in components
 } as const;
 
 // Strict configuration - errors on most rules
@@ -127,6 +130,7 @@ const strictRules = {
     '@orion-ecs/ecs/plugin-logging-format': 'warn',
     '@orion-ecs/ecs/no-nested-transactions': 'error',
     '@orion-ecs/ecs/prefer-engine-logger': 'error', // Enforces secure, consistent logging
+    '@orion-ecs/ecs/no-static-state': 'error', // Errors on static state in components
 } as const;
 
 // Export configurations

@@ -2,7 +2,7 @@
  * Tests for Entity Archetype System
  */
 
-import { Archetype, ArchetypeManager } from './archetype';
+import { Archetype, ArchetypeManager, ComponentTypeRegistry } from './archetype';
 import { Entity, EntityIdGenerator, EventEmitter } from './core';
 import { ComponentManager } from './managers';
 
@@ -27,9 +27,11 @@ class Health {
 
 describe('Archetype', () => {
     let archetype: Archetype;
+    let registry: ComponentTypeRegistry;
 
     beforeEach(() => {
-        archetype = new Archetype([Position, Velocity]);
+        registry = new ComponentTypeRegistry();
+        archetype = new Archetype([Position, Velocity], registry);
     });
 
     describe('constructor', () => {
@@ -41,14 +43,14 @@ describe('Archetype', () => {
         });
 
         it('should handle empty component types', () => {
-            const emptyArchetype = new Archetype([]);
+            const emptyArchetype = new Archetype([], registry);
             expect(emptyArchetype.componentTypes).toHaveLength(0);
             expect(emptyArchetype.id).toBe('');
         });
 
         it('should sort component types for consistent IDs', () => {
-            const archetype1 = new Archetype([Velocity, Position]);
-            const archetype2 = new Archetype([Position, Velocity]);
+            const archetype1 = new Archetype([Velocity, Position], registry);
+            const archetype2 = new Archetype([Position, Velocity], registry);
             expect(archetype1.id).toBe(archetype2.id);
         });
     });

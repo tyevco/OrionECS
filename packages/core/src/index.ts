@@ -4,7 +4,12 @@
  */
 
 // Export archetype system
-export { Archetype, ArchetypeManager, MemoryEstimationConfig } from './archetype';
+export {
+    Archetype,
+    ArchetypeManager,
+    ComponentTypeRegistry,
+    MemoryEstimationConfig,
+} from './archetype';
 export type {
     CommandExecutionResult,
     CommandType,
@@ -94,4 +99,4 @@ export {
     SystemManager,
 } from './managers';
 // Export utility functions
-export { createTagComponent } from './utils';
+export { createTagComponent, deepCloneComponent } from './utils';

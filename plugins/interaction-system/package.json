@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/interaction-system",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Interaction system plugin for OrionECS with click, drag, and selection support",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

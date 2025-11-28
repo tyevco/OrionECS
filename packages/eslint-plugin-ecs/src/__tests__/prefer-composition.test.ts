@@ -54,7 +54,7 @@ ruleTester.run('prefer-composition', preferComposition, {
         class Position {
           constructor(public x: number = 0, public y: number = 0) {}
         }
-        class Position3D extends Position {
+        class Position3DComponent extends Position {
           constructor(x: number, y: number, public z: number = 0) {
             super(x, y);
           }
@@ -68,7 +68,7 @@ ruleTester.run('prefer-composition', preferComposition, {
         class Health {
           constructor(public current: number = 100) {}
         }
-        class RegeneratingHealth extends Health {
+        class ExtendedHealth extends Health {
           constructor(current: number, public regenRate: number = 1) {
             super(current);
           }

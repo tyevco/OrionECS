@@ -12,6 +12,7 @@ import tseslint from '@typescript-eslint/parser';
  * - ecs/prefer-composition: Discourages component inheritance
  * - ecs/no-entity-mutation-outside-system: Warns about entity mutations outside systems
  * - ecs/component-validator: Catches issues in registerComponentValidator calls
+ * - ecs/component-order: Ensures components are added in correct dependency order
  *
  * Usage:
  *   npm run lint:ecs
@@ -97,6 +98,9 @@ const config = [
 
                       // Component validator - catch issues in registerComponentValidator
                       'ecs/component-validator': 'error',
+
+                      // Component order - ensure dependencies are added before dependents
+                      'ecs/component-order': 'warn',
                   }
                 : {}),
         },

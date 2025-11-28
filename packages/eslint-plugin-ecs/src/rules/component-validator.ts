@@ -1,4 +1,14 @@
-import { ESLintUtils, type TSESTree } from '@typescript-eslint/utils';
+import {
+    ESLintUtils,
+    type ParserServicesWithTypeInformation,
+    type TSESTree,
+} from '@typescript-eslint/utils';
+import type * as ts from 'typescript';
+import {
+    getComponentRegistry,
+    hasTypeInformation,
+    resolveTypeInfo,
+} from '../utils/component-registry';
 
 const createRule = ESLintUtils.RuleCreator(
     (name) => `https://github.com/tyevco/OrionECS/blob/main/docs/eslint-rules/${name}.md`
@@ -22,11 +32,19 @@ interface ValidatorInfo {
     componentName: string;
     dependencies: Set<string>;
     conflicts: Set<string>;
-    node: TSESTree.CallExpression;
+    node: TSESTree.CallExpression | null; // null for cross-file validators
 }
 
 /**
- * Extract component name from a node
+ * Type-aware context for resolving component names
+ */
+interface TypeAwareContext {
+    parserServices: ParserServicesWithTypeInformation;
+    checker: ts.TypeChecker;
+}
+
+/**
+ * Extract component name from a node (simple AST-based extraction)
  */
 function getComponentName(node: TSESTree.Node | undefined): string | null {
     if (!node) return null;
@@ -35,6 +53,35 @@ function getComponentName(node: TSESTree.Node | undefined): string | null {
         return node.property.name;
     }
     return null;
+}
+
+/**
+ * Resolve component name using TypeScript type checker.
+ * This handles imports, type aliases, and external packages.
+ */
+function resolveComponentNameWithTypes(
+    node: TSESTree.Node | undefined,
+    typeContext: TypeAwareContext | null
+): string | null {
+    if (!node) return null;
+
+    // If we have type information, use it
+    if (typeContext) {
+        try {
+            const tsNode = typeContext.parserServices.esTreeNodeToTSNodeMap.get(node);
+            if (tsNode) {
+                const typeInfo = resolveTypeInfo(tsNode, typeContext.checker);
+                if (typeInfo) {
+                    return typeInfo.name;
+                }
+            }
+        } catch {
+            // Fall back to AST-based extraction if type resolution fails
+        }
+    }
+
+    // Fall back to simple name extraction
+    return getComponentName(node);
 }
 
 /**
@@ -111,8 +158,36 @@ export const componentValidator = createRule<Options, MessageIds>({
         // Track all validators for circular dependency detection
         const validators = new Map<string, ValidatorInfo>();
 
+        // Set up type-aware context if type information is available
+        let typeContext: TypeAwareContext | null = null;
+        const parserServices = context.sourceCode.parserServices;
+
+        if (hasTypeInformation(parserServices)) {
+            // Create type-aware context for resolving component names
+            typeContext = {
+                parserServices,
+                checker: parserServices.program.getTypeChecker(),
+            };
+
+            // Load cross-file validators from the registry for circular dependency detection
+            if (checkCircularDependencies) {
+                const registry = getComponentRegistry(parserServices);
+                for (const [componentName, metadata] of registry.components) {
+                    // Only add if not already in local validators (local takes precedence)
+                    if (!validators.has(componentName)) {
+                        validators.set(componentName, {
+                            componentName,
+                            dependencies: metadata.dependencies,
+                            conflicts: metadata.conflicts,
+                            node: null, // Cross-file validators don't have local nodes
+                        });
+                    }
+                }
+            }
+        }
+
         /**
-         * Extract component names from an array expression
+         * Extract component names from an array expression using type-aware resolution
          */
         function getComponentNames(node: TSESTree.Node | undefined): string[] {
             if (!node || node.type !== 'ArrayExpression') return [];
@@ -120,7 +195,7 @@ export const componentValidator = createRule<Options, MessageIds>({
             const names: string[] = [];
             for (const element of node.elements) {
                 if (!element) continue;
-                const name = getComponentName(element);
+                const name = resolveComponentNameWithTypes(element, typeContext);
                 if (name) names.push(name);
             }
             return names;
@@ -195,9 +270,9 @@ export const componentValidator = createRule<Options, MessageIds>({
             if (node.callee.property.type !== 'Identifier') return;
             if (node.callee.property.name !== 'registerComponentValidator') return;
 
-            // Get the component being validated
+            // Get the component being validated using type-aware resolution
             const componentArg = node.arguments[0];
-            const componentName = getComponentName(componentArg);
+            const componentName = resolveComponentNameWithTypes(componentArg, typeContext);
             if (!componentName) return;
 
             // Get the validator options object

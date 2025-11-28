@@ -12,13 +12,21 @@ const createRule = ESLintUtils.RuleCreator(
 type MessageIds =
     | 'noStaticPropertyInComponent'
     | 'noStaticMethodInComponent'
-    | 'noModuleLevelMutableState'
-    | 'noStaticStateReference';
+    | 'noStaticPropertyInSystem'
+    | 'noStaticMethodInSystem'
+    | 'noStaticPropertyInPlugin'
+    | 'noStaticMethodInPlugin'
+    | 'noModuleLevelMutableState';
 
 type Options = [
     {
         componentPattern?: string;
+        systemPattern?: string;
+        pluginPattern?: string;
         detectFromUsage?: boolean;
+        checkComponents?: boolean;
+        checkSystems?: boolean;
+        checkPlugins?: boolean;
         checkModuleLevelState?: boolean;
         allowedStaticProperties?: string[];
         allowedModuleLevelPatterns?: string[];
@@ -28,17 +36,18 @@ type Options = [
 /**
  * Rule: no-static-state
  *
- * Prevents the use of static state in ECS components and systems.
+ * Prevents the use of static state in ECS components, systems, and plugins.
  * Static state breaks entity isolation, interferes with serialization,
  * causes issues with entity pooling, and makes testing difficult.
  *
  * Detection targets:
- * 1. Static properties on component classes
- * 2. Static methods on component classes (except pure utilities)
- * 3. Module-level mutable state (let/var declarations at top scope)
+ * 1. Static properties/methods on component classes
+ * 2. Static properties/methods on system classes
+ * 3. Static properties/methods on plugin classes
+ * 4. Module-level mutable state (let/var declarations at top scope)
  *
  * This enforces the ECS principle that all state should be stored
- * in components, not shared globally.
+ * in components or managed through proper ECS patterns, not shared globally.
  */
 export const noStaticState = createRule<Options, MessageIds>({
     name: 'no-static-state',
@@ -46,17 +55,23 @@ export const noStaticState = createRule<Options, MessageIds>({
         type: 'problem',
         docs: {
             description:
-                'Disallow static state in ECS components to maintain entity isolation and proper ECS patterns',
+                'Disallow static state in ECS components, systems, and plugins to maintain proper ECS patterns',
         },
         messages: {
             noStaticPropertyInComponent:
                 'Static property "{{propertyName}}" in component "{{className}}" breaks entity isolation. Store state in component instances instead.',
             noStaticMethodInComponent:
-                'Static method "{{methodName}}" in component "{{className}}" may indicate shared state. Consider moving to a utility module or system.',
+                'Static method "{{methodName}}" in component "{{className}}" may indicate shared state. Consider moving to a utility module.',
+            noStaticPropertyInSystem:
+                'Static property "{{propertyName}}" in system "{{className}}" creates hidden global state. Use singleton components or the engine context instead.',
+            noStaticMethodInSystem:
+                'Static method "{{methodName}}" in system "{{className}}" may indicate shared state. Consider using engine services or singleton components.',
+            noStaticPropertyInPlugin:
+                'Static property "{{propertyName}}" in plugin "{{className}}" creates hidden global state. Use PluginContext.extend() or singleton components instead.',
+            noStaticMethodInPlugin:
+                'Static method "{{methodName}}" in plugin "{{className}}" may indicate shared state. Consider using instance methods or engine services.',
             noModuleLevelMutableState:
                 'Module-level mutable variable "{{variableName}}" can cause issues with ECS patterns. Use singleton components for global state instead.',
-            noStaticStateReference:
-                'Reference to static property "{{propertyName}}" may indicate shared state anti-pattern. Consider using singleton components instead.',
         },
         schema: [
             {
@@ -66,10 +81,33 @@ export const noStaticState = createRule<Options, MessageIds>({
                         type: 'string',
                         description: 'Regex pattern to identify component classes by name',
                     },
+                    systemPattern: {
+                        type: 'string',
+                        description: 'Regex pattern to identify system classes by name',
+                    },
+                    pluginPattern: {
+                        type: 'string',
+                        description: 'Regex pattern to identify plugin classes by name',
+                    },
                     detectFromUsage: {
                         type: 'boolean',
                         description:
                             'If true, detect components by tracking addComponent, createSystem, etc. calls',
+                    },
+                    checkComponents: {
+                        type: 'boolean',
+                        description:
+                            'If true, check component classes for static state (default: true)',
+                    },
+                    checkSystems: {
+                        type: 'boolean',
+                        description:
+                            'If true, check system classes for static state (default: true)',
+                    },
+                    checkPlugins: {
+                        type: 'boolean',
+                        description:
+                            'If true, check plugin classes for static state (default: true)',
                     },
                     checkModuleLevelState: {
                         type: 'boolean',
@@ -97,7 +135,12 @@ export const noStaticState = createRule<Options, MessageIds>({
         {
             componentPattern:
                 '(Component|Position|Velocity|Health|Transform|Sprite|Collider|State|Data)$',
+            systemPattern: 'System$',
+            pluginPattern: 'Plugin$',
             detectFromUsage: false,
+            checkComponents: true,
+            checkSystems: true,
+            checkPlugins: true,
             checkModuleLevelState: false,
             allowedStaticProperties: ['schema', 'componentType', 'type', 'name'],
             allowedModuleLevelPatterns: [],
@@ -108,8 +151,13 @@ export const noStaticState = createRule<Options, MessageIds>({
             options.componentPattern ||
                 '(Component|Position|Velocity|Health|Transform|Sprite|Collider|State|Data)$'
         );
-        const detectFromUsage = options.detectFromUsage || false;
-        const checkModuleLevelState = options.checkModuleLevelState || false;
+        const systemPattern = new RegExp(options.systemPattern || 'System$');
+        const pluginPattern = new RegExp(options.pluginPattern || 'Plugin$');
+        const detectFromUsage = options.detectFromUsage ?? false;
+        const checkComponents = options.checkComponents ?? true;
+        const checkSystems = options.checkSystems ?? true;
+        const checkPlugins = options.checkPlugins ?? true;
+        const checkModuleLevelState = options.checkModuleLevelState ?? false;
         const allowedStaticProperties = new Set(options.allowedStaticProperties || []);
         const allowedModuleLevelPatterns = (options.allowedModuleLevelPatterns || []).map(
             (p) => new RegExp(p)
@@ -119,22 +167,66 @@ export const noStaticState = createRule<Options, MessageIds>({
         const detectionResult: ComponentDetectionResult = createDetectionResult();
         const classDeclarations = new Map<string, TSESTree.ClassDeclaration>();
 
-        function isComponentClass(node: TSESTree.ClassDeclaration): boolean {
-            if (!node.id) return false;
+        type ClassType = 'component' | 'system' | 'plugin' | null;
+
+        /**
+         * Check if a class implements EnginePlugin interface
+         */
+        function implementsEnginePlugin(node: TSESTree.ClassDeclaration): boolean {
+            if (!node.implements) return false;
+
+            for (const impl of node.implements) {
+                if (impl.expression.type === 'Identifier') {
+                    if (impl.expression.name === 'EnginePlugin') {
+                        return true;
+                    }
+                }
+            }
+
+            return false;
+        }
+
+        /**
+         * Determine the class type (component, system, plugin, or null)
+         */
+        function getClassType(node: TSESTree.ClassDeclaration): ClassType {
+            if (!node.id) return null;
 
             const className = node.id.name;
-            const matchesPattern = componentPattern.test(className);
-            const detectedFromUsage =
-                detectFromUsage && detectionResult.componentClasses.has(className);
 
-            return matchesPattern || detectedFromUsage;
+            // Check for plugin first (can implement interface or match pattern)
+            if (checkPlugins) {
+                if (implementsEnginePlugin(node) || pluginPattern.test(className)) {
+                    return 'plugin';
+                }
+            }
+
+            // Check for system
+            if (checkSystems && systemPattern.test(className)) {
+                return 'system';
+            }
+
+            // Check for component (pattern-based or usage-based)
+            if (checkComponents) {
+                const matchesPattern = componentPattern.test(className);
+                const detectedFromUsage =
+                    detectFromUsage && detectionResult.componentClasses.has(className);
+
+                if (matchesPattern || detectedFromUsage) {
+                    return 'component';
+                }
+            }
+
+            return null;
         }
 
         function isAllowedModuleLevelVariable(name: string): boolean {
             return allowedModuleLevelPatterns.some((pattern) => pattern.test(name));
         }
 
-        function checkStaticMembers(node: TSESTree.ClassDeclaration): void {
+        function checkStaticMembers(node: TSESTree.ClassDeclaration, classType: ClassType): void {
+            if (!classType) return;
+
             const className = node.id?.name || '<anonymous>';
 
             for (const member of node.body.body) {
@@ -148,9 +240,16 @@ export const noStaticState = createRule<Options, MessageIds>({
                         continue;
                     }
 
+                    const messageId =
+                        classType === 'component'
+                            ? 'noStaticPropertyInComponent'
+                            : classType === 'system'
+                              ? 'noStaticPropertyInSystem'
+                              : 'noStaticPropertyInPlugin';
+
                     context.report({
                         node: member,
-                        messageId: 'noStaticPropertyInComponent',
+                        messageId,
                         data: { propertyName, className },
                     });
                 }
@@ -165,9 +264,16 @@ export const noStaticState = createRule<Options, MessageIds>({
                         continue;
                     }
 
+                    const messageId =
+                        classType === 'component'
+                            ? 'noStaticMethodInComponent'
+                            : classType === 'system'
+                              ? 'noStaticMethodInSystem'
+                              : 'noStaticMethodInPlugin';
+
                     context.report({
                         node: member,
-                        messageId: 'noStaticMethodInComponent',
+                        messageId,
                         data: { methodName, className },
                     });
                 }
@@ -211,8 +317,9 @@ export const noStaticState = createRule<Options, MessageIds>({
         if (!detectFromUsage) {
             visitors.ClassDeclaration = (node: TSESTree.Node) => {
                 const classNode = node as TSESTree.ClassDeclaration;
-                if (isComponentClass(classNode)) {
-                    checkStaticMembers(classNode);
+                const classType = getClassType(classNode);
+                if (classType) {
+                    checkStaticMembers(classNode, classType);
                 }
             };
         } else {
@@ -221,6 +328,12 @@ export const noStaticState = createRule<Options, MessageIds>({
                 const classNode = node as TSESTree.ClassDeclaration;
                 if (classNode.id) {
                     classDeclarations.set(classNode.id.name, classNode);
+                }
+
+                // Still check systems and plugins immediately (they don't need usage detection)
+                const classType = getClassType(classNode);
+                if (classType === 'system' || classType === 'plugin') {
+                    checkStaticMembers(classNode, classType);
                 }
             };
 
@@ -233,17 +346,20 @@ export const noStaticState = createRule<Options, MessageIds>({
                 for (const className of detectionResult.componentClasses) {
                     const classNode = classDeclarations.get(className);
                     if (classNode) {
-                        checkStaticMembers(classNode);
+                        checkStaticMembers(classNode, 'component');
                     }
                 }
 
-                // Also check pattern-matched classes
+                // Also check pattern-matched component classes that weren't detected
                 for (const [className, classNode] of classDeclarations) {
                     if (
                         !detectionResult.componentClasses.has(className) &&
                         componentPattern.test(className)
                     ) {
-                        checkStaticMembers(classNode);
+                        // Make sure it's not already checked as system/plugin
+                        if (!systemPattern.test(className) && !pluginPattern.test(className)) {
+                            checkStaticMembers(classNode, 'component');
+                        }
                     }
                 }
             };

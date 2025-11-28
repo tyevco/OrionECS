@@ -18,7 +18,7 @@
   ],
   "scripts": {
     "build": "tsup",
-    "test": "echo \"No tests yet\" && exit 0"
+    "test": "jest"
   },
   "keywords": [
     "ecs",
@@ -36,8 +36,12 @@
     "@orion-ecs/math": "*"
   },
   "devDependencies": {
+    "@orion-ecs/core": "*",
     "@orion-ecs/plugin-api": "*",
     "@orion-ecs/testing": "*",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.0.0",
     "tsup": "^8.0.0",
     "typescript": "^5.3.0"
   },

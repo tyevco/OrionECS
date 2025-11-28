@@ -13,6 +13,49 @@ import { TestEngineBuilder } from '@orion-ecs/testing';
 import type { Engine } from '../../../packages/core/src/index';
 import { InputAPI, InputManagerPlugin, MouseButton } from './InputManagerPlugin';
 
+// Polyfill DOM events for Node.js environment
+class MockMouseEvent extends Event {
+    clientX: number;
+    clientY: number;
+    button: number;
+    ctrlKey: boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+
+    constructor(type: string, init?: MouseEventInit) {
+        super(type);
+        this.clientX = init?.clientX ?? 0;
+        this.clientY = init?.clientY ?? 0;
+        this.button = init?.button ?? 0;
+        this.ctrlKey = init?.ctrlKey ?? false;
+        this.shiftKey = init?.shiftKey ?? false;
+        this.altKey = init?.altKey ?? false;
+    }
+}
+
+class MockKeyboardEvent extends Event {
+    code: string;
+    key: string;
+    ctrlKey: boolean;
+    shiftKey: boolean;
+    altKey: boolean;
+
+    constructor(type: string, init?: KeyboardEventInit) {
+        super(type);
+        this.code = init?.code ?? '';
+        this.key = init?.key ?? '';
+        this.ctrlKey = init?.ctrlKey ?? false;
+        this.shiftKey = init?.shiftKey ?? false;
+        this.altKey = init?.altKey ?? false;
+    }
+}
+
+// Set up globals for tests
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(global as any).MouseEvent = MockMouseEvent;
+// eslint-disable-next-line @typescript-eslint/no-explicit-any
+(global as any).KeyboardEvent = MockKeyboardEvent;
+
 // Type extensions for testing
 type EngineWithInput = Engine & { input: InputAPI };
 
@@ -341,7 +384,15 @@ describe('InputManagerPlugin', () => {
             const mockCallback = jest.fn();
             api.on('dragstart', mockCallback);
 
-            // Mouse down
+            // First, set initial mouse position via mousemove
+            mockElement.dispatchEvent(
+                new MouseEvent('mousemove', {
+                    clientX: 100,
+                    clientY: 100,
+                })
+            );
+
+            // Mouse down - this will clone the current mousePosition as dragStart
             mockElement.dispatchEvent(
                 new MouseEvent('mousedown', {
                     clientX: 100,
@@ -375,6 +426,14 @@ describe('InputManagerPlugin', () => {
             const mockCallback = jest.fn();
             api.on('drag', mockCallback);
 
+            // First, set initial mouse position via mousemove
+            mockElement.dispatchEvent(
+                new MouseEvent('mousemove', {
+                    clientX: 100,
+                    clientY: 100,
+                })
+            );
+
             // Start drag
             mockElement.dispatchEvent(
                 new MouseEvent('mousedown', {
@@ -383,10 +442,19 @@ describe('InputManagerPlugin', () => {
                 })
             );
 
+            // Move beyond threshold to trigger dragstart
             mockElement.dispatchEvent(
                 new MouseEvent('mousemove', {
                     clientX: 110,
                     clientY: 110,
+                })
+            );
+
+            // Move again to trigger drag event (drag events fire after dragstart)
+            mockElement.dispatchEvent(
+                new MouseEvent('mousemove', {
+                    clientX: 120,
+                    clientY: 120,
                 })
             );
 

@@ -1,4 +1,5 @@
 import { componentOrder } from './rules/component-order';
+import { componentTypes } from './rules/component-types';
 import { componentValidator } from './rules/component-validator';
 import { dataOnlyComponents } from './rules/data-only-components';
 import { noComponentLogic } from './rules/no-component-logic';
@@ -14,6 +15,7 @@ export const rules = {
     'no-entity-mutation-outside-system': noEntityMutationOutsideSystem,
     'component-validator': componentValidator,
     'component-order': componentOrder,
+    'component-types': componentTypes,
     'query-validator': queryValidator,
 };
 
@@ -25,6 +27,7 @@ const recommendedRules = {
     '@orion-ecs/ecs/no-entity-mutation-outside-system': 'off', // Off by default, can be noisy
     '@orion-ecs/ecs/component-validator': 'error', // Errors because these are likely bugs
     '@orion-ecs/ecs/component-order': 'warn', // Warn because may have false positives with dynamic code
+    '@orion-ecs/ecs/component-types': 'warn', // Requires type information, validates at call sites
     '@orion-ecs/ecs/query-validator': 'error', // Errors because these are logical contradictions
 } as const;
 
@@ -36,6 +39,7 @@ const strictRules = {
     '@orion-ecs/ecs/no-entity-mutation-outside-system': 'warn',
     '@orion-ecs/ecs/component-validator': 'error',
     '@orion-ecs/ecs/component-order': 'error',
+    '@orion-ecs/ecs/component-types': 'error', // Requires type information, validates at call sites
     '@orion-ecs/ecs/query-validator': 'error',
 } as const;
 

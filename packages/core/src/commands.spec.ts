@@ -365,9 +365,8 @@ describe('CommandBuffer', () => {
 
             // The spawned entity should be marked for deletion due to rollback
             const rolledBackEntity = engine.getEntityByName('WillBeRolledBack');
-            if (rolledBackEntity) {
-                expect(rolledBackEntity.isMarkedForDeletion).toBe(true);
-            }
+            expect(rolledBackEntity).toBeDefined();
+            expect(rolledBackEntity!.isMarkedForDeletion).toBe(true);
         });
 
         it('should continue without rollback when disabled', () => {

@@ -11,6 +11,7 @@ import tseslint from '@typescript-eslint/parser';
  * - ecs/no-component-logic: Prevents complex logic in component constructors
  * - ecs/prefer-composition: Discourages component inheritance
  * - ecs/no-entity-mutation-outside-system: Warns about entity mutations outside systems
+ * - ecs/component-validator: Catches issues in registerComponentValidator calls
  *
  * Usage:
  *   npm run lint:ecs
@@ -93,6 +94,9 @@ const config = [
 
                       // Entity mutations should happen in systems (off by default, can be noisy)
                       'ecs/no-entity-mutation-outside-system': 'off',
+
+                      // Component validator - catch issues in registerComponentValidator
+                      'ecs/component-validator': 'error',
                   }
                 : {}),
         },

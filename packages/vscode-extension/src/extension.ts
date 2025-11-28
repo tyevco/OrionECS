@@ -2,7 +2,9 @@ import * as vscode from 'vscode';
 import { registerCommands } from './commands';
 import { ComponentCodeLensProvider } from './providers/ComponentCodeLensProvider';
 import { ECSCompletionProvider } from './providers/ECSCompletionProvider';
+import { ECSDefinitionProvider } from './providers/ECSDefinitionProvider';
 import { ECSHoverProvider } from './providers/ECSHoverProvider';
+import { ECSReferenceProvider } from './providers/ECSReferenceProvider';
 import { ComponentsTreeProvider } from './views/ComponentsTreeProvider';
 import { EntitiesTreeProvider } from './views/EntitiesTreeProvider';
 import { SystemsTreeProvider } from './views/SystemsTreeProvider';
@@ -63,11 +65,36 @@ export function activate(context: vscode.ExtensionContext) {
         )
     );
 
+    // Register definition provider for Go to Definition
+    const definitionProvider = new ECSDefinitionProvider();
+    context.subscriptions.push(
+        vscode.languages.registerDefinitionProvider(
+            [
+                { language: 'typescript', scheme: 'file' },
+                { language: 'javascript', scheme: 'file' },
+            ],
+            definitionProvider
+        )
+    );
+
+    // Register reference provider for Find All References
+    const referenceProvider = new ECSReferenceProvider();
+    context.subscriptions.push(
+        vscode.languages.registerReferenceProvider(
+            [
+                { language: 'typescript', scheme: 'file' },
+                { language: 'javascript', scheme: 'file' },
+            ],
+            referenceProvider
+        )
+    );
+
     // Register commands
     registerCommands(context, {
         componentsProvider,
         systemsProvider,
         entitiesProvider,
+        referenceProvider,
         outputChannel,
         extensionUri: context.extensionUri,
     });

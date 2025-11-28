@@ -1,4 +1,9 @@
 import { ESLintUtils, type TSESTree } from '@typescript-eslint/utils';
+import {
+    type ComponentDetectionResult,
+    createDetectionResult,
+    detectComponentsFromCall,
+} from '../utils/component-detection';
 
 const createRule = ESLintUtils.RuleCreator(
     (name) => `https://github.com/tyevco/OrionECS/blob/main/docs/eslint-rules/${name}.md`
@@ -15,6 +20,7 @@ type Options = [
         componentPattern?: string;
         allowedFunctions?: string[];
         maxConstructorStatements?: number;
+        detectFromUsage?: boolean;
     },
 ];
 
@@ -62,6 +68,11 @@ export const noComponentLogic = createRule<Options, MessageIds>({
                         type: 'number',
                         description: 'Maximum number of statements allowed in constructor body',
                     },
+                    detectFromUsage: {
+                        type: 'boolean',
+                        description:
+                            'If true, detect components by tracking addComponent, createSystem, etc. calls',
+                    },
                 },
                 additionalProperties: false,
             },
@@ -84,6 +95,7 @@ export const noComponentLogic = createRule<Options, MessageIds>({
                 'Symbol',
             ],
             maxConstructorStatements: 20,
+            detectFromUsage: false,
         },
     ],
     create(context, [options]) {
@@ -92,14 +104,21 @@ export const noComponentLogic = createRule<Options, MessageIds>({
                 '(Component|Position|Velocity|Health|Transform|Sprite|Collider|State|Data)$'
         );
         const allowedFunctions = new Set(options.allowedFunctions || []);
+        const detectFromUsage = options.detectFromUsage || false;
 
-        function isComponentClass(
-            node: TSESTree.ClassDeclaration | TSESTree.ClassExpression
-        ): boolean {
-            if (node.type === 'ClassDeclaration' && node.id) {
-                return componentPattern.test(node.id.name);
-            }
-            return false;
+        // For usage-based detection
+        const detectionResult: ComponentDetectionResult = createDetectionResult();
+        const classDeclarations = new Map<string, TSESTree.ClassDeclaration>();
+
+        function isComponentClass(node: TSESTree.ClassDeclaration): boolean {
+            if (!node.id) return false;
+
+            const className = node.id.name;
+            const matchesPattern = componentPattern.test(className);
+            const detectedFromUsage =
+                detectFromUsage && detectionResult.componentClasses.has(className);
+
+            return matchesPattern || detectedFromUsage;
         }
 
         function getFunctionName(node: TSESTree.CallExpression): string {
@@ -115,18 +134,20 @@ export const noComponentLogic = createRule<Options, MessageIds>({
             return '<unknown>';
         }
 
-        function checkConstructorBody(
-            constructorNode: TSESTree.MethodDefinition,
-            classNode: TSESTree.ClassDeclaration
-        ): void {
-            if (!isComponentClass(classNode)) {
-                return;
+        function checkConstructorBody(classNode: TSESTree.ClassDeclaration): void {
+            // Find constructor
+            let constructorNode: TSESTree.MethodDefinition | null = null;
+            for (const member of classNode.body.body) {
+                if (member.type === 'MethodDefinition' && member.kind === 'constructor') {
+                    constructorNode = member;
+                    break;
+                }
             }
 
+            if (!constructorNode) return;
+
             const body = constructorNode.value.body;
-            if (!body) {
-                return;
-            }
+            if (!body) return;
 
             // Walk all nodes in constructor body
             function checkNode(node: TSESTree.Node): void {
@@ -210,11 +231,45 @@ export const noComponentLogic = createRule<Options, MessageIds>({
             }
         }
 
+        // If not using detection, use the simple single-pass approach
+        if (!detectFromUsage) {
+            return {
+                ClassDeclaration(classNode) {
+                    if (isComponentClass(classNode)) {
+                        checkConstructorBody(classNode);
+                    }
+                },
+            };
+        }
+
+        // With detection enabled, use two-pass approach
         return {
-            ClassDeclaration(classNode) {
-                for (const member of classNode.body.body) {
-                    if (member.type === 'MethodDefinition' && member.kind === 'constructor') {
-                        checkConstructorBody(member, classNode);
+            ClassDeclaration(node) {
+                if (node.id) {
+                    classDeclarations.set(node.id.name, node);
+                }
+            },
+
+            CallExpression(node) {
+                detectComponentsFromCall(node, detectionResult);
+            },
+
+            'Program:exit'() {
+                // Check detected component classes
+                for (const className of detectionResult.componentClasses) {
+                    const classNode = classDeclarations.get(className);
+                    if (classNode) {
+                        checkConstructorBody(classNode);
+                    }
+                }
+
+                // Also check pattern-matched classes
+                for (const [className, classNode] of classDeclarations) {
+                    if (
+                        !detectionResult.componentClasses.has(className) &&
+                        componentPattern.test(className)
+                    ) {
+                        checkConstructorBody(classNode);
                     }
                 }
             },

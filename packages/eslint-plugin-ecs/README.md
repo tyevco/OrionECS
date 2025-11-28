@@ -37,6 +37,7 @@ class Position {
 - `componentPattern`: Regex to identify component classes (default: common component names)
 - `allowedMethods`: Methods that are allowed (default: `['clone', 'reset', 'toString', 'toJSON']`)
 - `checkAllClasses`: If true, checks all classes regardless of name
+- `detectFromUsage`: If true, detect components by tracking `addComponent`, `createSystem`, etc. calls
 
 ### `ecs/no-component-logic`
 
@@ -174,6 +175,44 @@ rules: {
     allowedMethods: ['clone', 'reset', 'serialize', 'deserialize'],
   }],
 }
+```
+
+## Usage-Based Component Detection
+
+Instead of relying on naming patterns, you can enable **usage-based detection** to identify components by tracking how they're used in ECS APIs:
+
+```javascript
+rules: {
+  'ecs/data-only-components': ['warn', {
+    detectFromUsage: true,
+    componentPattern: '^$',  // Disable pattern matching, rely only on usage
+  }],
+}
+```
+
+With `detectFromUsage: true`, the rules detect components by tracking calls to:
+- `entity.addComponent(ClassName, ...)`
+- `entity.getComponent(ClassName)`
+- `entity.hasComponent(ClassName)`
+- `engine.registerComponent(ClassName)`
+- `engine.createSystem('name', { all: [A, B], none: [C] }, ...)`
+- `engine.query().withAll(A, B).build()`
+- `engine.setSingleton(ClassName, ...)`
+
+**Benefits:**
+- No naming conventions required
+- More accurate - only checks classes actually used as components
+- Works with any class name
+
+**Example:**
+```typescript
+// This class will be detected as a component and flagged for having a method
+class PlayerData {
+  constructor(public score: number) {}
+  incrementScore() { this.score++; }  // Warning!
+}
+
+entity.addComponent(PlayerData, 0);  // Detection happens here
 ```
 
 ## Integration with OrionECS

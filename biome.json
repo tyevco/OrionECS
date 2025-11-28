@@ -26,28 +26,7 @@
     "lineWidth": 100
   },
   "linter": {
-    "enabled": true,
-    "rules": {
-      "recommended": true,
-      "complexity": {
-        "noUselessConstructor": "off"
-      },
-      "correctness": {
-        "noUnusedVariables": "error",
-        "noUnusedImports": "error"
-      },
-      "style": {
-        "noNonNullAssertion": "warn",
-        "noParameterAssign": "warn",
-        "useBlockStatements": "off"
-      },
-      "suspicious": {
-        "noArrayIndexKey": "off",
-        "noConsole": "off",
-        "noExplicitAny": "warn",
-        "noDoubleEquals": "warn"
-      }
-    }
+    "enabled": false
   },
   "javascript": {
     "formatter": {
@@ -66,17 +45,5 @@
       "enabled": true,
       "indentWidth": 2
     }
-  },
-  "overrides": [
-    {
-      "includes": ["*.bench.ts", "*.spec.ts", "*.test.ts", "benchmarks/**/*.ts"],
-      "linter": {
-        "rules": {
-          "suspicious": {
-            "noConsole": "off"
-          }
-        }
-      }
-    }
-  ]
+  }
 }

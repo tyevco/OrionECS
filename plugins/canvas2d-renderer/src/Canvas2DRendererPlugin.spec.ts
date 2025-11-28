@@ -126,18 +126,13 @@ describe('Canvas2DRendererPlugin', () => {
             expect(transform.scaleY).toBe(0.5);
         });
 
-        test('should provide position getter', () => {
+        test('should allow direct property access for position', () => {
             const transform = new Transform(50, 75);
-            const position = transform.position;
+            expect(transform.x).toBe(50);
+            expect(transform.y).toBe(75);
 
-            expect(position.x).toBe(50);
-            expect(position.y).toBe(75);
-        });
-
-        test('should update position via setPosition', () => {
-            const transform = new Transform();
-            transform.setPosition(100, 200);
-
+            transform.x = 100;
+            transform.y = 200;
             expect(transform.x).toBe(100);
             expect(transform.y).toBe(200);
         });

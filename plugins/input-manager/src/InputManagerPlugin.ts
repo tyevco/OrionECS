@@ -10,11 +10,8 @@
  * Based on the prototypedestination project's input systems.
  */
 
-import type { Vector2 } from '@orion-ecs/math';
+import { Vector2 } from '@orion-ecs/math';
 import type { EnginePlugin, PluginContext } from '@orion-ecs/plugin-api';
-
-// Import utilities
-let Vector2Class: typeof Vector2;
 
 /**
  * Mouse button enum
@@ -156,19 +153,7 @@ export class InputAPI implements IInputAPI {
         }
 
         this.element = element;
-
-        // Ensure Vector2 is available
-        if (!Vector2Class) {
-            try {
-                const math = require('@orion-ecs/math');
-                Vector2Class = math.Vector2;
-            } catch {
-                console.error('[InputAPI] Could not load Vector2 utility');
-                return;
-            }
-        }
-
-        this.mousePosition = new Vector2Class(0, 0);
+        this.mousePosition = new Vector2(0, 0);
         this.setupEventListeners();
     }
 
@@ -248,7 +233,7 @@ export class InputAPI implements IInputAPI {
                 this.emit('drag', {
                     startPosition: this.dragStart.clone(),
                     currentPosition: this.mousePosition.clone(),
-                    deltaPosition: new Vector2Class(
+                    deltaPosition: new Vector2(
                         this.mousePosition.x - this.dragStart.x,
                         this.mousePosition.y - this.dragStart.y
                     ),
@@ -292,7 +277,7 @@ export class InputAPI implements IInputAPI {
             this.emit('dragend', {
                 startPosition: this.dragStart.clone(),
                 currentPosition: this.mousePosition.clone(),
-                deltaPosition: new Vector2Class(
+                deltaPosition: new Vector2(
                     this.mousePosition.x - this.dragStart.x,
                     this.mousePosition.y - this.dragStart.y
                 ),
@@ -424,7 +409,7 @@ export class InputAPI implements IInputAPI {
         return {
             startPosition: this.dragStart.clone(),
             currentPosition: this.mousePosition.clone(),
-            deltaPosition: new Vector2Class(
+            deltaPosition: new Vector2(
                 this.mousePosition.x - this.dragStart.x,
                 this.mousePosition.y - this.dragStart.y
             ),
@@ -530,14 +515,6 @@ export class InputManagerPlugin implements EnginePlugin<{ input: IInputAPI }> {
     private api = new InputAPI();
 
     install(context: PluginContext): void {
-        // Dynamically import utilities
-        try {
-            const math = require('@orion-ecs/math');
-            Vector2Class = math.Vector2;
-        } catch {
-            console.warn('[InputManagerPlugin] Could not load math package');
-        }
-
         // Create a system to clear frame state at end of frame
         context.createSystem(
             'InputFrameCleanupSystem',

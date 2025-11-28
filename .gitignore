@@ -151,6 +151,7 @@ publish/
 !/packages/testing/
 !/packages/utils/
 !/packages/eslint-plugin-ecs/
+!/packages/vscode-extension/
 
 # Windows Azure Build Output
 csx/

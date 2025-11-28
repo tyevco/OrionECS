@@ -1,0 +1,117 @@
+import * as vscode from 'vscode';
+import { registerCommands } from './commands';
+import { ComponentCodeLensProvider } from './providers/ComponentCodeLensProvider';
+import { ECSCompletionProvider } from './providers/ECSCompletionProvider';
+import { ECSHoverProvider } from './providers/ECSHoverProvider';
+import { ComponentsTreeProvider } from './views/ComponentsTreeProvider';
+import { EntitiesTreeProvider } from './views/EntitiesTreeProvider';
+import { SystemsTreeProvider } from './views/SystemsTreeProvider';
+
+let outputChannel: vscode.OutputChannel;
+
+export function activate(context: vscode.ExtensionContext) {
+    outputChannel = vscode.window.createOutputChannel('OrionECS');
+    outputChannel.appendLine('OrionECS extension activated');
+
+    // Register tree view providers
+    const componentsProvider = new ComponentsTreeProvider();
+    const systemsProvider = new SystemsTreeProvider();
+    const entitiesProvider = new EntitiesTreeProvider();
+
+    context.subscriptions.push(
+        vscode.window.registerTreeDataProvider('orion-ecs.componentsView', componentsProvider),
+        vscode.window.registerTreeDataProvider('orion-ecs.systemsView', systemsProvider),
+        vscode.window.registerTreeDataProvider('orion-ecs.entitiesView', entitiesProvider)
+    );
+
+    // Register CodeLens provider for component usage
+    const codeLensProvider = new ComponentCodeLensProvider();
+    context.subscriptions.push(
+        vscode.languages.registerCodeLensProvider(
+            [
+                { language: 'typescript', scheme: 'file' },
+                { language: 'javascript', scheme: 'file' },
+            ],
+            codeLensProvider
+        )
+    );
+
+    // Register completion provider for ECS-specific completions
+    const completionProvider = new ECSCompletionProvider();
+    context.subscriptions.push(
+        vscode.languages.registerCompletionItemProvider(
+            [
+                { language: 'typescript', scheme: 'file' },
+                { language: 'javascript', scheme: 'file' },
+            ],
+            completionProvider,
+            '.',
+            ':',
+            '['
+        )
+    );
+
+    // Register hover provider for ECS documentation
+    const hoverProvider = new ECSHoverProvider();
+    context.subscriptions.push(
+        vscode.languages.registerHoverProvider(
+            [
+                { language: 'typescript', scheme: 'file' },
+                { language: 'javascript', scheme: 'file' },
+            ],
+            hoverProvider
+        )
+    );
+
+    // Register commands
+    registerCommands(context, {
+        componentsProvider,
+        systemsProvider,
+        entitiesProvider,
+        outputChannel,
+    });
+
+    // Watch for configuration changes
+    context.subscriptions.push(
+        vscode.workspace.onDidChangeConfiguration((e) => {
+            if (e.affectsConfiguration('orion-ecs')) {
+                outputChannel.appendLine('OrionECS configuration changed');
+                // Refresh providers when configuration changes
+                componentsProvider.refresh();
+                systemsProvider.refresh();
+                entitiesProvider.refresh();
+            }
+        })
+    );
+
+    // Watch for file changes to update tree views
+    const fileWatcher = vscode.workspace.createFileSystemWatcher('**/*.{ts,js}');
+    context.subscriptions.push(
+        fileWatcher.onDidChange(() => {
+            componentsProvider.refresh();
+            systemsProvider.refresh();
+        }),
+        fileWatcher.onDidCreate(() => {
+            componentsProvider.refresh();
+            systemsProvider.refresh();
+        }),
+        fileWatcher.onDidDelete(() => {
+            componentsProvider.refresh();
+            systemsProvider.refresh();
+        }),
+        fileWatcher
+    );
+
+    outputChannel.appendLine('OrionECS extension setup complete');
+
+    return {
+        getOutputChannel: () => outputChannel,
+    };
+}
+
+export function deactivate() {
+    if (outputChannel) {
+        outputChannel.appendLine('OrionECS extension deactivated');
+        outputChannel.dispose();
+    }
+}

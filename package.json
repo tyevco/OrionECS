@@ -34,6 +34,7 @@
     "packages/plugin-api",
     "packages/testing",
     "packages/eslint-plugin-ecs",
+    "packages/vscode-extension",
     "examples",
     "plugins/canvas2d-renderer",
     "plugins/debug-visualizer",

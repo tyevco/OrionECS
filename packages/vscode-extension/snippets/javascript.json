@@ -1,0 +1,255 @@
+{
+  "Create Component": {
+    "prefix": ["orion-component", "ecs-component"],
+    "body": [
+      "class ${1:ComponentName} {",
+      "  constructor(${2:value} = ${3:0}) {",
+      "    this.${2:value} = ${2:value};",
+      "  }",
+      "}",
+      "",
+      "module.exports = { ${1:ComponentName} };"
+    ],
+    "description": "Create an OrionECS component class"
+  },
+  "Create Component with Multiple Properties": {
+    "prefix": ["orion-component-multi", "ecs-component-multi"],
+    "body": [
+      "class ${1:ComponentName} {",
+      "  constructor(${2:x} = ${3:0}, ${4:y} = ${5:0}) {",
+      "    this.${2:x} = ${2:x};",
+      "    this.${4:y} = ${4:y};",
+      "  }",
+      "}",
+      "",
+      "module.exports = { ${1:ComponentName} };"
+    ],
+    "description": "Create an OrionECS component with multiple properties"
+  },
+  "Create Tag Component": {
+    "prefix": ["orion-tag", "ecs-tag"],
+    "body": [
+      "const ${1:TagName} = createTagComponent('${2:$1}');"
+    ],
+    "description": "Create an OrionECS tag component"
+  },
+  "Create System": {
+    "prefix": ["orion-system", "ecs-system"],
+    "body": [
+      "engine.createSystem('${1:SystemName}', {",
+      "  all: [${2:Component}]",
+      "}, {",
+      "  priority: ${3:100},",
+      "  act: (entity, ${4:component}) => {",
+      "    ${5:// System logic}",
+      "  }",
+      "});"
+    ],
+    "description": "Create an OrionECS system"
+  },
+  "Create System with Hooks": {
+    "prefix": ["orion-system-hooks", "ecs-system-hooks"],
+    "body": [
+      "engine.createSystem('${1:SystemName}', {",
+      "  all: [${2:Component}]",
+      "}, {",
+      "  priority: ${3:100},",
+      "  before: () => {",
+      "    ${4:// Called before processing entities}",
+      "  },",
+      "  act: (entity, ${5:component}) => {",
+      "    ${6:// Process each entity}",
+      "  },",
+      "  after: () => {",
+      "    ${7:// Called after processing entities}",
+      "  }",
+      "});"
+    ],
+    "description": "Create an OrionECS system with lifecycle hooks"
+  },
+  "Create Fixed Update System": {
+    "prefix": ["orion-system-fixed", "ecs-system-fixed"],
+    "body": [
+      "engine.createSystem('${1:SystemName}', {",
+      "  all: [${2:Component}]",
+      "}, {",
+      "  priority: ${3:100},",
+      "  act: (entity, ${4:component}) => {",
+      "    ${5:// Fixed timestep logic}",
+      "  }",
+      "}, true);"
+    ],
+    "description": "Create an OrionECS fixed-update system"
+  },
+  "Create Entity": {
+    "prefix": ["orion-entity", "ecs-entity"],
+    "body": [
+      "const ${1:entity} = engine.createEntity('${2:EntityName}');",
+      "${1:entity}.addComponent(${3:Component}, ${4:args});",
+      "${1:entity}.addTag('${5:tag}');"
+    ],
+    "description": "Create an OrionECS entity"
+  },
+  "Create Entity Prefab": {
+    "prefix": ["orion-prefab", "ecs-prefab"],
+    "body": [
+      "const ${1:prefabName}Prefab = {",
+      "  name: '${2:$1}',",
+      "  components: [",
+      "    { type: ${3:Component}, args: [${4:}] }",
+      "  ],",
+      "  tags: ['${5:tag}']",
+      "};",
+      "",
+      "engine.registerPrefab('${2:$1}', ${1:prefabName}Prefab);"
+    ],
+    "description": "Create and register an entity prefab"
+  },
+  "Create Engine": {
+    "prefix": ["orion-engine", "ecs-engine"],
+    "body": [
+      "const engine = new EngineBuilder()",
+      "  .withDebugMode(${1:true})",
+      "  .withFixedUpdateFPS(${2:60})",
+      "  .withArchetypes(${3:true})",
+      "  .build();",
+      "",
+      "engine.start();"
+    ],
+    "description": "Create and configure an OrionECS engine"
+  },
+  "Game Loop": {
+    "prefix": ["orion-gameloop", "ecs-gameloop"],
+    "body": [
+      "let lastTime = 0;",
+      "",
+      "function gameLoop(timestamp) {",
+      "  const deltaTime = (timestamp - lastTime) / 1000;",
+      "  lastTime = timestamp;",
+      "",
+      "  engine.update(deltaTime);",
+      "",
+      "  requestAnimationFrame(gameLoop);",
+      "}",
+      "",
+      "requestAnimationFrame(gameLoop);"
+    ],
+    "description": "Create a game loop for OrionECS"
+  },
+  "Create Plugin": {
+    "prefix": ["orion-plugin", "ecs-plugin"],
+    "body": [
+      "class ${1:PluginName} {",
+      "  constructor() {",
+      "    this.name = '${2:$1}';",
+      "    this.version = '${3:1.0.0}';",
+      "  }",
+      "",
+      "  install(context) {",
+      "    ${4:// Register components, systems, etc.}",
+      "  }",
+      "",
+      "  uninstall() {",
+      "    ${5:// Cleanup}",
+      "  }",
+      "}",
+      "",
+      "module.exports = { ${1:PluginName} };"
+    ],
+    "description": "Create an OrionECS plugin"
+  },
+  "Create Singleton": {
+    "prefix": ["orion-singleton", "ecs-singleton"],
+    "body": [
+      "// Define singleton component",
+      "class ${1:SingletonName} {",
+      "  constructor(${2:value} = ${3:0}) {",
+      "    this.${2:value} = ${2:value};",
+      "  }",
+      "}",
+      "",
+      "// Set singleton",
+      "engine.setSingleton(${1:SingletonName}, ${4:initialValue});",
+      "",
+      "// Access singleton",
+      "const ${5:singleton} = engine.getSingleton(${1:SingletonName});"
+    ],
+    "description": "Create and use an OrionECS singleton"
+  },
+  "Create Query": {
+    "prefix": ["orion-query", "ecs-query"],
+    "body": [
+      "const ${1:query} = engine.query()",
+      "  .withAll(${2:Component})",
+      "  .withNone(${3:ExcludedComponent})",
+      "  .withTags('${4:tag}')",
+      "  .build();",
+      "",
+      "for (const entity of ${1:query}) {",
+      "  const ${5:component} = entity.getComponent(${2:Component});",
+      "  ${6:// Process entity}",
+      "}"
+    ],
+    "description": "Create and iterate an OrionECS query"
+  },
+  "Command Buffer Spawn": {
+    "prefix": ["orion-spawn", "ecs-spawn"],
+    "body": [
+      "engine.commands.spawn()",
+      "  .named('${1:EntityName}')",
+      "  .with(${2:Component}, ${3:args})",
+      "  .with(${4:Component2}, ${5:args2});"
+    ],
+    "description": "Spawn entity using command buffer"
+  },
+  "Import OrionECS": {
+    "prefix": ["orion-import", "ecs-import"],
+    "body": [
+      "const { EngineBuilder, createTagComponent } = require('@orion-ecs/core');"
+    ],
+    "description": "Import OrionECS core"
+  },
+  "Transaction Block": {
+    "prefix": ["orion-transaction", "ecs-transaction"],
+    "body": [
+      "engine.beginTransaction();",
+      "",
+      "try {",
+      "  ${1:// Batch operations here}",
+      "  engine.commitTransaction();",
+      "} catch (error) {",
+      "  engine.rollbackTransaction();",
+      "  throw error;",
+      "}"
+    ],
+    "description": "Create a transaction block for batch operations"
+  },
+  "Message Bus": {
+    "prefix": ["orion-message", "ecs-message"],
+    "body": [
+      "// Publish message",
+      "engine.messageBus.publish('${1:channel}', { ${2:data}: ${3:value} }, '${4:SenderSystem}');",
+      "",
+      "// Subscribe to messages",
+      "engine.messageBus.subscribe('${1:channel}', (message) => {",
+      "  console.log('Received:', message.data);",
+      "});"
+    ],
+    "description": "Inter-system messaging with message bus"
+  },
+  "Debug Info": {
+    "prefix": ["orion-debug", "ecs-debug"],
+    "body": [
+      "const debugInfo = engine.getDebugInfo();",
+      "console.log('Entities:', debugInfo.entityCount);",
+      "console.log('Systems:', debugInfo.systemCount);",
+      "",
+      "const profiles = engine.getSystemProfiles();",
+      "console.table(profiles);",
+      "",
+      "const memStats = engine.getMemoryStats();",
+      "console.log('Memory:', memStats);"
+    ],
+    "description": "Get debug and profiling information"
+  }
+}

@@ -1,0 +1,168 @@
+{
+  "name": "orion-ecs-vscode",
+  "displayName": "OrionECS",
+  "description": "VS Code extension for OrionECS - Entity Component System framework with snippets, IntelliSense, and developer tools",
+  "version": "0.1.0",
+  "publisher": "orion-ecs",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.85.0"
+  },
+  "categories": [
+    "Snippets",
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "ecs",
+    "entity-component-system",
+    "game-development",
+    "orion-ecs",
+    "typescript"
+  ],
+  "activationEvents": [
+    "workspaceContains:**/node_modules/@orion-ecs/core",
+    "onLanguage:typescript",
+    "onLanguage:javascript"
+  ],
+  "main": "./dist/extension.js",
+  "icon": "images/icon.png",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/tyevco/OrionECS"
+  },
+  "contributes": {
+    "commands": [
+      {
+        "command": "orion-ecs.createComponent",
+        "title": "Orion: Create New Component"
+      },
+      {
+        "command": "orion-ecs.createSystem",
+        "title": "Orion: Create New System"
+      },
+      {
+        "command": "orion-ecs.createPrefab",
+        "title": "Orion: Create Entity Prefab"
+      },
+      {
+        "command": "orion-ecs.showEntityInspector",
+        "title": "Orion: Show Entity Inspector"
+      },
+      {
+        "command": "orion-ecs.showSystemExecutionOrder",
+        "title": "Orion: Show System Execution Order"
+      },
+      {
+        "command": "orion-ecs.openDocumentation",
+        "title": "Orion: Open Documentation"
+      },
+      {
+        "command": "orion-ecs.refreshEntityTree",
+        "title": "Orion: Refresh Entity Tree",
+        "icon": "$(refresh)"
+      }
+    ],
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "orion-ecs-explorer",
+          "title": "OrionECS",
+          "icon": "images/orion-icon.svg"
+        }
+      ]
+    },
+    "views": {
+      "orion-ecs-explorer": [
+        {
+          "id": "orion-ecs.entitiesView",
+          "name": "Entities"
+        },
+        {
+          "id": "orion-ecs.componentsView",
+          "name": "Components"
+        },
+        {
+          "id": "orion-ecs.systemsView",
+          "name": "Systems"
+        }
+      ]
+    },
+    "menus": {
+      "view/title": [
+        {
+          "command": "orion-ecs.refreshEntityTree",
+          "when": "view == orion-ecs.entitiesView",
+          "group": "navigation"
+        }
+      ],
+      "editor/context": [
+        {
+          "command": "orion-ecs.createComponent",
+          "group": "orion-ecs@1",
+          "when": "editorLangId == typescript || editorLangId == javascript"
+        },
+        {
+          "command": "orion-ecs.createSystem",
+          "group": "orion-ecs@2",
+          "when": "editorLangId == typescript || editorLangId == javascript"
+        }
+      ]
+    },
+    "snippets": [
+      {
+        "language": "typescript",
+        "path": "./snippets/typescript.json"
+      },
+      {
+        "language": "javascript",
+        "path": "./snippets/javascript.json"
+      }
+    ],
+    "configuration": {
+      "title": "OrionECS",
+      "properties": {
+        "orion-ecs.enableCodeLens": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable CodeLens for component usage information"
+        },
+        "orion-ecs.enableInlineHints": {
+          "type": "boolean",
+          "default": true,
+          "description": "Enable inline hints for ECS patterns"
+        },
+        "orion-ecs.snippetStyle": {
+          "type": "string",
+          "enum": [
+            "verbose",
+            "compact"
+          ],
+          "default": "verbose",
+          "description": "Style of generated code snippets"
+        },
+        "orion-ecs.autoImport": {
+          "type": "boolean",
+          "default": true,
+          "description": "Automatically add imports when using snippets"
+        }
+      }
+    }
+  },
+  "scripts": {
+    "vscode:prepublish": "npm run build",
+    "build": "tsup src/extension.ts --format cjs --dts --external vscode",
+    "watch": "tsup src/extension.ts --format cjs --watch --external vscode",
+    "test": "jest",
+    "lint": "echo 'Linting handled by root biome.json'",
+    "package": "vsce package",
+    "publish": "vsce publish"
+  },
+  "devDependencies": {
+    "@types/vscode": "^1.85.0",
+    "@vscode/test-electron": "^2.3.8",
+    "tsup": "^8.0.0",
+    "typescript": "^5.0.0"
+  },
+  "dependencies": {}
+}

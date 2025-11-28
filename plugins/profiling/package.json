@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/profiling",
-  "version": "0.3.0",
+  "version": "0.4.0",
   "description": "Performance profiling plugin for OrionECS with real-time metrics and visualization",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

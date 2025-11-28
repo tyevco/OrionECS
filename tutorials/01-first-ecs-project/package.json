@@ -12,7 +12,12 @@
     "format": "echo \"Tutorial code - formatting skipped\" && exit 0",
     "format:check": "echo \"Tutorial code - format check skipped\" && exit 0"
   },
-  "keywords": ["orionecs", "ecs", "tutorial", "beginner"],
+  "keywords": [
+    "orionecs",
+    "ecs",
+    "tutorial",
+    "beginner"
+  ],
   "author": "",
   "license": "MIT",
   "dependencies": {

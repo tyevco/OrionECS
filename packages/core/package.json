@@ -15,9 +15,7 @@
   "scripts": {
     "build": "tsup",
     "test": "jest",
-    "lint": "npm run lint:oxlint && npm run lint:biome",
-    "lint:oxlint": "oxlint src",
-    "lint:biome": "biome lint src",
+    "lint": "oxlint src",
     "format": "biome format --write .",
     "format:check": "biome format .",
     "typecheck": "tsc --noEmit",

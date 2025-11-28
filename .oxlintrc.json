@@ -5,8 +5,12 @@
     "suspicious": "warn",
     "perf": "warn",
     "typescript/no-explicit-any": "warn",
+    "typescript/no-non-null-assertion": "warn",
     "no-unused-vars": "error",
-    "import/no-duplicates": "error"
+    "no-param-reassign": "warn",
+    "eqeqeq": "warn",
+    "import/no-duplicates": "error",
+    "import/no-unused-modules": "error"
   },
   "categories": {
     "correctness": "error",

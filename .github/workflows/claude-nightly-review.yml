@@ -209,6 +209,13 @@ jobs:
                  - Code snippet if helpful
                - Metrics summary (files reviewed, issues found by category)
 
+            **IMPORTANT - How to Create the Issue:**
+            To avoid shell escaping issues with backticks and code blocks:
+            1. Use the `Write` tool to create a file (e.g., `review-report.md`) with the full markdown report
+            2. Use `gh issue create --title "🔍 [Type] Code Review - [DATE]" --label "code-review,automated" --body-file review-report.md`
+            3. DO NOT try to embed markdown with code blocks directly in the command
+            4. Always use `--body-file` for the report content
+
             ## Guidelines
 
             - **CRITICAL**: Prioritize type safety violations above all else - this is a type-safe framework
@@ -229,7 +236,7 @@ jobs:
             - `packages/*/src/` - Supporting packages
             - `examples/` - Example code (check for anti-patterns that users might copy)
 
-          claude_args: '--allowed-tools "Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh label create:*)"'
+          claude_args: '--allowed-tools "Write,Bash(gh issue create:*),Bash(gh issue list:*),Bash(gh label create:*)"'
 
       - name: Ensure labels exist
         if: steps.check-changes.outputs.has_changes == 'true' || github.event_name == 'workflow_dispatch'

@@ -59,6 +59,10 @@
         "title": "Orion: Show System Visualizer"
       },
       {
+        "command": "orion-ecs.showArchetypeVisualizer",
+        "title": "Orion: Show Archetype Visualizer"
+      },
+      {
         "command": "orion-ecs.openDocumentation",
         "title": "Orion: Open Documentation"
       },
@@ -66,6 +70,15 @@
         "command": "orion-ecs.refreshEntityTree",
         "title": "Orion: Refresh Entity Tree",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "orion-ecs.refreshEntityHierarchy",
+        "title": "Orion: Refresh Entity Hierarchy",
+        "icon": "$(refresh)"
+      },
+      {
+        "command": "orion-ecs.selectEntityInHierarchy",
+        "title": "Orion: Select Entity in Hierarchy"
       },
       {
         "command": "orion-ecs.findComponentReferences",
@@ -113,7 +126,11 @@
       "orion-ecs-explorer": [
         {
           "id": "orion-ecs.entitiesView",
-          "name": "Entities"
+          "name": "Entities (Prefabs)"
+        },
+        {
+          "id": "orion-ecs.entityHierarchyView",
+          "name": "Entity Hierarchy (Runtime)"
         },
         {
           "id": "orion-ecs.componentsView",
@@ -130,6 +147,11 @@
         {
           "command": "orion-ecs.refreshEntityTree",
           "when": "view == orion-ecs.entitiesView",
+          "group": "navigation"
+        },
+        {
+          "command": "orion-ecs.refreshEntityHierarchy",
+          "when": "view == orion-ecs.entityHierarchyView",
           "group": "navigation"
         }
       ],

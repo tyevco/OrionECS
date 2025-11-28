@@ -18,6 +18,18 @@ export interface ComponentSnapshot {
     isTag: boolean;
 }
 
+// Archetype data structures
+export interface ArchetypeSnapshot {
+    id: string;
+    componentTypes: string[];
+    entityCount: number;
+    entityIds: string[];
+    memoryUsageBytes: number;
+    cacheHitRate: number;
+    lastAccessTime: number;
+    createdAt: number;
+}
+
 // System data structures
 export interface SystemSnapshot {
     name: string;
@@ -51,6 +63,7 @@ export type ExtensionMessage =
     | { type: 'requestEntityDetails'; entityId: string }
     | { type: 'requestSystemList' }
     | { type: 'requestPerformanceMetrics' }
+    | { type: 'requestArchetypes' }
     | { type: 'toggleSystem'; systemName: string; enabled: boolean }
     | {
           type: 'modifyComponent';
@@ -68,6 +81,7 @@ export type RuntimeMessage =
     | { type: 'entityDetails'; entity: EntitySnapshot | null }
     | { type: 'systemList'; systems: SystemSnapshot[] }
     | { type: 'performanceMetrics'; metrics: PerformanceMetrics }
+    | { type: 'archetypeList'; archetypes: ArchetypeSnapshot[] }
     | { type: 'systemToggled'; systemName: string; enabled: boolean }
     | { type: 'componentModified'; entityId: string; componentName: string; success: boolean }
     | { type: 'entityCreated'; entity: EntitySnapshot }
@@ -105,6 +119,10 @@ export type WebviewMessage =
     | { type: 'toggleSystem'; systemName: string; enabled: boolean }
     | { type: 'refreshSystems' }
     | { type: 'sortSystems'; by: 'priority' | 'name' | 'executionTime' }
+    // Archetype Visualizer messages
+    | { type: 'refreshArchetypes' }
+    | { type: 'selectArchetype'; archetypeId: string }
+    | { type: 'sortArchetypes'; by: 'entityCount' | 'memory' | 'components' }
     // Connection messages
     | { type: 'connect'; port?: number }
     | { type: 'disconnect' }
@@ -119,5 +137,7 @@ export type ExtensionToWebviewMessage =
     | { type: 'entitySelected'; entity: EntitySnapshot | null }
     | { type: 'systemsUpdated'; systems: SystemSnapshot[] }
     | { type: 'performanceUpdated'; metrics: PerformanceMetrics }
+    | { type: 'archetypesUpdated'; archetypes: ArchetypeSnapshot[] }
+    | { type: 'archetypeSelected'; archetype: ArchetypeSnapshot | null }
     | { type: 'error'; message: string }
     | { type: 'demoModeActive'; active: boolean };

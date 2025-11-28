@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import type {
+    ArchetypeSnapshot,
     ConnectionStatus,
     EntitySnapshot,
     ExtensionMessage,
@@ -20,6 +21,7 @@ export class DebugBridge {
     private demoInterval: ReturnType<typeof setInterval> | null = null;
     private demoEntities: EntitySnapshot[] = [];
     private demoSystems: SystemSnapshot[] = [];
+    private demoArchetypes: ArchetypeSnapshot[] = [];
     private outputChannel: vscode.OutputChannel;
 
     readonly onStatusChange = this._onStatusChange.event;
@@ -148,6 +150,13 @@ export class DebugBridge {
         return [...this.demoSystems];
     }
 
+    /**
+     * Get current archetypes (for demo mode)
+     */
+    getArchetypes(): ArchetypeSnapshot[] {
+        return [...this.demoArchetypes];
+    }
+
     private handleDemoMessage(message: ExtensionMessage): void {
         switch (message.type) {
             case 'requestSnapshot':
@@ -177,6 +186,13 @@ export class DebugBridge {
                 this._onMessage.fire({
                     type: 'performanceMetrics',
                     metrics: this.generateDemoMetrics(),
+                });
+                break;
+
+            case 'requestArchetypes':
+                this._onMessage.fire({
+                    type: 'archetypeList',
+                    archetypes: this.demoArchetypes,
                 });
                 break;
 
@@ -492,6 +508,71 @@ export class DebugBridge {
                 lastExecutionTime: 0,
                 averageExecutionTime: 0.95,
                 totalExecutions: 0,
+            },
+        ];
+
+        // Create demo archetypes based on component combinations
+        const now = Date.now();
+        this.demoArchetypes = [
+            {
+                id: 'archetype-1',
+                componentTypes: ['Position', 'Velocity', 'Health', 'Sprite'],
+                entityCount: 1,
+                entityIds: ['entity-1'],
+                memoryUsageBytes: 2048,
+                cacheHitRate: 0.95,
+                lastAccessTime: now,
+                createdAt: now - 60000,
+            },
+            {
+                id: 'archetype-2',
+                componentTypes: ['Position', 'Weapon'],
+                entityCount: 1,
+                entityIds: ['entity-2'],
+                memoryUsageBytes: 512,
+                cacheHitRate: 0.88,
+                lastAccessTime: now - 1000,
+                createdAt: now - 55000,
+            },
+            {
+                id: 'archetype-3',
+                componentTypes: ['Position', 'Shield'],
+                entityCount: 1,
+                entityIds: ['entity-3'],
+                memoryUsageBytes: 512,
+                cacheHitRate: 0.92,
+                lastAccessTime: now - 500,
+                createdAt: now - 55000,
+            },
+            {
+                id: 'archetype-4',
+                componentTypes: ['Position', 'Velocity', 'Health', 'AI'],
+                entityCount: 2,
+                entityIds: ['entity-4', 'entity-5'],
+                memoryUsageBytes: 3072,
+                cacheHitRate: 0.97,
+                lastAccessTime: now,
+                createdAt: now - 50000,
+            },
+            {
+                id: 'archetype-5',
+                componentTypes: ['Position', 'Collider', 'Value'],
+                entityCount: 1,
+                entityIds: ['entity-6'],
+                memoryUsageBytes: 384,
+                cacheHitRate: 0.75,
+                lastAccessTime: now - 5000,
+                createdAt: now - 45000,
+            },
+            {
+                id: 'archetype-6',
+                componentTypes: ['Position', 'Collider'],
+                entityCount: 1,
+                entityIds: ['entity-7'],
+                memoryUsageBytes: 256,
+                cacheHitRate: 0.99,
+                lastAccessTime: now,
+                createdAt: now - 60000,
             },
         ];
     }

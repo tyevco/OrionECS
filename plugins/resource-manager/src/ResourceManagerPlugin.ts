@@ -54,7 +54,7 @@ export class TextureResource implements Resource {
 
         console.log(`[TextureResource] Loading texture: ${this.key}`);
         // Simulate async loading
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
         this._data = { width: 256, height: 256, url: this.key };
         this._loaded = true;
     }
@@ -91,7 +91,7 @@ export class AudioResource implements Resource {
         if (this._loaded) return;
 
         console.log(`[AudioResource] Loading audio: ${this.key}`);
-        await new Promise(resolve => setTimeout(resolve, 10));
+        await new Promise((resolve) => setTimeout(resolve, 10));
         this._buffer = { duration: 3.5, url: this.key };
         this._loaded = true;
     }
@@ -130,7 +130,11 @@ export interface IResourceManagerAPI {
     /** Release a resource (decrement reference count) */
     release<T extends Resource>(resource: T): Promise<void>;
     /** Preload resources without incrementing reference count */
-    preload<T extends Resource>(resourceType: ResourceType<T>, keys: string[], ...args: any[]): Promise<void>;
+    preload<T extends Resource>(
+        resourceType: ResourceType<T>,
+        keys: string[],
+        ...args: any[]
+    ): Promise<void>;
     /** Get resource usage statistics */
     getStats(): {
         totalTypes: number;
@@ -160,6 +164,8 @@ export interface IResourceManagerAPI {
 export class ResourceManagerAPI implements IResourceManagerAPI {
     private resources = new Map<string, Map<string, ResourceEntry<any>>>();
     private registeredTypes = new Map<string, ResourceType<any>>();
+    /** Track in-progress loads to prevent race conditions */
+    private loadingPromises = new Map<string, Promise<void>>();
 
     /**
      * Register a resource type
@@ -192,22 +198,43 @@ export class ResourceManagerAPI implements IResourceManagerAPI {
         }
 
         const typeMap = this.resources.get(typeName)!;
+        const loadingKey = `${typeName}/${key}`;
+
+        // Check if resource is already loaded
         let entry = typeMap.get(key);
 
         if (!entry) {
-            // Create new resource
-            const resource = new resourceType(key, ...args);
-            entry = {
-                resource,
-                refCount: 0,
-                loadedAt: Date.now(),
-                lastAccessed: Date.now(),
-            };
-            typeMap.set(key, entry);
+            // Check if load is already in progress (prevents race condition)
+            const existingLoad = this.loadingPromises.get(loadingKey);
+            if (existingLoad) {
+                // Wait for existing load to complete
+                await existingLoad;
+                const loadedEntry = typeMap.get(key);
+                if (!loadedEntry) {
+                    throw new Error(`Resource failed to load: ${typeName}/${key}`);
+                }
+                entry = loadedEntry;
+            } else {
+                // Create new resource and track the loading promise
+                const resource = new resourceType(key, ...args);
+                entry = {
+                    resource,
+                    refCount: 0,
+                    loadedAt: Date.now(),
+                    lastAccessed: Date.now(),
+                };
+                typeMap.set(key, entry);
 
-            // Load the resource
-            await resource.load();
-            console.log(`[ResourceManager] Loaded new resource: ${typeName}/${key}`);
+                // Load the resource and track the promise
+                const loadResult = resource.load();
+                const loadPromise = Promise.resolve(loadResult).finally(() => {
+                    this.loadingPromises.delete(loadingKey);
+                });
+                this.loadingPromises.set(loadingKey, loadPromise);
+
+                await loadPromise;
+                console.log(`[ResourceManager] Loaded new resource: ${typeName}/${key}`);
+            }
         }
 
         // Increment reference count
@@ -234,7 +261,9 @@ export class ResourceManagerAPI implements IResourceManagerAPI {
         entry.refCount++;
         entry.lastAccessed = Date.now();
 
-        console.log(`[ResourceManager] Get resource (sync): ${typeName}/${key} (refs: ${entry.refCount})`);
+        console.log(
+            `[ResourceManager] Get resource (sync): ${typeName}/${key} (refs: ${entry.refCount})`
+        );
 
         return entry.resource as T;
     }
@@ -250,7 +279,9 @@ export class ResourceManagerAPI implements IResourceManagerAPI {
             if (entry && entry.resource === resource) {
                 entry.refCount = Math.max(0, entry.refCount - 1);
 
-                console.log(`[ResourceManager] Release resource: ${typeName}/${resource.key} (refs: ${entry.refCount})`);
+                console.log(
+                    `[ResourceManager] Release resource: ${typeName}/${resource.key} (refs: ${entry.refCount})`
+                );
 
                 // Unload if no more references
                 if (entry.refCount === 0) {
@@ -280,7 +311,9 @@ export class ResourceManagerAPI implements IResourceManagerAPI {
         });
 
         await Promise.all(promises);
-        console.log(`[ResourceManager] Preloaded ${keys.length} resources of type ${resourceType.resourceTypeName}`);
+        console.log(
+            `[ResourceManager] Preloaded ${keys.length} resources of type ${resourceType.resourceTypeName}`
+        );
     }
 
     /**
@@ -345,7 +378,7 @@ export class ResourceManagerAPI implements IResourceManagerAPI {
 
         if (stats.byType.length > 0) {
             console.log('  By Type:');
-            stats.byType.forEach(typeStats => {
+            stats.byType.forEach((typeStats) => {
                 console.log(`    ${typeStats.type}:`);
                 console.log(`      Count: ${typeStats.count}`);
                 console.log(`      Total References: ${typeStats.totalRefs}`);
@@ -390,7 +423,9 @@ export class ResourceManagerAPI implements IResourceManagerAPI {
                 }
             }
 
-            toDelete.forEach(key => typeMap.delete(key));
+            for (const key of toDelete) {
+                typeMap.delete(key);
+            }
         }
 
         console.log(`[ResourceManager] Cleaned up ${cleaned} unused resources`);

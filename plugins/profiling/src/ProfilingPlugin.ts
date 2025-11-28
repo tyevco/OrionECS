@@ -181,10 +181,7 @@ export class ProfilerAPI implements IProfilerAPI {
         };
 
         // Calculate total frame duration
-        frameProfile.duration = frameProfile.systems.reduce(
-            (sum, sys) => sum + sys.duration,
-            0
-        );
+        frameProfile.duration = frameProfile.systems.reduce((sum, sys) => sum + sys.duration, 0);
 
         this.currentSession.frames.push(frameProfile);
 
@@ -211,14 +208,14 @@ export class ProfilerAPI implements IProfilerAPI {
         }
 
         const traceEvents: any[] = [];
-        let pid = 1;
-        let tid = 1;
+        const pid = 1;
+        const tid = 1;
 
         // Convert frames to trace events
-        data.frames.forEach(frame => {
+        data.frames.forEach((frame) => {
             let timestamp = frame.timestamp * 1000; // Convert to microseconds
 
-            frame.systems.forEach(system => {
+            frame.systems.forEach((system) => {
                 traceEvents.push({
                     name: system.name,
                     cat: 'system',
@@ -268,21 +265,23 @@ export class ProfilerAPI implements IProfilerAPI {
         }> = [];
 
         if (this.memorySnapshots.length < 3) {
-            console.warn('[Profiler] Not enough memory snapshots for leak detection (need at least 3)');
+            console.warn(
+                '[Profiler] Not enough memory snapshots for leak detection (need at least 3)'
+            );
             return leaks;
         }
 
         // Analyze each component type
         const componentTypes = new Set<string>();
-        this.memorySnapshots.forEach(snapshot => {
+        this.memorySnapshots.forEach((snapshot) => {
             snapshot.components.forEach((count, type) => {
                 componentTypes.add(type);
             });
         });
 
-        componentTypes.forEach(type => {
+        componentTypes.forEach((type) => {
             const counts = this.memorySnapshots.map(
-                snapshot => snapshot.components.get(type) || 0
+                (snapshot) => snapshot.components.get(type) || 0
             );
 
             // Calculate trend
@@ -292,8 +291,9 @@ export class ProfilerAPI implements IProfilerAPI {
 
             const trend = isIncreasing ? 'increasing' : isDecreasing ? 'decreasing' : 'stable';
 
-            // Calculate severity
-            const growthRate = (recent[2] - recent[0]) / recent[0];
+            // Calculate severity (guard against division by zero)
+            const growthRate =
+                recent[0] === 0 ? (recent[2] > 0 ? 1 : 0) : (recent[2] - recent[0]) / recent[0];
             let severity: 'low' | 'medium' | 'high' = 'low';
 
             if (growthRate > 0.5) severity = 'high';
@@ -368,7 +368,7 @@ export class ProfilerAPI implements IProfilerAPI {
             averageFrameTime = totalTime / this.currentSession.frames.length;
         }
 
-        this.budgets.forEach(budget => {
+        this.budgets.forEach((budget) => {
             budgetViolations += budget.violations;
         });
 
@@ -400,8 +400,10 @@ export class ProfilerAPI implements IProfilerAPI {
 
         if (this.budgets.size > 0) {
             console.log('  Performance Budgets:');
-            this.budgets.forEach(budget => {
-                console.log(`    ${budget.system}: ${budget.maxTimeMs}ms (violations: ${budget.violations})`);
+            this.budgets.forEach((budget) => {
+                console.log(
+                    `    ${budget.system}: ${budget.maxTimeMs}ms (violations: ${budget.violations})`
+                );
             });
             console.log('');
         }
@@ -413,7 +415,7 @@ export class ProfilerAPI implements IProfilerAPI {
     // Private helper methods
 
     private checkBudgets(frame: FrameProfile): void {
-        frame.systems.forEach(system => {
+        frame.systems.forEach((system) => {
             const budget = this.budgets.get(system.name);
             if (budget && system.duration > budget.maxTimeMs) {
                 budget.violations++;

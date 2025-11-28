@@ -128,6 +128,46 @@ engine.createSystem('SpawnSystem', { all: [SpawnRequest] }, {
 - `systemPattern`: Regex to identify system contexts (default includes `System`, `act`, etc.)
 - `entityMethods`: Methods to check for (default: `addComponent`, `removeComponent`, etc.)
 
+### `ecs/component-validator`
+
+Catches issues in `registerComponentValidator` configuration.
+
+**Why?** Component validation with dependencies and conflicts can have subtle bugs that cause runtime failures. This rule catches them at lint time.
+
+```typescript
+// Bad - self-dependency (component cannot depend on itself)
+engine.registerComponentValidator(Health, {
+  dependencies: [Health]  // Error!
+});
+
+// Bad - dependency-conflict contradiction
+engine.registerComponentValidator(Health, {
+  dependencies: [Position],
+  conflicts: [Position]  // Error! Can't require AND forbid the same component
+});
+
+// Bad - circular dependency
+engine.registerComponentValidator(A, { dependencies: [B] });
+engine.registerComponentValidator(B, { dependencies: [A] });  // Error!
+
+// Good - valid configuration
+engine.registerComponentValidator(Health, {
+  validate: (c) => c.current >= 0 ? true : 'Health cannot be negative',
+  dependencies: [Position],
+  conflicts: [Ghost]
+});
+```
+
+**Issues Detected:**
+- Self-referencing dependencies (`dependencies: [Self]`)
+- Self-referencing conflicts (`conflicts: [Self]`)
+- Dependency-conflict contradiction (same component in both arrays)
+- Duplicate entries in dependencies or conflicts
+- Circular dependencies across multiple validators (A → B → A)
+
+**Options:**
+- `checkCircularDependencies`: If true (default), detect circular dependencies across validators
+
 ## Configuration
 
 ### Recommended Config
@@ -144,6 +184,7 @@ export default [
       'ecs/no-component-logic': 'warn',
       'ecs/prefer-composition': 'warn',
       'ecs/no-entity-mutation-outside-system': 'off',
+      'ecs/component-validator': 'error',
     },
   },
 ];
@@ -158,6 +199,7 @@ rules: {
   'ecs/no-component-logic': 'error',
   'ecs/prefer-composition': 'error',
   'ecs/no-entity-mutation-outside-system': 'warn',
+  'ecs/component-validator': 'error',
 }
 ```
 

@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/network",
-  "version": "0.1.0",
+  "version": "0.3.0",
   "description": "Transport-agnostic multiplayer networking plugin for OrionECS with client-side prediction, server reconciliation, and entity interpolation",
   "main": "dist/index.js",
   "module": "dist/index.mjs",
@@ -49,7 +49,7 @@
   "author": "",
   "license": "MIT",
   "peerDependencies": {
-    "@orion-ecs/core": ">=2.0.0"
+    "@orion-ecs/core": "*"
   },
   "devDependencies": {
     "@orion-ecs/core": "*",

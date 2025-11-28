@@ -1,14 +1,16 @@
 ---
 "@orion-ecs/core": minor
 "@orion-ecs/plugin-api": minor
-"@orion-ecs/physics": patch
-"@orion-ecs/debug-visualizer": patch
-"@orion-ecs/profiling": patch
-"@orion-ecs/resource-manager": patch
-"@orion-ecs/spatial-partition": patch
-"@orion-ecs/input-manager": patch
-"@orion-ecs/interaction-system": patch
-"@orion-ecs/canvas2d-renderer": patch
+"@orion-ecs/physics": minor
+"@orion-ecs/debug-visualizer": minor
+"@orion-ecs/profiling": minor
+"@orion-ecs/resource-manager": minor
+"@orion-ecs/spatial-partition": minor
+"@orion-ecs/input-manager": minor
+"@orion-ecs/interaction-system": minor
+"@orion-ecs/canvas2d-renderer": minor
+"@orion-ecs/testing": minor
+"@orion-ecs/timeline": minor
 ---
 
 Add type safety to plugins and conditional profiling support

@@ -7,5 +7,8 @@
   "access": "public",
   "baseBranch": "main",
   "updateInternalDependencies": "patch",
-  "ignore": ["@orionecs/examples", "orionecs-tutorial-*", "orion-ecs-vscode"]
+  "ignore": ["@orionecs/examples", "orionecs-tutorial-*", "orion-ecs-vscode"],
+  "___experimentalUnsafeOptions_WILL_CHANGE_IN_PATCH": {
+    "onlyUpdatePeerDependentsWhenOutOfRange": true
+  }
 }

@@ -16,20 +16,20 @@ Orion ECS is a comprehensive Entity Component System (ECS) framework written in 
 ### Composition-Based Architecture (v2.0)
 
 The implementation uses focused managers for separation of concerns:
-- **EngineBuilder** (`core/src/engine.ts`): Fluent builder for composing an Engine from managers
-- **Engine** (`core/src/engine.ts`): Main facade providing a clean API over specialized managers
-- **Core Components** (`core/src/core.ts`): Entity, Query, System, EventEmitter, PerformanceMonitor, EntityManager
-- **Managers** (`core/src/managers.ts`): ComponentManager, SystemManager, QueryManager, PrefabManager, SnapshotManager, MessageManager
+- **EngineBuilder** (`packages/core/src/engine.ts`): Fluent builder for composing an Engine from managers
+- **Engine** (`packages/core/src/engine.ts`): Main facade providing a clean API over specialized managers
+- **Core Components** (`packages/core/src/core.ts`): Entity, Query, System, EventEmitter, PerformanceMonitor, EntityManager
+- **Managers** (`packages/core/src/managers.ts`): ComponentManager, SystemManager, QueryManager, PrefabManager, SnapshotManager, MessageManager
 
 ## Core Architecture
 
 ### Main Files
 
-**core/src/engine.ts** - Engine facade and builder
+**packages/core/src/engine.ts** - Engine facade and builder
 - `EngineBuilder`: Fluent API for configuring and building an Engine instance
 - `Engine`: Main class providing a clean API over the manager-based architecture
 
-**core/src/core.ts** - Core ECS components
+**packages/core/src/core.ts** - Core ECS components
 - `Entity`: Full-featured entities with hierarchy, tags, and serialization
 - `System`: Advanced systems with profiling, priority, and lifecycle hooks
 - `Query`: Advanced query system with ALL/ANY/NOT and tag support
@@ -39,13 +39,18 @@ The implementation uses focused managers for separation of concerns:
 - `PerformanceMonitor`: Frame time tracking and statistics
 - `EntityManager`: Entity lifecycle and pooling management
 
-**core/src/managers.ts** - Specialized manager classes
+**packages/core/src/managers.ts** - Specialized manager classes
 - `ComponentManager`: Component registration, validation, and storage
 - `SystemManager`: System execution, profiling, and fixed/variable update handling
 - `QueryManager`: Query creation and entity matching
 - `PrefabManager`: Entity template registration and retrieval
 - `SnapshotManager`: World state snapshot creation and restoration
 - `MessageManager`: Inter-system messaging and communication
+
+**packages/core/src/commands.ts** - Deferred entity operations
+- `CommandBuffer`: Safe entity operations during system execution
+- `SpawnEntityBuilder`: Fluent API for deferred entity creation
+- `EntityCommandBuilder`: Fluent API for deferred entity modifications
 
 ### Complete Feature Set
 
@@ -144,7 +149,7 @@ This rule exists because bypassing validation:
 
 ### Testing Details
 - Tests use Jest with ts-jest preset
-- Main engine tests: `core/src/engine.spec.ts`
+- Main engine tests: `packages/core/src/engine.spec.ts`
 - Benchmarks: `**/*.bench.ts` files in `/benchmarks/` directory
 - Benchmark config uses specialized jest-bench environment for performance testing
 
@@ -243,32 +248,44 @@ The repository uses a monorepo structure with npm workspaces:
   - `benchmarks/` - Performance benchmarks
   - `examples/` - Example games and integrations
 
-- `core/` - Core OrionECS engine package
-  - `package.json` - Core package configuration
-  - `tsconfig.json` - Core TypeScript configuration
-  - `tsup.config.ts` - Core build configuration
-  - `jest.config.js` - Core test configuration
-  - `src/` - Core implementation
-    - `engine.ts` - Engine facade and EngineBuilder
-    - `core.ts` - Core ECS components (Entity, Query, System, etc.)
-    - `managers.ts` - Specialized manager classes
-    - `archetype.ts` - Archetype and ArchetypeManager for performance optimization
-    - `definitions.ts` - TypeScript interfaces and type definitions
-    - `index.ts` - Public API exports
-    - `engine.spec.ts` - Comprehensive test suite
-    - `archetype.spec.ts` - Archetype system tests
+- `packages/` - Core packages (npm workspaces)
+  - `core/` - Main OrionECS engine package (`@orion-ecs/core`)
+    - `src/engine.ts` - Engine facade and EngineBuilder
+    - `src/core.ts` - Core ECS components (Entity, Query, System, etc.)
+    - `src/managers.ts` - Specialized manager classes
+    - `src/archetype.ts` - Archetype and ArchetypeManager for performance optimization
+    - `src/commands.ts` - Command buffer for deferred entity operations
+    - `src/definitions.ts` - TypeScript interfaces and type definitions
+    - `src/logger.ts` - Secure logging utilities
+    - `src/index.ts` - Public API exports
+  - `graphics/` - Graphics utilities package (`@orion-ecs/graphics`)
+  - `math/` - Math utilities package (`@orion-ecs/math`)
+  - `plugin-api/` - Plugin API types for plugin authors (`@orion-ecs/plugin-api`)
+  - `testing/` - Testing utilities package (`@orion-ecs/testing`)
 
-- `plugins/` - Official OrionECS plugins (each can be a separate package)
-  - `physics/src/PhysicsPlugin.ts` - Rigid body dynamics
-  - `spatial-partition/src/SpatialPartitionPlugin.ts` - Collision detection
-  - `debug-visualizer/src/DebugVisualizerPlugin.ts` - Debug tools
-  - `profiling/src/ProfilingPlugin.ts` - Performance metrics
-  - `resource-manager/src/ResourceManagerPlugin.ts` - Asset management
-  - Each plugin directory ready for its own `package.json`
+- `plugins/` - Official OrionECS plugins (each is a separate package)
+  - `canvas2d-renderer/` - Canvas 2D rendering integration
+  - `debug-visualizer/` - Debug visualization tools
+  - `decision-tree/` - Decision tree AI system
+  - `input-manager/` - Input handling and key bindings
+  - `interaction-system/` - Entity interaction and collision handling
+  - `network/` - Networking and multiplayer support
+  - `physics/` - Rigid body dynamics
+  - `profiling/` - Performance metrics
+  - `resource-manager/` - Asset management
+  - `spatial-partition/` - Spatial partitioning for collision detection
+  - `state-machine/` - Finite state machine implementation
+  - `timeline/` - Animation timeline system
 
 - `examples/` - Sample applications
   - `games/` - Complete game examples (Asteroids, Platformer)
   - `integrations/` - Framework integrations (Pixi.js)
+  - `console-examples/` - Console-based examples
+
+- `docs/` - Documentation
+  - `tutorials/` - Step-by-step tutorials
+  - `migrations/` - Migration guides from other ECS frameworks
+  - `COOKBOOK.md` - Recipes and patterns
 
 ## Code Patterns
 
@@ -284,7 +301,7 @@ class Health {
 }
 
 // Tag components for categorization (from utils.ts)
-import { createTagComponent } from 'orion-ecs';
+import { createTagComponent } from '@orion-ecs/core';
 const PlayerTag = createTagComponent('Player');
 ```
 
@@ -504,6 +521,181 @@ engine.createSnapshot(); // Saves singleton state
 engine.restoreSnapshot(); // Restores singleton state
 ```
 
+### Command Buffer (Deferred Operations)
+
+The Command Buffer provides a safe way to perform entity operations during system execution without causing iterator invalidation or archetype transition issues.
+
+```typescript
+// Spawn entities safely during system iteration
+engine.createSystem('BulletSpawner', { all: [Weapon, Position] }, {
+  act: (entity, weapon, position) => {
+    if (weapon.shouldFire) {
+      // Deferred spawn - executes after all systems complete
+      engine.commands.spawn()
+        .named('Bullet')
+        .with(Position, position.x, position.y)
+        .with(Velocity, weapon.direction.x * 500, weapon.direction.y * 500)
+        .with(Damage, weapon.damage);
+    }
+  }
+});
+
+// Despawn entities safely during iteration
+engine.createSystem('DamageSystem', { all: [Health] }, {
+  act: (entity, health) => {
+    if (health.current <= 0) {
+      engine.commands.despawn(entity);  // Deferred deletion
+    }
+  }
+});
+
+// Modify entities safely during iteration
+engine.createSystem('PowerUpSystem', { all: [PowerUp] }, {
+  act: (entity, powerUp) => {
+    const player = engine.getEntityByName('Player');
+    if (player) {
+      engine.commands.entity(player)
+        .add(SpeedBoost, powerUp.amount)
+        .remove(Debuff);
+    }
+  }
+});
+
+// Manual command execution (when auto-execute is disabled)
+engine.setAutoExecuteCommands(false);
+engine.update(deltaTime);
+const result = engine.executeCommands();
+console.log(`Executed ${result.commandsExecuted} commands`);
+```
+
+### Transaction Management
+
+Transactions batch multiple structural changes and defer query updates for improved performance:
+
+```typescript
+// Begin a transaction
+engine.beginTransaction();
+
+// Batch multiple operations - queries won't update yet
+for (let i = 0; i < 1000; i++) {
+  const entity = engine.createEntity();
+  entity.addComponent(Position, i, i);
+  entity.addComponent(Velocity, 1, 1);
+}
+
+// Commit - all query updates happen once
+engine.commitTransaction();
+
+// Or rollback to discard pending query updates
+// engine.rollbackTransaction();
+
+// Check transaction status
+if (engine.isInTransaction()) {
+  console.log('Transaction in progress');
+}
+```
+
+### System Management
+
+Advanced system control including retrieval and removal:
+
+```typescript
+// Get a system by name
+const movementSystem = engine.getSystem('Movement');
+if (movementSystem) {
+  movementSystem.enabled = false;  // Disable at runtime
+}
+
+// Get all systems
+const allSystems = engine.getAllSystems();
+console.log(`${allSystems.length} systems registered`);
+
+// Remove a system (cleans up event listeners)
+const removed = engine.removeSystem('DebugOverlay');
+
+// Remove all systems (useful for engine reset)
+engine.removeAllSystems();
+```
+
+### Fluent Query Builder
+
+Create queries with a chainable API:
+
+```typescript
+// Fluent query building
+const query = engine.query()
+  .withAll(Position, Velocity)
+  .withNone(Frozen)
+  .withTags('active', 'player')
+  .withoutTags('disabled')
+  .build();
+
+// Iterate results
+for (const entity of query) {
+  const pos = entity.getComponent(Position);
+  console.log(`Entity at ${pos.x}, ${pos.y}`);
+}
+
+// Get query statistics
+const stats = engine.getQueryStats(query);
+console.log(`Cache hit rate: ${stats.cacheHitRate}%`);
+```
+
+### Engine Logger
+
+Secure, structured logging with automatic sanitization to prevent log injection attacks:
+
+```typescript
+// Get the engine logger
+const logger = engine.logger;
+
+// Create a tagged logger for your system
+const systemLogger = logger.withTag('PhysicsSystem');
+
+// Log at different levels
+systemLogger.debug('Processing entity:', entity.name);
+systemLogger.info('System initialized');
+systemLogger.warn('Performance warning:', { fps: currentFps });
+systemLogger.error('Failed to process:', error);
+
+// Logs are automatically sanitized - ANSI escape sequences and
+// control characters are removed to prevent log injection
+```
+
+### Engine Lifecycle
+
+Proper engine initialization and cleanup:
+
+```typescript
+// Create and start engine
+const engine = new EngineBuilder()
+  .withDebugMode(true)
+  .build();
+
+engine.start();  // Emits 'onStart' event
+
+// Main game loop
+function gameLoop(deltaTime: number) {
+  engine.update(deltaTime);  // Runs systems, executes commands, cleans up entities
+  requestAnimationFrame(gameLoop);
+}
+
+// Check engine state
+console.log(`Running: ${engine.isRunning}`);
+console.log(`Destroyed: ${engine.isDestroyed}`);
+
+// Stop engine (can be restarted)
+engine.stop();  // Emits 'onStop' event
+
+// Destroy engine (permanent cleanup)
+engine.destroy();  // Emits 'onDestroy' event
+// - Stops engine if running
+// - Removes all systems and their event listeners
+// - Clears all entities
+// - Disposes change tracking (clears debounce timers)
+// - Unsubscribes from all events
+```
+
 **Key Features:**
 - **Global State**: One instance per engine, not tied to entities
 - **Type-Safe**: Full TypeScript support with generics
@@ -646,10 +838,10 @@ See `benchmarks/archetype-benchmark.ts` for comprehensive performance comparison
 Orion ECS features a powerful plugin architecture for extending functionality without modifying core code.
 
 **Plugin Architecture Notes:**
-- Plugins implement the `EnginePlugin` interface (`core/src/definitions.ts`)
+- Plugins implement the `EnginePlugin` interface (from `@orion-ecs/plugin-api` or `@orion-ecs/core`)
 - Use `PluginContext` for sandboxed access to engine features
 - Register plugins via `EngineBuilder.use(plugin)` before building
-- Plugins installed during engine construction (see `core/src/engine.ts` EngineBuilder)
+- Plugins installed during engine construction (see `packages/core/src/engine.ts` EngineBuilder)
 - Custom APIs added via `context.extend()` become properties on engine instance
 
 **Implementation Pattern:**
@@ -720,14 +912,23 @@ const engine = new EngineBuilder()
 ## Getting Started
 
 To use Orion ECS in your project:
-1. Install with `npm install orion-ecs`
-2. Import the EngineBuilder class: `import { EngineBuilder } from 'orion-ecs'`
+1. Install with `npm install @orion-ecs/core`
+2. Import the EngineBuilder class: `import { EngineBuilder } from '@orion-ecs/core'`
 3. Build your engine with desired configuration:
    ```typescript
    const engine = new EngineBuilder()
-     .withDebugMode(true)
-     .withFixedUpdateFPS(60)
-     .withMaxFixedIterations(10)
+     .withDebugMode(true)           // Enable verbose logging and error messages
+     .withFixedUpdateFPS(60)        // Fixed update rate (default: 60)
+     .withMaxFixedIterations(10)    // Prevent spiral of death (default: 10)
+     .withMaxSnapshots(10)          // Max world state snapshots (default: 10)
+     .withArchetypes(true)          // Enable archetype system (default: true)
+     .withProfiling(true)           // Enable system profiling (default: true)
+     .withChangeTracking({          // Configure change detection
+       enableProxyTracking: false,  // Auto-detect component changes via Proxy
+       debounceMs: 0,               // Debounce change events (0 = disabled)
+       batchMode: false             // Start in batch mode (events suspended)
+     })
+     .use(new MyPlugin())           // Register plugins
      .build();
    ```
 4. Create systems using the advanced query syntax

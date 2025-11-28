@@ -16,7 +16,7 @@ The State Machine Plugin provides a declarative approach to AI and behavior mana
 ## Installation
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { StateMachinePlugin } from '@orion-ecs/state-machine';
 
 const engine = new EngineBuilder()

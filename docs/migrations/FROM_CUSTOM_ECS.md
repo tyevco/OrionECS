@@ -31,7 +31,7 @@ This guide helps developers with custom ECS implementations or those familiar wi
 ### Creating the Engine
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 
 const engine = new EngineBuilder()
   .withDebugMode(true)        // Enable detailed logging
@@ -467,7 +467,7 @@ bulletPool.release(bullet);
 ### Complete Game Example
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 
 // 1. Define components
 class Position {

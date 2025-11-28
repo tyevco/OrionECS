@@ -16,7 +16,7 @@ The Physics Plugin provides 2D physics simulation features including:
 ## Installation
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { PhysicsPlugin } from '@orion-ecs/physics';
 
 const engine = new EngineBuilder()
@@ -29,7 +29,7 @@ const engine = new EngineBuilder()
 ### Basic Physics Object
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { PhysicsPlugin, RigidBody, Collider, Position } from '@orion-ecs/physics';
 
 // Create engine with plugin

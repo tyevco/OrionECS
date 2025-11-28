@@ -276,7 +276,7 @@ After running `npm run changeset:add`, a file will be created in `.changeset/`:
 
 ```markdown
 ---
-"orion-ecs": minor
+"@orion-ecs/core": minor
 "@orion-ecs/physics": patch
 ---
 
@@ -371,7 +371,7 @@ Orion ECS has a powerful plugin architecture. When developing plugins:
 ### Plugin Structure
 
 ```typescript
-import { EnginePlugin, PluginContext } from 'orion-ecs';
+import { EnginePlugin, PluginContext } from '@orion-ecs/core';
 
 export class MyPlugin implements EnginePlugin {
     name = 'MyPlugin';

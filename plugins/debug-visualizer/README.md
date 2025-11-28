@@ -22,7 +22,7 @@ The Debug Visualizer Plugin provides essential debugging tools including:
 ## Installation
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { DebugVisualizerPlugin } from '@orion-ecs/debug-visualizer';
 
 const engine = new EngineBuilder()
@@ -36,7 +36,7 @@ const engine = new EngineBuilder()
 ### Basic Debug Output
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { DebugVisualizerPlugin } from '@orion-ecs/debug-visualizer';
 
 // Create engine with plugin

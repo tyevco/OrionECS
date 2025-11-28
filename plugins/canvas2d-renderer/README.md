@@ -15,7 +15,7 @@ The Canvas2D Renderer Plugin provides comprehensive 2D rendering features includ
 ## Installation
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { Canvas2DRendererPlugin } from '@orion-ecs/canvas2d-renderer';
 
 const engine = new EngineBuilder()
@@ -28,7 +28,7 @@ const engine = new EngineBuilder()
 ### Basic Setup
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { Canvas2DRendererPlugin, Transform, Camera, Sprite, ScreenElement, Unit } from '@orion-ecs/canvas2d-renderer';
 import { Mesh, Color } from '@orion-ecs/graphics';
 

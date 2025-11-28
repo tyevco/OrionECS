@@ -23,7 +23,7 @@ The Profiling Plugin provides advanced performance analysis tools including:
 ## Installation
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { ProfilingPlugin } from '@orion-ecs/profiling';
 
 const engine = new EngineBuilder()
@@ -36,7 +36,7 @@ const engine = new EngineBuilder()
 ### Basic Performance Recording
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { ProfilingPlugin } from '@orion-ecs/profiling';
 
 // Create engine with plugin

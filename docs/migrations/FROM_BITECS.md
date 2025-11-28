@@ -66,7 +66,7 @@ const eid = addEntity(world);
 
 **OrionECS:**
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 
 const engine = new EngineBuilder().build();
 const entity = engine.createEntity('EntityName');
@@ -339,7 +339,7 @@ function gameLoop() {
 
 **OrionECS:**
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 
 const engine = new EngineBuilder().build();
 

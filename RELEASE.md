@@ -15,11 +15,12 @@ OrionECS uses [Changesets](https://github.com/changesets/changesets) to manage v
 
 The following packages can be published to npm:
 
-- **Core Package**: `orion-ecs` - The main ECS framework
+- **Core Package**: `@orion-ecs/core` - The main ECS framework
 - **Utility Packages**:
   - `@orion-ecs/math` - Mathematical utilities (Vector2, Bounds)
   - `@orion-ecs/graphics` - Graphics primitives (Color, Mesh, Vertex)
   - `@orion-ecs/testing` - Testing utilities for ECS systems
+  - `@orion-ecs/plugin-api` - Plugin API types for plugin authors
 - **Plugin Packages**:
   - `@orion-ecs/canvas2d-renderer` - Canvas2D rendering
   - `@orion-ecs/input-manager` - Input handling
@@ -49,12 +50,13 @@ For each package you want to publish, configure it as a trusted publisher on npm
    - **Workflow**: `release.yml`
    - **Environment**: (leave empty)
 
-**Important:** Configure this for all 12 packages:
-- `orion-ecs`
+**Important:** Configure this for all packages:
+- `@orion-ecs/core`
 - `@orion-ecs/math`
 - `@orion-ecs/graphics`
 - `@orion-ecs/testing`
-- All 8 plugin packages (`@orion-ecs/*`)
+- `@orion-ecs/plugin-api`
+- All plugin packages (`@orion-ecs/*`)
 
 ### How It Works
 
@@ -230,14 +232,15 @@ All packages have `publishConfig.access: "public"` in their `package.json` to en
 
 Plugins use peer dependencies to avoid version conflicts:
 
-- All plugins depend on `orion-ecs: "*"` as a peer dependency
-- Plugins that need utilities depend on `@orion-ecs/utils: "*"`
+- All plugins depend on `@orion-ecs/core: "*"` as a peer dependency
+- Plugins that need graphics depend on `@orion-ecs/graphics: "*"`
+- Plugins that need math depend on `@orion-ecs/math: "*"`
 - Some plugins depend on other plugins (e.g., `interaction-system` depends on `input-manager`)
 
 **Note:** Users need to install peer dependencies manually:
 
 ```bash
-npm install orion-ecs @orion-ecs/physics
+npm install @orion-ecs/core @orion-ecs/physics
 ```
 
 ## Workflow Files

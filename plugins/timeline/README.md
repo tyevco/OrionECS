@@ -16,7 +16,7 @@ The Timeline Plugin provides time-based orchestration of component changes. Time
 ## Installation
 
 ```typescript
-import { EngineBuilder } from 'orion-ecs';
+import { EngineBuilder } from '@orion-ecs/core';
 import { TimelinePlugin } from '@orion-ecs/timeline';
 
 const engine = new EngineBuilder()

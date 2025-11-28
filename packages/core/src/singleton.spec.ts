@@ -177,13 +177,13 @@ describe('Singleton Components', () => {
 
             const time = engine.setSingleton(GameTime, 10.5, 0.016);
 
+            // Subscribe after initial set so we only receive the dirty mark event
             engine.on('onSingletonSet', (event: any) => {
-                if (event.oldValue === event.newValue) {
-                    // This is the dirty mark event
-                    expect(event.componentType).toBe(GameTime);
-                    expect(event.newValue).toBe(time);
-                    done();
-                }
+                // Verify this is the dirty mark event (oldValue === newValue)
+                expect(event.oldValue).toBe(event.newValue);
+                expect(event.componentType).toBe(GameTime);
+                expect(event.newValue).toBe(time);
+                done();
             });
 
             // Modify and mark dirty

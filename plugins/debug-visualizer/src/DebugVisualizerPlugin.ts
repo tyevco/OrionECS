@@ -9,7 +9,39 @@
  * - Query performance analysis
  */
 
-import type { EnginePlugin, PluginContext, EntityDef, SystemProfile } from '@orion-ecs/plugin-api';
+import type { EnginePlugin, EntityDef, PluginContext, SystemProfile } from '@orion-ecs/plugin-api';
+
+// =============================================================================
+// Engine Reference Interface
+// =============================================================================
+
+/**
+ * Component type identifier.
+ */
+type ComponentClass = new (...args: unknown[]) => unknown;
+
+/**
+ * Minimal engine interface for DebugAPI.
+ * Defines the engine methods and properties required for debug visualization.
+ */
+interface EngineRef {
+    /** Map of entity IDs to entities */
+    entities?: Map<symbol, EntityDef>;
+    /** Map of system names to systems */
+    systems?: Map<string, unknown>;
+    /** Map of query IDs to queries */
+    queries?: Map<string, unknown>;
+    /** Get memory statistics from the engine */
+    getMemoryStats?(): {
+        totalEntities?: number;
+        activeEntities?: number;
+        componentArrays?: Record<string, number>;
+    };
+    /** Get system performance profiles */
+    getSystemProfiles?(): SystemProfile[];
+    /** Get registered component classes (optional, may not be available) */
+    getComponentRegistry?(): Map<string, ComponentClass>;
+}
 
 // =============================================================================
 // Debug API Interface
@@ -49,9 +81,9 @@ export interface IDebugAPI {
  * Debug API implementation class.
  */
 export class DebugAPI implements IDebugAPI {
-    private engine: any;
+    private engine: EngineRef;
 
-    constructor(engine: any) {
+    constructor(engine: EngineRef) {
         this.engine = engine;
     }
 
@@ -105,9 +137,9 @@ export class DebugAPI implements IDebugAPI {
         if (stats.length === 0) {
             output.push('(No components registered)');
         } else {
-            const maxNameLength = Math.max(...stats.map(s => s.name.length));
+            const maxNameLength = Math.max(...stats.map((s) => s.name.length));
 
-            stats.forEach(stat => {
+            stats.forEach((stat) => {
                 const name = stat.name.padEnd(maxNameLength);
                 const count = stat.count.toString().padStart(6);
                 const percentage = ((stat.count / stat.totalEntities) * 100).toFixed(1).padStart(5);
@@ -146,7 +178,7 @@ export class DebugAPI implements IDebugAPI {
                     entityCount: profile.entityCount,
                     callCount: profile.callCount,
                     averageTime: profile.averageTime,
-                }
+                },
             });
 
             timestamp += profile.executionTime;
@@ -165,8 +197,8 @@ export class DebugAPI implements IDebugAPI {
             displayTimeUnit: 'ms',
             systemTraceEvents: 'SystemTimeline',
             otherData: {
-                version: 'OrionECS Debug Trace'
-            }
+                version: 'OrionECS Debug Trace',
+            },
         };
 
         return JSON.stringify(trace, null, 2);
@@ -187,7 +219,7 @@ export class DebugAPI implements IDebugAPI {
 
         // Measure query execution time
         const startTime = performance.now();
-        query.entities; // Access entities to trigger query
+        void query.entities; // Access entities to trigger query evaluation
         const executionTime = performance.now() - startTime;
 
         output.push(`  Matching entities: ${matchCount}`);
@@ -196,13 +228,19 @@ export class DebugAPI implements IDebugAPI {
         // Analyze query options
         const options = query.options || {};
         if (options.all && options.all.length > 0) {
-            output.push(`  Required components (ALL): ${options.all.map((c: any) => c.name).join(', ')}`);
+            output.push(
+                `  Required components (ALL): ${options.all.map((c: any) => c.name).join(', ')}`
+            );
         }
         if (options.any && options.any.length > 0) {
-            output.push(`  Optional components (ANY): ${options.any.map((c: any) => c.name).join(', ')}`);
+            output.push(
+                `  Optional components (ANY): ${options.any.map((c: any) => c.name).join(', ')}`
+            );
         }
         if (options.none && options.none.length > 0) {
-            output.push(`  Excluded components (NONE): ${options.none.map((c: any) => c.name).join(', ')}`);
+            output.push(
+                `  Excluded components (NONE): ${options.none.map((c: any) => c.name).join(', ')}`
+            );
         }
         if (options.tags && options.tags.length > 0) {
             output.push(`  Required tags: ${options.tags.join(', ')}`);
@@ -214,7 +252,9 @@ export class DebugAPI implements IDebugAPI {
         if (matchCount === 0) {
             output.push('  ⚠ Query matches no entities - consider removing if unused');
         } else if (matchCount > 1000) {
-            output.push('  ⚠ Query matches many entities (>1000) - consider more specific constraints');
+            output.push(
+                '  ⚠ Query matches many entities (>1000) - consider more specific constraints'
+            );
         }
         if (executionTime > 1) {
             output.push('  ⚠ Query execution time is high - consider caching results');
@@ -293,25 +333,26 @@ export class DebugAPI implements IDebugAPI {
 
     private getEntityComponents(entity: EntityDef): string[] {
         const components: string[] = [];
-        const memoryStats = this.engine.getMemoryStats?.() || {};
-        const componentArrays = memoryStats.componentArrays || {};
 
-        for (const componentName in componentArrays) {
-            if (entity.hasComponent) {
-                // Try to check if entity has this component
-                // This is a simplified check - actual implementation may vary
+        // Try to use component registry if available
+        const registry = this.engine.getComponentRegistry?.();
+        if (registry) {
+            for (const [componentName, componentClass] of registry) {
                 try {
-                    const componentClass = (this.engine as any)[componentName];
-                    if (componentClass && entity.hasComponent(componentClass)) {
+                    if (entity.hasComponent(componentClass)) {
                         components.push(componentName);
                     }
-                } catch (e) {
+                } catch {
                     // Component check failed, skip
                 }
             }
+            return components;
         }
 
-        return components;
+        // Fallback: return component names from memory stats (less accurate)
+        const memoryStats = this.engine.getMemoryStats?.() || {};
+        const componentArrays = memoryStats.componentArrays || {};
+        return Object.keys(componentArrays);
     }
 
     private getComponentUsageStats(): Array<{

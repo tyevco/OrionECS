@@ -1,10 +1,15 @@
 import * as vscode from 'vscode';
 import { registerCommands } from './commands';
 import { ComponentCodeLensProvider } from './providers/ComponentCodeLensProvider';
+import { ComponentRenameProvider } from './providers/ComponentRenameProvider';
 import { ECSCompletionProvider } from './providers/ECSCompletionProvider';
 import { ECSDefinitionProvider } from './providers/ECSDefinitionProvider';
 import { ECSHoverProvider } from './providers/ECSHoverProvider';
 import { ECSReferenceProvider } from './providers/ECSReferenceProvider';
+import {
+    ExtractComponentCodeActionProvider,
+    registerExtractComponentCommand,
+} from './providers/ExtractComponentCodeActionProvider';
 import { ComponentsTreeProvider } from './views/ComponentsTreeProvider';
 import { EntitiesTreeProvider } from './views/EntitiesTreeProvider';
 import { SystemsTreeProvider } from './views/SystemsTreeProvider';
@@ -88,6 +93,36 @@ export function activate(context: vscode.ExtensionContext) {
             referenceProvider
         )
     );
+
+    // Register rename provider for component refactoring
+    const renameProvider = new ComponentRenameProvider();
+    context.subscriptions.push(
+        vscode.languages.registerRenameProvider(
+            [
+                { language: 'typescript', scheme: 'file' },
+                { language: 'javascript', scheme: 'file' },
+            ],
+            renameProvider
+        )
+    );
+
+    // Register code action provider for extract component refactoring
+    const extractProvider = new ExtractComponentCodeActionProvider();
+    context.subscriptions.push(
+        vscode.languages.registerCodeActionsProvider(
+            [
+                { language: 'typescript', scheme: 'file' },
+                { language: 'javascript', scheme: 'file' },
+            ],
+            extractProvider,
+            {
+                providedCodeActionKinds: ExtractComponentCodeActionProvider.providedCodeActionKinds,
+            }
+        )
+    );
+
+    // Register extract component command
+    registerExtractComponentCommand(context, outputChannel);
 
     // Register commands
     registerCommands(context, {

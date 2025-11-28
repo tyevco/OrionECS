@@ -82,6 +82,22 @@
       {
         "command": "orion-ecs.goToDefinition",
         "title": "Orion: Go to ECS Definition"
+      },
+      {
+        "command": "orion-ecs.renameComponent",
+        "title": "Orion: Rename Component"
+      },
+      {
+        "command": "orion-ecs.previewComponentReferences",
+        "title": "Orion: Preview Component References"
+      },
+      {
+        "command": "orion-ecs.moveComponentToFile",
+        "title": "Orion: Move Component to File"
+      },
+      {
+        "command": "orion-ecs.extractComponent",
+        "title": "Orion: Extract to Component"
       }
     ],
     "viewsContainers": {
@@ -127,9 +143,34 @@
           "command": "orion-ecs.createSystem",
           "group": "orion-ecs@2",
           "when": "editorLangId == typescript || editorLangId == javascript"
+        },
+        {
+          "submenu": "orion-ecs.refactor",
+          "group": "orion-ecs@3",
+          "when": "editorLangId == typescript || editorLangId == javascript"
+        }
+      ],
+      "orion-ecs.refactor": [
+        {
+          "command": "orion-ecs.renameComponent",
+          "group": "refactor@1"
+        },
+        {
+          "command": "orion-ecs.previewComponentReferences",
+          "group": "refactor@2"
+        },
+        {
+          "command": "orion-ecs.moveComponentToFile",
+          "group": "refactor@3"
         }
       ]
     },
+    "submenus": [
+      {
+        "id": "orion-ecs.refactor",
+        "label": "Orion: Refactor"
+      }
+    ],
     "snippets": [
       {
         "language": "typescript",

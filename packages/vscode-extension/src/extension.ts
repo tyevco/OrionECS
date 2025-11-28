@@ -69,6 +69,7 @@ export function activate(context: vscode.ExtensionContext) {
         systemsProvider,
         entitiesProvider,
         outputChannel,
+        extensionUri: context.extensionUri,
     });
 
     // Watch for configuration changes

@@ -3,7 +3,8 @@ import { noStaticState } from '../rules/no-static-state';
 
 const ruleTester = new RuleTester();
 
-ruleTester.run('no-static-state', noStaticState, {
+// Component tests
+ruleTester.run('no-static-state (components)', noStaticState, {
     valid: [
         // Simple data-only component without static state
         {
@@ -88,6 +89,16 @@ ruleTester.run('no-static-state', noStaticState, {
           constructor(public x: number = 0, public y: number = 0) {}
         }
       `,
+        },
+        // Component checking disabled
+        {
+            code: `
+        class Position {
+          static counter = 0;
+          constructor(public x: number = 0, public y: number = 0) {}
+        }
+      `,
+            options: [{ checkComponents: false }],
         },
     ],
     invalid: [
@@ -205,7 +216,283 @@ ruleTester.run('no-static-state', noStaticState, {
     ],
 });
 
-// Additional tests for usage-based detection
+// System tests
+ruleTester.run('no-static-state (systems)', noStaticState, {
+    valid: [
+        // System without static state
+        {
+            code: `
+        class MovementSystem {
+          update(deltaTime: number) {
+            // process entities
+          }
+        }
+      `,
+        },
+        // System with instance properties only
+        {
+            code: `
+        class PhysicsSystem {
+          private gravity = 9.8;
+          update(deltaTime: number) {
+            // apply physics
+          }
+        }
+      `,
+        },
+        // System with allowed static property
+        {
+            code: `
+        class RenderSystem {
+          static name = 'RenderSystem';
+          update(deltaTime: number) {}
+        }
+      `,
+        },
+        // System checking disabled
+        {
+            code: `
+        class MovementSystem {
+          static cache = new Map();
+          update(deltaTime: number) {}
+        }
+      `,
+            options: [{ checkSystems: false }],
+        },
+    ],
+    invalid: [
+        // System with static property
+        {
+            code: `
+        class MovementSystem {
+          static entityCount = 0;
+          update(deltaTime: number) {}
+        }
+      `,
+            errors: [{ messageId: 'noStaticPropertyInSystem' }],
+        },
+        // System with static cache
+        {
+            code: `
+        class CollisionSystem {
+          static collisionCache = new Map();
+          update(deltaTime: number) {}
+        }
+      `,
+            errors: [{ messageId: 'noStaticPropertyInSystem' }],
+        },
+        // System with static method
+        {
+            code: `
+        class RenderSystem {
+          static getInstance() {
+            return new RenderSystem();
+          }
+          update(deltaTime: number) {}
+        }
+      `,
+            errors: [{ messageId: 'noStaticMethodInSystem' }],
+        },
+        // System with multiple static members
+        {
+            code: `
+        class AISystem {
+          static instances: AISystem[] = [];
+          static counter = 0;
+          static reset() {
+            AISystem.instances = [];
+          }
+          update(deltaTime: number) {}
+        }
+      `,
+            errors: [
+                { messageId: 'noStaticPropertyInSystem' },
+                { messageId: 'noStaticPropertyInSystem' },
+                { messageId: 'noStaticMethodInSystem' },
+            ],
+        },
+        // System detected by custom pattern
+        {
+            code: `
+        class PlayerController {
+          static sharedState = {};
+          update(deltaTime: number) {}
+        }
+      `,
+            options: [{ systemPattern: 'Controller$' }],
+            errors: [{ messageId: 'noStaticPropertyInSystem' }],
+        },
+    ],
+});
+
+// Plugin tests
+ruleTester.run('no-static-state (plugins)', noStaticState, {
+    valid: [
+        // Plugin without static state
+        {
+            code: `
+        class PhysicsPlugin {
+          name = 'PhysicsPlugin';
+          version = '1.0.0';
+          install(context: any) {}
+        }
+      `,
+        },
+        // Plugin implementing EnginePlugin without static state
+        {
+            code: `
+        interface EnginePlugin {
+          name: string;
+          version: string;
+          install(context: any): void;
+        }
+        class NetworkPlugin implements EnginePlugin {
+          name = 'NetworkPlugin';
+          version = '1.0.0';
+          install(context: any) {}
+        }
+      `,
+        },
+        // Plugin with allowed static property
+        {
+            code: `
+        class DebugPlugin {
+          static name = 'DebugPlugin';
+          version = '1.0.0';
+          install(context: any) {}
+        }
+      `,
+        },
+        // Plugin checking disabled
+        {
+            code: `
+        class AudioPlugin {
+          static instances: AudioPlugin[] = [];
+          install(context: any) {}
+        }
+      `,
+            options: [{ checkPlugins: false }],
+        },
+    ],
+    invalid: [
+        // Plugin with static property
+        {
+            code: `
+        class PhysicsPlugin {
+          static instance: PhysicsPlugin | null = null;
+          name = 'PhysicsPlugin';
+          version = '1.0.0';
+          install(context: any) {}
+        }
+      `,
+            errors: [{ messageId: 'noStaticPropertyInPlugin' }],
+        },
+        // Plugin implementing EnginePlugin with static state
+        {
+            code: `
+        interface EnginePlugin {
+          name: string;
+          version: string;
+          install(context: any): void;
+        }
+        class NetworkPlugin implements EnginePlugin {
+          static connections = new Map();
+          name = 'NetworkPlugin';
+          version = '1.0.0';
+          install(context: any) {}
+        }
+      `,
+            errors: [{ messageId: 'noStaticPropertyInPlugin' }],
+        },
+        // Plugin with static method
+        {
+            code: `
+        class InputPlugin {
+          static create() {
+            return new InputPlugin();
+          }
+          install(context: any) {}
+        }
+      `,
+            errors: [{ messageId: 'noStaticMethodInPlugin' }],
+        },
+        // Plugin with multiple static members
+        {
+            code: `
+        class ResourcePlugin {
+          static loadedResources: string[] = [];
+          static resourceCount = 0;
+          static clearCache() {
+            ResourcePlugin.loadedResources = [];
+          }
+          install(context: any) {}
+        }
+      `,
+            errors: [
+                { messageId: 'noStaticPropertyInPlugin' },
+                { messageId: 'noStaticPropertyInPlugin' },
+                { messageId: 'noStaticMethodInPlugin' },
+            ],
+        },
+        // Plugin detected by custom pattern
+        {
+            code: `
+        class AudioExtension {
+          static audioContext: any = null;
+          install(context: any) {}
+        }
+      `,
+            options: [{ pluginPattern: 'Extension$' }],
+            errors: [{ messageId: 'noStaticPropertyInPlugin' }],
+        },
+    ],
+});
+
+// Mixed tests - verifying correct type detection
+ruleTester.run('no-static-state (mixed types)', noStaticState, {
+    valid: [
+        // All types without static state
+        {
+            code: `
+        class Position {
+          constructor(public x: number = 0, public y: number = 0) {}
+        }
+        class MovementSystem {
+          update(deltaTime: number) {}
+        }
+        class PhysicsPlugin {
+          install(context: any) {}
+        }
+      `,
+        },
+    ],
+    invalid: [
+        // All types with static state in same file
+        {
+            code: `
+        class Position {
+          static counter = 0;
+          constructor(public x: number = 0, public y: number = 0) {}
+        }
+        class MovementSystem {
+          static cache = new Map();
+          update(deltaTime: number) {}
+        }
+        class PhysicsPlugin {
+          static instance = null;
+          install(context: any) {}
+        }
+      `,
+            errors: [
+                { messageId: 'noStaticPropertyInComponent' },
+                { messageId: 'noStaticPropertyInSystem' },
+                { messageId: 'noStaticPropertyInPlugin' },
+            ],
+        },
+    ],
+});
+
+// Usage-based detection tests
 ruleTester.run('no-static-state (usage detection)', noStaticState, {
     valid: [
         // Component detected from usage, no static state
@@ -233,6 +520,18 @@ ruleTester.run('no-static-state (usage detection)', noStaticState, {
       `,
             options: [{ detectFromUsage: true }],
             errors: [{ messageId: 'noStaticPropertyInComponent' }],
+        },
+        // Systems still detected even with usage detection enabled
+        {
+            code: `
+        class AISystem {
+          static decisions = [];
+          update(deltaTime: number) {}
+        }
+        const entity = { addComponent: (c: any, ...args: any[]) => {} };
+      `,
+            options: [{ detectFromUsage: true }],
+            errors: [{ messageId: 'noStaticPropertyInSystem' }],
         },
     ],
 });

@@ -1138,9 +1138,20 @@ EOF
 # Attach to issue comment
 gh issue comment 88 --body "Full analysis report attached below." --attach /tmp/analysis-report.md
 
-# Or create new issue with attachment
+# Or create new issue with attachment (title should reflect scope)
 gh issue create --title "📊 Nightly Review Report" --body "See attached report for full details." --attach /tmp/analysis-report.md
 ```
+
+**Issue Title Should Reflect Review Scope:**
+- **Full codebase**: "📊 Full Codebase Review - [Date]"
+- **Specific package**: "📊 Core Package Review - [Date]"
+- **Single file/feature**: "📊 Engine.ts Review - [Date]"
+- **Targeted area**: "📊 Plugin System Review - [Date]"
+
+Examples:
+- `gh issue create --title "📊 Full Codebase Review - 2024-01-15" ...`
+- `gh issue create --title "📊 Core Package Nightly Review" ...`
+- `gh issue create --title "📊 Archetype System Review" ...`
 
 **When to Use Attachments:**
 - Nightly review reports with full findings

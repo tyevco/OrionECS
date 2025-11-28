@@ -1,13 +1,17 @@
 import type { TSESTree } from '@typescript-eslint/utils';
 
 /**
- * Utility for detecting component classes by tracking their usage in ECS APIs.
+ * Utility for detecting component and plugin classes by tracking their usage in ECS APIs.
  *
  * Detects components used in:
  * - entity.addComponent(ClassName, ...)
  * - engine.registerComponent(ClassName)
  * - engine.createSystem('name', { all: [A, B], any: [C], none: [D] }, ...)
  * - Query definitions with component arrays
+ *
+ * Detects plugins used in:
+ * - engine.use(new PluginClass())
+ * - new EngineBuilder().use(new PluginClass())
  */
 
 export interface ComponentDetectionResult {
@@ -15,6 +19,10 @@ export interface ComponentDetectionResult {
     componentClasses: Set<string>;
     /** Map from class name to the node where it was detected */
     componentNodes: Map<string, TSESTree.Node>;
+    /** Set of class names detected as plugins */
+    pluginClasses: Set<string>;
+    /** Map from plugin class name to the node where it was detected */
+    pluginNodes: Map<string, TSESTree.Node>;
 }
 
 /**
@@ -31,6 +39,31 @@ function extractComponentName(node: TSESTree.Node | undefined): string | null {
     // Member expression: Components.Position
     if (node.type === 'MemberExpression' && node.property.type === 'Identifier') {
         return node.property.name;
+    }
+
+    return null;
+}
+
+/**
+ * Extract class name from a new expression like `new PluginClass()`
+ */
+function extractClassNameFromNew(node: TSESTree.Node | undefined): string | null {
+    if (!node) return null;
+
+    // new PluginClass() or new PluginClass(args)
+    if (node.type === 'NewExpression') {
+        if (node.callee.type === 'Identifier') {
+            return node.callee.name;
+        }
+        // new Plugins.MyPlugin()
+        if (node.callee.type === 'MemberExpression' && node.callee.property.type === 'Identifier') {
+            return node.callee.property.name;
+        }
+    }
+
+    // Direct identifier reference (rare but possible): engine.use(MyPlugin)
+    if (node.type === 'Identifier') {
+        return node.name;
     }
 
     return null;
@@ -173,6 +206,17 @@ export function detectComponentsFromCall(
             }
             break;
         }
+
+        // Plugin registration: engine.use(new PluginClass()) or builder.use(new PluginClass())
+        case 'use': {
+            const pluginArg = node.arguments[0];
+            const name = extractClassNameFromNew(pluginArg);
+            if (name) {
+                result.pluginClasses.add(name);
+                result.pluginNodes.set(name, pluginArg);
+            }
+            break;
+        }
     }
 }
 
@@ -183,6 +227,8 @@ export function createDetectionResult(): ComponentDetectionResult {
     return {
         componentClasses: new Set(),
         componentNodes: new Map(),
+        pluginClasses: new Set(),
+        pluginNodes: new Map(),
     };
 }
 

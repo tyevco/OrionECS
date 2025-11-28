@@ -188,15 +188,28 @@ export const noStaticState = createRule<Options, MessageIds>({
 
         /**
          * Determine the class type (component, system, plugin, or null)
+         * @param node The class declaration node
+         * @param useDetectionResult If true, also check detection result for usage-based detection
          */
-        function getClassType(node: TSESTree.ClassDeclaration): ClassType {
+        function getClassType(
+            node: TSESTree.ClassDeclaration,
+            useDetectionResult = true
+        ): ClassType {
             if (!node.id) return null;
 
             const className = node.id.name;
 
-            // Check for plugin first (can implement interface or match pattern)
+            // Check for plugin first (can implement interface, match pattern, or detected from usage)
             if (checkPlugins) {
-                if (implementsEnginePlugin(node) || pluginPattern.test(className)) {
+                const detectedAsPlugin =
+                    useDetectionResult &&
+                    detectFromUsage &&
+                    detectionResult.pluginClasses.has(className);
+                if (
+                    implementsEnginePlugin(node) ||
+                    pluginPattern.test(className) ||
+                    detectedAsPlugin
+                ) {
                     return 'plugin';
                 }
             }
@@ -210,7 +223,7 @@ export const noStaticState = createRule<Options, MessageIds>({
             if (checkComponents) {
                 const matchesPattern = componentPattern.test(className);
                 const detectedFromUsage =
-                    detectFromUsage && detectionResult.componentClasses.has(className);
+                    useDetectionResult && detectionResult.componentClasses.has(className);
 
                 if (matchesPattern || detectedFromUsage) {
                     return 'component';
@@ -324,16 +337,30 @@ export const noStaticState = createRule<Options, MessageIds>({
             };
         } else {
             // With detection enabled, use two-pass approach
+            // Track what we've already checked to avoid duplicates
+            const checkedClasses = new Set<string>();
+
             visitors.ClassDeclaration = (node: TSESTree.Node) => {
                 const classNode = node as TSESTree.ClassDeclaration;
                 if (classNode.id) {
                     classDeclarations.set(classNode.id.name, classNode);
                 }
 
-                // Still check systems and plugins immediately (they don't need usage detection)
-                const classType = getClassType(classNode);
-                if (classType === 'system' || classType === 'plugin') {
+                // Check systems immediately (they use pattern-based detection only)
+                // Don't use detection result yet since we're still collecting
+                const classType = getClassType(classNode, false);
+                if (classType === 'system') {
                     checkStaticMembers(classNode, classType);
+                    if (classNode.id) {
+                        checkedClasses.add(classNode.id.name);
+                    }
+                }
+                // Check plugins that match pattern or implement interface immediately
+                if (classType === 'plugin') {
+                    checkStaticMembers(classNode, classType);
+                    if (classNode.id) {
+                        checkedClasses.add(classNode.id.name);
+                    }
                 }
             };
 
@@ -344,21 +371,34 @@ export const noStaticState = createRule<Options, MessageIds>({
             visitors['Program:exit'] = () => {
                 // Check detected component classes
                 for (const className of detectionResult.componentClasses) {
+                    if (checkedClasses.has(className)) continue;
                     const classNode = classDeclarations.get(className);
                     if (classNode) {
                         checkStaticMembers(classNode, 'component');
+                        checkedClasses.add(className);
                     }
                 }
 
-                // Also check pattern-matched component classes that weren't detected
+                // Check detected plugin classes (from engine.use())
+                for (const className of detectionResult.pluginClasses) {
+                    if (checkedClasses.has(className)) continue;
+                    const classNode = classDeclarations.get(className);
+                    if (classNode) {
+                        checkStaticMembers(classNode, 'plugin');
+                        checkedClasses.add(className);
+                    }
+                }
+
+                // Also check pattern-matched classes that weren't detected
                 for (const [className, classNode] of classDeclarations) {
-                    if (
-                        !detectionResult.componentClasses.has(className) &&
-                        componentPattern.test(className)
-                    ) {
-                        // Make sure it's not already checked as system/plugin
+                    if (checkedClasses.has(className)) continue;
+
+                    // Check pattern-matched components
+                    if (componentPattern.test(className)) {
+                        // Make sure it's not a system/plugin
                         if (!systemPattern.test(className) && !pluginPattern.test(className)) {
                             checkStaticMembers(classNode, 'component');
+                            checkedClasses.add(className);
                         }
                     }
                 }

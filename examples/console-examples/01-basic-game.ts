@@ -93,16 +93,15 @@ game.createSystem(
         act: (entity, position, size, collider) => {
             if (!collider.solid) return;
 
-            // Check collisions with other entities
-            const allEntities = game.getAllEntities();
-            for (const other of allEntities) {
+            // Check collisions with other collidable entities using query system
+            const collidables = game
+                .createQuery({
+                    all: [Position, Size, Collider],
+                })
+                .getEntities();
+
+            for (const other of collidables) {
                 if (other === entity) continue;
-                if (
-                    !other.hasComponent(Position) ||
-                    !other.hasComponent(Size) ||
-                    !other.hasComponent(Collider)
-                )
-                    continue;
 
                 const otherPos = other.getComponent(Position);
                 const otherSize = other.getComponent(Size);

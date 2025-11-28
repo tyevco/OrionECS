@@ -276,23 +276,33 @@ engine.createSystem(
             if (input.shoot && player.shootCooldown <= 0) {
                 player.shootCooldown = player.shootCooldownMax;
 
-                // Create bullet
-                const bullet = engine.createFromPrefab('Bullet', `Bullet_${Date.now()}`);
-                const bulletPos = bullet.getComponent(Position);
-                const bulletVel = bullet.getComponent(Velocity);
+                // Capture values for closure
+                const shipX = position.x;
+                const shipY = position.y;
+                const shipAngle = rotation.angle;
+                const shipVelX = velocity.dx;
+                const shipVelY = velocity.dy;
 
-                // Position bullet at ship nose
-                bulletPos.x = position.x + Math.cos(rotation.angle) * 20;
-                bulletPos.y = position.y + Math.sin(rotation.angle) * 20;
+                // Use CommandBuffer for deferred bullet creation during system iteration
+                engine.commands
+                    .spawnFromPrefab('Bullet', `Bullet_${Date.now()}`)
+                    .configure((bullet) => {
+                        const bulletPos = bullet.getComponent(Position);
+                        const bulletVel = bullet.getComponent(Velocity);
 
-                // Set bullet velocity (ship velocity + bullet speed)
-                bulletVel.dx = velocity.dx + Math.cos(rotation.angle) * BULLET_SPEED;
-                bulletVel.dy = velocity.dy + Math.sin(rotation.angle) * BULLET_SPEED;
+                        // Position bullet at ship nose
+                        bulletPos.x = shipX + Math.cos(shipAngle) * 20;
+                        bulletPos.y = shipY + Math.sin(shipAngle) * 20;
+
+                        // Set bullet velocity (ship velocity + bullet speed)
+                        bulletVel.dx = shipVelX + Math.cos(shipAngle) * BULLET_SPEED;
+                        bulletVel.dy = shipVelY + Math.sin(shipAngle) * BULLET_SPEED;
+                    });
 
                 // Publish shoot event
                 engine.messageBus.publish(
                     'player-shoot',
-                    { position: bulletPos },
+                    { position: { x: shipX, y: shipY } },
                     'PlayerControlSystem'
                 );
             }
@@ -437,33 +447,41 @@ function damageAsteroid(entity: EntityDef): void {
         player.score += (4 - asteroid.size) * 100; // Larger = more points
     }
 
-    // Split asteroid if not smallest size
+    // Split asteroid if not smallest size using CommandBuffer
     if (asteroid.size > 1) {
         const newSize = asteroid.size - 1;
         const pieces = 2;
+        const parentX = position.x;
+        const parentY = position.y;
 
         for (let i = 0; i < pieces; i++) {
-            const piece = engine.createFromPrefab('Asteroid', `Asteroid_${Date.now()}_${i}`);
-            const piecePos = piece.getComponent(Position);
-            const pieceVel = piece.getComponent(Velocity);
-            const pieceAst = piece.getComponent(Asteroid);
-            const pieceCol = piece.getComponent(Collider);
-            const pieceRen = piece.getComponent(Renderable);
-
-            // Position at parent asteroid
-            piecePos.x = position.x;
-            piecePos.y = position.y;
-
-            // Random velocity
-            const angle = ((Math.PI * 2) / pieces) * i + Math.random() * 0.5;
+            // Capture loop values for closure
+            const pieceIndex = i;
+            const angle = ((Math.PI * 2) / pieces) * pieceIndex + Math.random() * 0.5;
             const speed = ASTEROID_BASE_SPEED * (1 + (3 - newSize) * 0.5);
-            pieceVel.dx = Math.cos(angle) * speed;
-            pieceVel.dy = Math.sin(angle) * speed;
 
-            // Update size
-            pieceAst.size = newSize;
-            pieceCol.radius = 30 * (newSize / 3);
-            pieceRen.size = newSize / 3;
+            engine.commands
+                .spawnFromPrefab('Asteroid', `Asteroid_${Date.now()}_${pieceIndex}`)
+                .configure((piece) => {
+                    const piecePos = piece.getComponent(Position);
+                    const pieceVel = piece.getComponent(Velocity);
+                    const pieceAst = piece.getComponent(Asteroid);
+                    const pieceCol = piece.getComponent(Collider);
+                    const pieceRen = piece.getComponent(Renderable);
+
+                    // Position at parent asteroid
+                    piecePos.x = parentX;
+                    piecePos.y = parentY;
+
+                    // Set velocity
+                    pieceVel.dx = Math.cos(angle) * speed;
+                    pieceVel.dy = Math.sin(angle) * speed;
+
+                    // Update size
+                    pieceAst.size = newSize;
+                    pieceCol.radius = 30 * (newSize / 3);
+                    pieceRen.size = newSize / 3;
+                });
         }
     }
 
@@ -545,7 +563,7 @@ engine.createSystem(
 // ============================================================================
 
 /**
- * Spawns new asteroids to maintain difficulty
+ * Spawns new asteroids to maintain difficulty using CommandBuffer
  */
 engine.createSystem(
     'AsteroidSpawnerSystem',
@@ -556,45 +574,53 @@ engine.createSystem(
             const asteroidCount = engine.getEntitiesByTag('asteroid').length;
 
             if (asteroidCount < MAX_ASTEROIDS) {
-                const asteroid = engine.createFromPrefab('Asteroid', `Asteroid_${Date.now()}`);
-                const position = asteroid.getComponent(Position);
-                const velocity = asteroid.getComponent(Velocity);
-                const rotation = asteroid.getComponent(Rotation);
-
-                // Spawn at random edge position
+                // Calculate spawn position at random edge
                 const edge = Math.floor(Math.random() * 4);
+                let spawnX: number;
+                let spawnY: number;
+
                 if (edge === 0) {
                     // Top
-                    position.x = Math.random() * SCREEN_WIDTH;
-                    position.y = 0;
+                    spawnX = Math.random() * SCREEN_WIDTH;
+                    spawnY = 0;
                 } else if (edge === 1) {
                     // Right
-                    position.x = SCREEN_WIDTH;
-                    position.y = Math.random() * SCREEN_HEIGHT;
+                    spawnX = SCREEN_WIDTH;
+                    spawnY = Math.random() * SCREEN_HEIGHT;
                 } else if (edge === 2) {
                     // Bottom
-                    position.x = Math.random() * SCREEN_WIDTH;
-                    position.y = SCREEN_HEIGHT;
+                    spawnX = Math.random() * SCREEN_WIDTH;
+                    spawnY = SCREEN_HEIGHT;
                 } else {
                     // Left
-                    position.x = 0;
-                    position.y = Math.random() * SCREEN_HEIGHT;
+                    spawnX = 0;
+                    spawnY = Math.random() * SCREEN_HEIGHT;
                 }
 
-                // Random velocity toward center
+                // Calculate velocity toward center
                 const angleToCenter = Math.atan2(
-                    SCREEN_HEIGHT / 2 - position.y,
-                    SCREEN_WIDTH / 2 - position.x
+                    SCREEN_HEIGHT / 2 - spawnY,
+                    SCREEN_WIDTH / 2 - spawnX
                 );
                 const variance = ((Math.random() - 0.5) * Math.PI) / 2;
                 const angle = angleToCenter + variance;
                 const speed = ASTEROID_BASE_SPEED + Math.random() * ASTEROID_BASE_SPEED;
+                const rotSpeed = (Math.random() - 0.5) * 0.1;
 
-                velocity.dx = Math.cos(angle) * speed;
-                velocity.dy = Math.sin(angle) * speed;
+                // Use CommandBuffer for deferred asteroid creation during system iteration
+                engine.commands
+                    .spawnFromPrefab('Asteroid', `Asteroid_${Date.now()}`)
+                    .configure((asteroid) => {
+                        const position = asteroid.getComponent(Position);
+                        const velocity = asteroid.getComponent(Velocity);
+                        const rotation = asteroid.getComponent(Rotation);
 
-                // Random rotation speed
-                rotation.speed = (Math.random() - 0.5) * 0.1;
+                        position.x = spawnX;
+                        position.y = spawnY;
+                        velocity.dx = Math.cos(angle) * speed;
+                        velocity.dy = Math.sin(angle) * speed;
+                        rotation.speed = rotSpeed;
+                    });
             }
         },
     },

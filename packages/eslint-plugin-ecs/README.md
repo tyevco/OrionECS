@@ -252,7 +252,7 @@ rules: {
 }
 ```
 
-**Note:** The rule automatically learns dependencies and conflicts from `registerComponentValidator` calls in the same file. Manual configuration is only needed for cross-file dependencies or when not using validators.
+**Note:** The rule automatically learns dependencies and conflicts from `registerComponentValidator` calls. With [type-aware mode](#cross-file-scanning-type-aware-mode) enabled, it can detect validators across all files in your project. Without type-aware mode, it only detects validators in the same file.
 
 ### `ecs/query-validator`
 
@@ -315,6 +315,8 @@ rules: {
   }],
 }
 ```
+
+**Note:** The rule automatically learns conflicts from `registerComponentValidator` calls. With [type-aware mode](#cross-file-scanning-type-aware-mode) enabled, it can detect validators across all files in your project. Without type-aware mode, it only detects validators in the same file.
 
 ## Configuration
 
@@ -408,6 +410,66 @@ class PlayerData {
 
 entity.addComponent(PlayerData, 0);  // Detection happens here
 ```
+
+## Cross-File Scanning (Type-Aware Mode)
+
+By default, rules only detect component metadata (dependencies, conflicts) within the same file. To enable **cross-file scanning**, configure ESLint with TypeScript type information:
+
+```javascript
+// eslint.config.js
+import ecsPlugin from '@orion-ecs/eslint-plugin-ecs';
+import tseslint from 'typescript-eslint';
+
+export default tseslint.config(
+  {
+    files: ['**/*.ts'],
+    languageOptions: {
+      parserOptions: {
+        projectService: true,
+        tsconfigRootDir: import.meta.dirname,
+      },
+    },
+    plugins: { ecs: ecsPlugin },
+    rules: {
+      'ecs/component-order': 'warn',
+      'ecs/query-validator': 'error',
+    },
+  },
+);
+```
+
+**With cross-file scanning enabled:**
+
+```typescript
+// components/validators.ts
+engine.registerComponentValidator(Velocity, {
+  dependencies: [Position],
+  conflicts: [Frozen],
+});
+
+// systems/movement.ts (different file!)
+engine.createSystem('Movement', {
+  all: [Velocity, Frozen]  // Error! Velocity conflicts with Frozen
+}, { act: (e, v) => {} });
+```
+
+**How it works:**
+1. When type information is available, the plugin scans all TypeScript files in the project
+2. It builds a registry of all `registerComponentValidator` calls to collect dependencies and conflicts
+3. This registry is cached per program instance for performance
+4. Rules use this registry to validate across file boundaries
+
+**Benefits:**
+- Validators defined in one file work in all files
+- Catches dependency/conflict violations across module boundaries
+- No manual configuration needed for cross-file dependencies
+
+**Requirements:**
+- TypeScript project with `tsconfig.json`
+- ESLint configured with `parserOptions.projectService` or `parserOptions.project`
+- `typescript-eslint` parser (included with `typescript-eslint` package)
+
+**Performance Note:** The first lint run scans all files to build the registry. Subsequent files in the same run use the cached registry. This adds minimal overhead compared to the benefits of cross-file validation.
 
 ## Integration with OrionECS
 

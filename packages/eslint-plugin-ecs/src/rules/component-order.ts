@@ -1,4 +1,9 @@
 import { ESLintUtils, type TSESTree } from '@typescript-eslint/utils';
+import {
+    type ComponentRegistry,
+    getComponentRegistry,
+    hasTypeInformation,
+} from '../utils/component-registry';
 
 const createRule = ESLintUtils.RuleCreator(
     (name) => `https://github.com/tyevco/OrionECS/blob/main/docs/eslint-rules/${name}.md`
@@ -156,13 +161,39 @@ export const componentOrder = createRule<Options, MessageIds>({
         },
     ],
     create(context, [options]) {
-        // Dependencies can come from options or be detected from registerComponentValidator
+        // Dependencies can come from options, cross-file scanning, or local registerComponentValidator calls
         const componentDependencies = new Map<string, Set<string>>(
             Object.entries(options.dependencies || {}).map(([k, v]) => [k, new Set(v)])
         );
         const componentConflicts = new Map<string, Set<string>>(
             Object.entries(options.conflicts || {}).map(([k, v]) => [k, new Set(v)])
         );
+
+        // Try to get cross-file component registry if type information is available
+        let crossFileRegistry: ComponentRegistry | null = null;
+        const parserServices = context.sourceCode.parserServices;
+        if (hasTypeInformation(parserServices)) {
+            crossFileRegistry = getComponentRegistry(parserServices);
+            // Merge cross-file metadata into our local maps
+            for (const [componentName, metadata] of crossFileRegistry.components) {
+                // Merge dependencies
+                if (metadata.dependencies.size > 0) {
+                    const existing = componentDependencies.get(componentName) || new Set();
+                    for (const dep of metadata.dependencies) {
+                        existing.add(dep);
+                    }
+                    componentDependencies.set(componentName, existing);
+                }
+                // Merge conflicts
+                if (metadata.conflicts.size > 0) {
+                    const existing = componentConflicts.get(componentName) || new Set();
+                    for (const conflict of metadata.conflicts) {
+                        existing.add(conflict);
+                    }
+                    componentConflicts.set(componentName, existing);
+                }
+            }
+        }
 
         // Track components added to each entity (by variable name)
         // Reset for each statement/block to handle scoping

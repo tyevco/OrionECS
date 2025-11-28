@@ -1,4 +1,9 @@
 import { ESLintUtils, type TSESTree } from '@typescript-eslint/utils';
+import {
+    type ComponentRegistry,
+    getComponentRegistry,
+    hasTypeInformation,
+} from '../utils/component-registry';
 
 const createRule = ESLintUtils.RuleCreator(
     (name) => `https://github.com/tyevco/OrionECS/blob/main/docs/eslint-rules/${name}.md`
@@ -147,10 +152,27 @@ export const queryValidator = createRule<Options, MessageIds>({
         },
     ],
     create(context, [options]) {
-        // Conflicts can come from options or be detected from registerComponentValidator
+        // Conflicts can come from options, cross-file scanning, or local registerComponentValidator calls
         const componentConflicts = new Map<string, Set<string>>(
             Object.entries(options.conflicts || {}).map(([k, v]) => [k, new Set(v)])
         );
+
+        // Try to get cross-file component registry if type information is available
+        let crossFileRegistry: ComponentRegistry | null = null;
+        const parserServices = context.sourceCode.parserServices;
+        if (hasTypeInformation(parserServices)) {
+            crossFileRegistry = getComponentRegistry(parserServices);
+            // Merge cross-file conflicts into our local map
+            for (const [componentName, metadata] of crossFileRegistry.components) {
+                if (metadata.conflicts.size > 0) {
+                    const existing = componentConflicts.get(componentName) || new Set();
+                    for (const conflict of metadata.conflicts) {
+                        existing.add(conflict);
+                    }
+                    componentConflicts.set(componentName, existing);
+                }
+            }
+        }
 
         /**
          * Process a registerComponentValidator call to extract conflicts

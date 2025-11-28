@@ -16,11 +16,15 @@ import {
     Camera,
     Canvas2DAPI,
     Canvas2DRendererPlugin,
+    type Mesh,
     ScreenElement,
     Sprite,
     Transform,
     Unit,
 } from './Canvas2DRendererPlugin';
+
+// Type extensions for testing
+type EngineWithCanvas2D = Engine & { canvas2d: Canvas2DAPI };
 
 // Mock canvas and context
 class MockCanvasRenderingContext2D {
@@ -58,13 +62,13 @@ class MockHTMLCanvasElement {
 }
 
 describe('Canvas2DRendererPlugin', () => {
-    let engine: Engine;
+    let engine: EngineWithCanvas2D;
     let plugin: Canvas2DRendererPlugin;
     let mockCanvas: MockHTMLCanvasElement;
 
     beforeEach(() => {
         plugin = new Canvas2DRendererPlugin();
-        engine = new TestEngineBuilder().use(plugin).build();
+        engine = new TestEngineBuilder().use(plugin).build() as unknown as EngineWithCanvas2D;
 
         mockCanvas = new MockHTMLCanvasElement();
     });
@@ -221,7 +225,7 @@ describe('Canvas2DRendererPlugin', () => {
                 { position: { x: 10, y: 10 } },
             ],
             color: { value: '#FF0000' },
-        };
+        } as unknown as Mesh;
 
         test('should create Sprite with default values', () => {
             const sprite = new Sprite(mockMesh);
@@ -345,7 +349,8 @@ describe('Canvas2DRendererPlugin', () => {
             camera.addComponent(Camera, 800, 600);
             camera.addComponent(ScreenElement, 0, 0, 100, 100, Unit.Percentage);
 
-            const worldPos = api.screenToWorld(400, 300, camera);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const worldPos = api.screenToWorld(400, 300, camera as any);
 
             expect(worldPos).not.toBeNull();
             expect(worldPos).toHaveProperty('x');
@@ -356,7 +361,8 @@ describe('Canvas2DRendererPlugin', () => {
             const camera = engine.createEntity('Camera');
             camera.addComponent(Transform, 0, 0);
 
-            const worldPos = api.screenToWorld(100, 100, camera);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const worldPos = api.screenToWorld(100, 100, camera as any);
 
             expect(worldPos).toBeNull();
         });
@@ -368,7 +374,8 @@ describe('Canvas2DRendererPlugin', () => {
             camera.addComponent(Camera, 800, 600);
             camera.addComponent(ScreenElement);
 
-            const worldPos = apiWithoutCanvas.screenToWorld(100, 100, camera);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const worldPos = apiWithoutCanvas.screenToWorld(100, 100, camera as any);
 
             expect(worldPos).toBeNull();
         });

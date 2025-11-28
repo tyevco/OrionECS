@@ -13,6 +13,9 @@ import { TestEngineBuilder } from '@orion-ecs/testing';
 import type { Engine } from '../../../packages/core/src/index';
 import { InputAPI, InputManagerPlugin, MouseButton } from './InputManagerPlugin';
 
+// Type extensions for testing
+type EngineWithInput = Engine & { input: InputAPI };
+
 // Mock Vector2 utility
 jest.mock('@orion-ecs/math', () => ({
     Vector2: class Vector2 {
@@ -25,13 +28,13 @@ jest.mock('@orion-ecs/math', () => ({
             return new Vector2(this.x, this.y);
         }
 
-        distanceTo(other: unknown) {
+        distanceTo(other: { x: number; y: number }) {
             const dx = this.x - other.x;
             const dy = this.y - other.y;
             return Math.sqrt(dx * dx + dy * dy);
         }
 
-        vectorTo(other: unknown) {
+        vectorTo(other: { x: number; y: number }) {
             return new Vector2(other.x - this.x, other.y - this.y);
         }
     },
@@ -75,7 +78,7 @@ class MockHTMLElement {
 const originalWindow = global.window;
 
 describe('InputManagerPlugin', () => {
-    let engine: Engine;
+    let engine: EngineWithInput;
     let plugin: InputManagerPlugin;
     let mockElement: MockHTMLElement;
     let mockWindowListeners: Map<string, Set<EventListener>>;
@@ -84,7 +87,8 @@ describe('InputManagerPlugin', () => {
         mockWindowListeners = new Map();
 
         // Mock window event listeners
-        (global as typeof globalThis).window = {
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (global as any).window = {
             addEventListener: (event: string, listener: EventListener) => {
                 if (!mockWindowListeners.has(event)) {
                     mockWindowListeners.set(event, new Set());
@@ -97,7 +101,7 @@ describe('InputManagerPlugin', () => {
         };
 
         plugin = new InputManagerPlugin();
-        engine = new TestEngineBuilder().use(plugin).build();
+        engine = new TestEngineBuilder().use(plugin).build() as unknown as EngineWithInput;
 
         mockElement = new MockHTMLElement();
     });

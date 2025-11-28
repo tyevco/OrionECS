@@ -20,13 +20,16 @@ import {
     SpatialPosition,
 } from './SpatialPartitionPlugin';
 
+// Type extensions for testing
+type EngineWithSpatial = Engine & { spatial: SpatialAPI };
+
 describe('SpatialPartitionPlugin', () => {
-    let engine: Engine;
+    let engine: EngineWithSpatial;
     let plugin: SpatialPartitionPlugin;
 
     beforeEach(() => {
         plugin = new SpatialPartitionPlugin();
-        engine = new TestEngineBuilder().use(plugin).build();
+        engine = new TestEngineBuilder().use(plugin).build() as unknown as EngineWithSpatial;
     });
 
     afterEach(() => {
@@ -175,7 +178,8 @@ describe('SpatialPartitionPlugin', () => {
 
         test('should update entity position in grid', () => {
             const entity = engine.createEntity('Entity');
-            const pos = entity.addComponent(SpatialPosition, 100, 100);
+            entity.addComponent(SpatialPosition, 100, 100);
+            const pos = entity.getComponent(SpatialPosition)!;
 
             engine.start();
             engine.update(0);
@@ -193,7 +197,8 @@ describe('SpatialPartitionPlugin', () => {
 
         test('should remove entity from old cell when moved', () => {
             const entity = engine.createEntity('Entity');
-            const pos = entity.addComponent(SpatialPosition, 50, 50);
+            entity.addComponent(SpatialPosition, 50, 50);
+            const pos = entity.getComponent(SpatialPosition)!;
 
             engine.start();
             engine.update(0);

@@ -42,12 +42,12 @@ class Health {
 }
 
 describe('DebugVisualizerPlugin', () => {
-    let engine: Engine;
+    let engine: EngineWithDebug;
     let plugin: DebugVisualizerPlugin;
 
     beforeEach(() => {
         plugin = new DebugVisualizerPlugin();
-        engine = new TestEngineBuilder().use(plugin).build();
+        engine = new TestEngineBuilder().use(plugin).build() as unknown as EngineWithDebug;
 
         // Register components
         engine.registerComponent(Position);
@@ -129,7 +129,8 @@ describe('DebugVisualizerPlugin', () => {
             const child2 = engine.createEntity('Child2');
             child2.setParent(root2);
 
-            const output = api.printHierarchy(root1);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            const output = api.printHierarchy(root1 as any);
 
             expect(output).toContain('Root1');
             expect(output).toContain('Child1');

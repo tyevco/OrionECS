@@ -375,7 +375,8 @@ describe('PhysicsPlugin', () => {
         test('should update velocity from acceleration', () => {
             const entity = engine.createEntity('Ball');
             entity.addComponent(Position, 0, 0);
-            const rb = entity.addComponent(RigidBody, 1);
+            entity.addComponent(RigidBody, 1);
+            const rb = entity.getComponent(RigidBody)!;
 
             // Apply initial force
             (engine as EngineWithPhysics).physics.applyForce(rb, 60, 0);
@@ -390,7 +391,8 @@ describe('PhysicsPlugin', () => {
         test('should reset acceleration after each frame', () => {
             const entity = engine.createEntity('Ball');
             entity.addComponent(Position, 0, 0);
-            const rb = entity.addComponent(RigidBody, 1);
+            entity.addComponent(RigidBody, 1);
+            const rb = entity.getComponent(RigidBody)!;
 
             // Apply force
             (engine as EngineWithPhysics).physics.applyForce(rb, 60, 0);
@@ -480,8 +482,8 @@ describe('PhysicsPlugin', () => {
 
             // Apply same force
             const physicsAPI = (engine as EngineWithPhysics).physics;
-            physicsAPI.applyImpulse(light.getComponent(RigidBody), 10, 0);
-            physicsAPI.applyImpulse(heavy.getComponent(RigidBody), 10, 0);
+            physicsAPI.applyImpulse(light.getComponent(RigidBody)!, 10, 0);
+            physicsAPI.applyImpulse(heavy.getComponent(RigidBody)!, 10, 0);
 
             engine.start();
             engine.update(1 / 60);
@@ -526,7 +528,8 @@ describe('PhysicsPlugin', () => {
         test('should handle very large force values', () => {
             const entity = engine.createEntity('Ball');
             entity.addComponent(Position, 0, 0);
-            const rb = entity.addComponent(RigidBody, 1);
+            entity.addComponent(RigidBody, 1);
+            const rb = entity.getComponent(RigidBody)!;
 
             const physicsAPI = (engine as EngineWithPhysics).physics;
 

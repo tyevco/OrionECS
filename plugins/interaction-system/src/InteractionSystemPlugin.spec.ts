@@ -12,7 +12,12 @@
  */
 
 import { TestEngineBuilder } from '@orion-ecs/testing';
-import type { Engine } from '../../../packages/core/src/index';
+import type {
+    ComponentIdentifier,
+    Engine,
+    PluginContext,
+    QueryOptions,
+} from '../../../packages/core/src/index';
 import {
     Clickable,
     Draggable,
@@ -22,6 +27,9 @@ import {
     InteractionSystemPlugin,
     Selectable,
 } from './InteractionSystemPlugin';
+
+// Type extensions for testing
+type EngineWithInteraction = Engine & { interaction: InteractionAPI };
 
 // Mock Vector2 and Bounds utilities
 const mockBounds = {
@@ -46,7 +54,7 @@ jest.mock('@orion-ecs/math', () => ({
             public height: number
         ) {}
 
-        contains(point: unknown): boolean {
+        contains(point: { x: number; y: number }): boolean {
             return (
                 point.x >= this.left &&
                 point.x <= this.left + this.width &&
@@ -77,35 +85,43 @@ const mockInputAPI = {
 };
 
 describe('InteractionSystemPlugin', () => {
-    let engine: Engine;
+    let engine: EngineWithInteraction;
     let plugin: InteractionSystemPlugin;
 
     beforeEach(() => {
         plugin = new InteractionSystemPlugin();
 
         // Create engine without the plugin first
-        engine = new TestEngineBuilder().build();
+        const baseEngine = new TestEngineBuilder().build() as unknown as Engine;
 
         // Manually add mock input API
-        (engine as Record<string, unknown>).input = mockInputAPI;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        (baseEngine as any).input = mockInputAPI;
 
         // Now install the plugin manually
         const context = {
-            registerComponent: (component: unknown) => engine.registerComponent(component),
-            registerComponentValidator: (component: unknown, validator: unknown) =>
-                engine.registerComponentValidator(component, validator),
-            createSystem: (name: string, query: unknown, options: unknown, fixed: boolean) =>
-                engine.createSystem(name, query, options, fixed),
-            createQuery: (options: unknown) => engine.createQuery(options),
-            extend: (name: string, api: unknown) => {
-                (engine as Record<string, unknown>)[name] = api;
+            registerComponent: (component: ComponentIdentifier<unknown>) =>
+                baseEngine.registerComponent(component),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            registerComponentValidator: (component: ComponentIdentifier<unknown>, validator: any) =>
+                baseEngine.registerComponentValidator(component, validator),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            createSystem: (name: string, query: QueryOptions<any>, options: any, fixed: boolean) =>
+                baseEngine.createSystem(name, query, options, fixed),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            createQuery: (options: QueryOptions<any>) => baseEngine.createQuery(options),
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            extend: (name: string, api: any) => {
+                // eslint-disable-next-line @typescript-eslint/no-explicit-any
+                (baseEngine as any)[name] = api;
             },
-            getEngine: () => engine,
-            messageBus: engine.messageBus,
-            engine: engine,
+            getEngine: () => baseEngine,
+            messageBus: baseEngine.messageBus,
+            engine: baseEngine,
         };
 
         plugin.install(context as unknown as PluginContext);
+        engine = baseEngine as unknown as EngineWithInteraction;
     });
 
     afterEach(() => {
@@ -259,13 +275,13 @@ describe('InteractionSystemPlugin', () => {
 
     describe('Component - InteractionBounds', () => {
         test('should create InteractionBounds', () => {
-            const bounds = new InteractionBounds(mockBounds as unknown as Bounds);
+            const bounds = new InteractionBounds(mockBounds as unknown);
             expect(bounds.bounds).toBe(mockBounds);
             expect(bounds.autoUpdate).toBe(false);
         });
 
         test('should create InteractionBounds with auto-update', () => {
-            const bounds = new InteractionBounds(mockBounds as unknown as Bounds, true);
+            const bounds = new InteractionBounds(mockBounds as unknown, true);
             expect(bounds.autoUpdate).toBe(true);
         });
     });
@@ -286,7 +302,8 @@ describe('InteractionSystemPlugin', () => {
             const entity = engine.createEntity('TestEntity');
             entity.addComponent(Selectable);
 
-            api.selectEntity(entity);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api.selectEntity(entity as any);
 
             expect(api.getSelectedEntities()).toContain(entity);
             const selectable = entity.getComponent(Selectable);
@@ -297,8 +314,10 @@ describe('InteractionSystemPlugin', () => {
             const entity = engine.createEntity('TestEntity');
             entity.addComponent(Selectable);
 
-            api.selectEntity(entity);
-            api.deselectEntity(entity);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api.selectEntity(entity as any);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api.deselectEntity(entity as any);
 
             expect(api.getSelectedEntities()).not.toContain(entity);
             const selectable = entity.getComponent(Selectable);
@@ -308,10 +327,12 @@ describe('InteractionSystemPlugin', () => {
         test('should call onSelect callback', () => {
             const mockCallback = jest.fn();
             const entity = engine.createEntity('TestEntity');
-            const selectable = entity.addComponent(Selectable);
+            entity.addComponent(Selectable);
+            const selectable = entity.getComponent(Selectable)!;
             selectable.onSelect = mockCallback;
 
-            api.selectEntity(entity);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api.selectEntity(entity as any);
 
             expect(mockCallback).toHaveBeenCalledWith(entity);
         });
@@ -319,11 +340,14 @@ describe('InteractionSystemPlugin', () => {
         test('should call onDeselect callback', () => {
             const mockCallback = jest.fn();
             const entity = engine.createEntity('TestEntity');
-            const selectable = entity.addComponent(Selectable);
+            entity.addComponent(Selectable);
+            const selectable = entity.getComponent(Selectable)!;
             selectable.onDeselect = mockCallback;
 
-            api.selectEntity(entity);
-            api.deselectEntity(entity);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api.selectEntity(entity as any);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api.deselectEntity(entity as any);
 
             expect(mockCallback).toHaveBeenCalledWith(entity);
         });
@@ -335,8 +359,10 @@ describe('InteractionSystemPlugin', () => {
             const entity2 = engine.createEntity('Entity2');
             entity2.addComponent(Selectable);
 
-            api.selectEntity(entity1);
-            api.selectEntity(entity2);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api.selectEntity(entity1 as any);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api.selectEntity(entity2 as any);
 
             api.clearSelection();
 
@@ -347,8 +373,10 @@ describe('InteractionSystemPlugin', () => {
             const entity = engine.createEntity('TestEntity');
             entity.addComponent(Selectable);
 
-            api.selectEntity(entity);
-            api.selectEntity(entity);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api.selectEntity(entity as any);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api.selectEntity(entity as any);
 
             expect(api.getSelectedEntities()).toHaveLength(1);
         });
@@ -370,7 +398,8 @@ describe('InteractionSystemPlugin', () => {
             const entity = engine.createEntity('TestEntity');
             entity.addComponent(Hoverable);
 
-            api._setHovered(entity, true);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api._setHovered(entity as any, true);
 
             expect(api.getHoveredEntities()).toContain(entity);
         });
@@ -379,8 +408,10 @@ describe('InteractionSystemPlugin', () => {
             const entity = engine.createEntity('TestEntity');
             entity.addComponent(Hoverable);
 
-            api._setHovered(entity, true);
-            api._setHovered(entity, false);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api._setHovered(entity as any, true);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api._setHovered(entity as any, false);
 
             expect(api.getHoveredEntities()).not.toContain(entity);
         });
@@ -397,7 +428,8 @@ describe('InteractionSystemPlugin', () => {
             const mockCallback = jest.fn();
 
             const entity = engine.createEntity('Button');
-            const clickable = entity.addComponent(Clickable);
+            entity.addComponent(Clickable);
+            const clickable = entity.getComponent(Clickable)!;
             clickable.onClick = mockCallback;
 
             const Bounds = require('@orion-ecs/math').Bounds;
@@ -414,7 +446,8 @@ describe('InteractionSystemPlugin', () => {
             const mockCallback = jest.fn();
 
             const entity = engine.createEntity('Button');
-            const clickable = entity.addComponent(Clickable, false); // disabled
+            entity.addComponent(Clickable, false); // disabled
+            const clickable = entity.getComponent(Clickable)!;
             clickable.onClick = mockCallback;
 
             const Bounds = require('@orion-ecs/math').Bounds;
@@ -458,13 +491,15 @@ describe('InteractionSystemPlugin', () => {
 
             // Lower layer entity
             const entity1 = engine.createEntity('Button1');
-            const clickable1 = entity1.addComponent(Clickable, true, 0);
+            entity1.addComponent(Clickable, true, 0);
+            const clickable1 = entity1.getComponent(Clickable)!;
             clickable1.onClick = mockCallback1;
             entity1.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             // Higher layer entity (same position)
             const entity2 = engine.createEntity('Button2');
-            const clickable2 = entity2.addComponent(Clickable, true, 10);
+            entity2.addComponent(Clickable, true, 10);
+            const clickable2 = entity2.getComponent(Clickable)!;
             clickable2.onClick = mockCallback2;
             entity2.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
@@ -489,7 +524,8 @@ describe('InteractionSystemPlugin', () => {
             const mockCallback = jest.fn();
 
             const entity = engine.createEntity('Draggable');
-            const draggable = entity.addComponent(Draggable);
+            entity.addComponent(Draggable);
+            const draggable = entity.getComponent(Draggable)!;
             draggable.onDragStart = mockCallback;
 
             const Bounds = require('@orion-ecs/math').Bounds;
@@ -508,7 +544,8 @@ describe('InteractionSystemPlugin', () => {
             const mockCallback = jest.fn();
 
             const entity = engine.createEntity('Draggable');
-            const draggable = entity.addComponent(Draggable);
+            entity.addComponent(Draggable);
+            const draggable = entity.getComponent(Draggable)!;
             draggable.onDrag = mockCallback;
             draggable.isDragging = true; // Simulate drag started
 
@@ -534,7 +571,8 @@ describe('InteractionSystemPlugin', () => {
             const mockCallback = jest.fn();
 
             const entity = engine.createEntity('Draggable');
-            const draggable = entity.addComponent(Draggable);
+            entity.addComponent(Draggable);
+            const draggable = entity.getComponent(Draggable)!;
             draggable.onDragEnd = mockCallback;
 
             const Bounds = require('@orion-ecs/math').Bounds;
@@ -560,7 +598,8 @@ describe('InteractionSystemPlugin', () => {
             const mockCallback = jest.fn();
 
             const entity = engine.createEntity('Draggable');
-            const draggable = entity.addComponent(Draggable, false); // disabled
+            entity.addComponent(Draggable, false); // disabled
+            const draggable = entity.getComponent(Draggable)!;
             draggable.onDragStart = mockCallback;
 
             const Bounds = require('@orion-ecs/math').Bounds;
@@ -586,7 +625,8 @@ describe('InteractionSystemPlugin', () => {
             const mockCallback = jest.fn();
 
             const entity = engine.createEntity('Hoverable');
-            const hoverable = entity.addComponent(Hoverable);
+            entity.addComponent(Hoverable);
+            const hoverable = entity.getComponent(Hoverable)!;
             hoverable.onHoverEnter = mockCallback;
 
             const Bounds = require('@orion-ecs/math').Bounds;
@@ -606,7 +646,8 @@ describe('InteractionSystemPlugin', () => {
             const mockExit = jest.fn();
 
             const entity = engine.createEntity('Hoverable');
-            const hoverable = entity.addComponent(Hoverable);
+            entity.addComponent(Hoverable);
+            const hoverable = entity.getComponent(Hoverable)!;
             hoverable.onHoverEnter = mockEnter;
             hoverable.onHoverExit = mockExit;
             hoverable.hovered = true; // Start as hovered
@@ -634,7 +675,8 @@ describe('InteractionSystemPlugin', () => {
 
             const entity = engine.createEntity('Entity');
             entity.addComponent(Selectable);
-            api.selectEntity(entity);
+            // eslint-disable-next-line @typescript-eslint/no-explicit-any
+            api.selectEntity(entity as any);
 
             plugin.uninstall();
 
@@ -665,17 +707,20 @@ describe('InteractionSystemPlugin', () => {
             const mockCallback3 = jest.fn();
 
             const entity1 = engine.createEntity('Button1');
-            const clickable1 = entity1.addComponent(Clickable, true, 0);
+            entity1.addComponent(Clickable, true, 0);
+            const clickable1 = entity1.getComponent(Clickable)!;
             clickable1.onClick = mockCallback1;
             entity1.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             const entity2 = engine.createEntity('Button2');
-            const clickable2 = entity2.addComponent(Clickable, true, 5);
+            entity2.addComponent(Clickable, true, 5);
+            const clickable2 = entity2.getComponent(Clickable)!;
             clickable2.onClick = mockCallback2;
             entity2.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             const entity3 = engine.createEntity('Button3');
-            const clickable3 = entity3.addComponent(Clickable, true, 3);
+            entity3.addComponent(Clickable, true, 3);
+            const clickable3 = entity3.getComponent(Clickable)!;
             clickable3.onClick = mockCallback3;
             entity3.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 

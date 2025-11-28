@@ -22,6 +22,9 @@ import {
     TextureResource,
 } from './ResourceManagerPlugin';
 
+// Type extensions for testing
+type EngineWithResources = Engine & { resources: ResourceManagerAPI };
+
 // Custom test resource
 class TestResource implements Resource {
     static resourceTypeName = 'Test';
@@ -44,12 +47,12 @@ class TestResource implements Resource {
 }
 
 describe('ResourceManagerPlugin', () => {
-    let engine: Engine;
+    let engine: EngineWithResources;
     let plugin: ResourceManagerPlugin;
 
     beforeEach(() => {
         plugin = new ResourceManagerPlugin();
-        engine = new TestEngineBuilder().use(plugin).build();
+        engine = new TestEngineBuilder().use(plugin).build() as unknown as EngineWithResources;
     });
 
     afterEach(async () => {
@@ -253,12 +256,12 @@ describe('ResourceManagerPlugin', () => {
             await api.get(TextureResource, 'player.png');
 
             const statsBefore = api.getStats();
-            const beforeRefs = statsBefore.byType.find((t) => t.type === 'Texture')?.totalRefs;
+            const beforeRefs = statsBefore.byType.find((t) => t.type === 'Texture')?.totalRefs ?? 0;
 
             api.getSync(TextureResource, 'player.png');
 
             const statsAfter = api.getStats();
-            const afterRefs = statsAfter.byType.find((t) => t.type === 'Texture')?.totalRefs;
+            const afterRefs = statsAfter.byType.find((t) => t.type === 'Texture')?.totalRefs ?? 0;
 
             expect(afterRefs).toBeGreaterThan(beforeRefs);
         });

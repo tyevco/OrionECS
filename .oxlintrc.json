@@ -15,7 +15,7 @@
     "default-case-last": "warn",
     "no-template-curly-in-string": "warn",
 
-    "typescript/no-explicit-any": "warn",
+    "typescript/no-explicit-any": ["warn", { "ignoreRestArgs": true }],
     "typescript/no-non-null-assertion": "warn",
     "typescript/consistent-type-imports": "warn",
     "typescript/adjacent-overload-signatures": "warn",
@@ -51,7 +51,7 @@
     {
       "files": ["*.spec.ts", "*.test.ts", "*.bench.ts", "benchmarks/**/*.ts"],
       "rules": {
-        "typescript/no-explicit-any": "warn",
+        "typescript/no-explicit-any": ["warn", { "ignoreRestArgs": true }],
         "typescript/no-extraneous-class": "off",
         "no-console": "off",
         "no-unused-vars": "error"

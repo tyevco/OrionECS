@@ -1,0 +1,38 @@
+{
+  "name": "@orion-ecs/eslint-plugin-ecs",
+  "version": "0.1.0",
+  "description": "ESLint rules for enforcing ECS best practices in OrionECS projects",
+  "main": "dist/index.js",
+  "types": "dist/index.d.ts",
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsup src/index.ts --format cjs,esm --dts",
+    "test": "jest",
+    "lint": "biome check src/"
+  },
+  "keywords": [
+    "eslint",
+    "eslint-plugin",
+    "ecs",
+    "entity-component-system",
+    "orion-ecs",
+    "best-practices"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "eslint": ">=8.0.0",
+    "@typescript-eslint/utils": ">=6.0.0"
+  },
+  "devDependencies": {
+    "@typescript-eslint/rule-tester": "^8.0.0",
+    "@typescript-eslint/utils": "^8.0.0",
+    "eslint": "^9.0.0",
+    "typescript": "^5.0.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

@@ -150,6 +150,7 @@ publish/
 !/packages/plugin-api/
 !/packages/testing/
 !/packages/utils/
+!/packages/eslint-plugin-ecs/
 
 # Windows Azure Build Output
 csx/

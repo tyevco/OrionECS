@@ -884,6 +884,50 @@ gh issue create --title "📊 Comprehensive Codebase Analysis - Findings & Recom
 
 **See Example:** Issue #110 in this repository
 
+#### Uploading Full Reports as Attachments
+
+For comprehensive analysis reports, nightly reviews, or detailed findings that are too long for an issue body, **upload the full report as a markdown file attachment** to the GitHub issue.
+
+**How to Attach Reports:**
+1. Write the full report to a temporary `.md` file
+2. Use `gh issue edit` or `gh issue comment` with the file attachment
+3. Reference the attachment in the issue body or comment
+
+**Example Workflow:**
+```bash
+# Write report to a temp file
+cat > /tmp/analysis-report.md << 'EOF'
+# Full Analysis Report
+
+## Executive Summary
+...detailed findings...
+
+## Metrics
+...comprehensive data...
+
+## Recommendations
+...full list with details...
+EOF
+
+# Attach to issue comment
+gh issue comment 88 --body "Full analysis report attached below." --attach /tmp/analysis-report.md
+
+# Or create new issue with attachment
+gh issue create --title "📊 Nightly Review Report" --body "See attached report for full details." --attach /tmp/analysis-report.md
+```
+
+**When to Use Attachments:**
+- Nightly review reports with full findings
+- Comprehensive codebase analysis results
+- Detailed audit reports
+- Any report exceeding ~500 lines
+
+**Benefits:**
+- Keeps issue body clean and scannable
+- Preserves full detail for reference
+- Easy to download and share
+- Maintains formatting in markdown
+
 #### Adding Analysis Comments to Issues
 
 When analyzing features or code, add detailed comments to relevant issues:

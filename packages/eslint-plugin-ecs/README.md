@@ -179,3 +179,63 @@ rules: {
 ## Integration with OrionECS
 
 This plugin is designed specifically for [OrionECS](https://github.com/tyevco/OrionECS) projects but can be used with any ECS framework that follows similar patterns.
+
+## Future: Oxlint Plugin
+
+Oxlint now supports [JavaScript plugins](https://oxc.rs/blog/2025-10-09-oxlint-js-plugins.html) which could provide ~15x faster linting compared to ESLint. A future version of these ECS rules could be implemented as an Oxlint plugin for better integration with the existing OrionECS toolchain.
+
+**Potential Oxlint implementation:**
+
+```javascript
+// oxlint-plugin-ecs.js
+const dataOnlyComponents = {
+  create(context) {
+    const componentPattern = /(Component|Position|Velocity|Health|Transform)$/;
+    const allowedMethods = new Set(['clone', 'reset', 'toString', 'toJSON', 'constructor']);
+
+    return {
+      MethodDefinition(node) {
+        const classNode = node.parent?.parent;
+        if (classNode?.type !== 'ClassDeclaration') return;
+        if (!classNode.id || !componentPattern.test(classNode.id.name)) return;
+
+        const methodName = node.key?.name;
+        if (methodName && !allowedMethods.has(methodName)) {
+          context.report({
+            node,
+            message: `ECS: Move method "${methodName}" to a System`,
+          });
+        }
+      },
+    };
+  },
+};
+
+export default {
+  meta: { name: 'ecs' },
+  rules: { 'data-only-components': dataOnlyComponents },
+};
+```
+
+**Configuration** (`.oxlintrc.json`):
+```json
+{
+  "jsPlugins": ["./oxlint-plugin-ecs.js"],
+  "rules": {
+    "ecs/data-only-components": "warn"
+  }
+}
+```
+
+**Benefits of Oxlint approach:**
+- ~15x faster than ESLint (benchmarked at 236ms vs 4,116ms)
+- Native integration with existing `npm run lint` workflow
+- Uses `createOnce` API to reduce garbage collection overhead
+- Single toolchain (no separate ESLint dependency needed)
+
+**Current limitations** (as of Oxlint v1.25):
+- No rule options support yet (configuration must be hardcoded)
+- No suggestions API
+- Limited scope analysis
+
+Track Oxlint plugin progress: https://github.com/oxc-project/oxc/issues/481

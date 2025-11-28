@@ -212,24 +212,23 @@ export const componentValidator = createRule<Options, MessageIds>({
             const conflicts = conflictsProp ? getComponentNames(conflictsProp.value) : [];
 
             // Check for self-referencing
-            if (dependencies.includes(componentName)) {
+            if (dependenciesProp && dependencies.includes(componentName)) {
                 context.report({
-                    node: dependenciesProp!,
+                    node: dependenciesProp,
                     messageId: 'selfDependency',
                     data: { componentName },
                 });
             }
 
-            if (conflicts.includes(componentName)) {
+            if (conflictsProp && conflicts.includes(componentName)) {
                 context.report({
-                    node: conflictsProp!,
+                    node: conflictsProp,
                     messageId: 'selfConflict',
                     data: { componentName },
                 });
             }
 
             // Check for dependency-conflict contradiction
-            const dependencySet = new Set(dependencies);
             const conflictSet = new Set(conflicts);
 
             for (const dep of dependencies) {
@@ -243,36 +242,42 @@ export const componentValidator = createRule<Options, MessageIds>({
             }
 
             // Check for duplicates in dependencies
-            const seenDeps = new Set<string>();
-            for (const dep of dependencies) {
-                if (seenDeps.has(dep)) {
-                    context.report({
-                        node: dependenciesProp!,
-                        messageId: 'duplicateDependency',
-                        data: { targetName: dep },
-                    });
+            if (dependenciesProp) {
+                const seenDeps = new Set<string>();
+                for (const dep of dependencies) {
+                    if (seenDeps.has(dep)) {
+                        context.report({
+                            node: dependenciesProp,
+                            messageId: 'duplicateDependency',
+                            data: { targetName: dep },
+                        });
+                    }
+                    seenDeps.add(dep);
                 }
-                seenDeps.add(dep);
             }
 
             // Check for duplicates in conflicts
-            const seenConflicts = new Set<string>();
-            for (const conflict of conflicts) {
-                if (seenConflicts.has(conflict)) {
-                    context.report({
-                        node: conflictsProp!,
-                        messageId: 'duplicateConflict',
-                        data: { targetName: conflict },
-                    });
+            if (conflictsProp) {
+                const seenConflicts = new Set<string>();
+                for (const conflict of conflicts) {
+                    if (seenConflicts.has(conflict)) {
+                        context.report({
+                            node: conflictsProp,
+                            messageId: 'duplicateConflict',
+                            data: { targetName: conflict },
+                        });
+                    }
+                    seenConflicts.add(conflict);
                 }
-                seenConflicts.add(conflict);
             }
 
             // Store for circular dependency detection
+            // Filter out self-references since they're already reported as selfDependency
             if (checkCircularDependencies) {
+                const filteredDeps = new Set(dependencies.filter((d) => d !== componentName));
                 validators.set(componentName, {
                     componentName,
-                    dependencies: dependencySet,
+                    dependencies: filteredDeps,
                     conflicts: conflictSet,
                     node,
                 });

@@ -140,10 +140,10 @@ ruleTester.run('component-validator', componentValidator, {
         });
       `,
             errors: [
-                { messageId: 'selfDependency' },
-                { messageId: 'selfConflict' },
                 { messageId: 'dependencyConflictContradiction' },
+                { messageId: 'selfDependency' },
                 { messageId: 'duplicateDependency' },
+                { messageId: 'selfConflict' },
             ],
         },
     ],

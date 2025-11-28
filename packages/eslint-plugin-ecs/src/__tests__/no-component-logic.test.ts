@@ -70,7 +70,7 @@ ruleTester.run('no-component-logic', noComponentLogic, {
         // Loop in constructor
         {
             code: `
-        class Inventory {
+        class InventoryComponent {
           public items: Item[] = [];
           constructor(itemIds: number[]) {
             for (const id of itemIds) {
@@ -80,7 +80,10 @@ ruleTester.run('no-component-logic', noComponentLogic, {
         }
         class Item { constructor(id: number) {} }
       `,
-            errors: [{ messageId: 'noLoopInConstructor' }],
+            errors: [
+                { messageId: 'noLoopInConstructor' },
+                { messageId: 'noFunctionCallInConstructor' },
+            ],
         },
         // Switch statement in constructor
         {

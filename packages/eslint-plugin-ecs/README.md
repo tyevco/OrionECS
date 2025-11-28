@@ -168,6 +168,55 @@ engine.registerComponentValidator(Health, {
 **Options:**
 - `checkCircularDependencies`: If true (default), detect circular dependencies across validators
 
+### `ecs/component-order`
+
+Ensures components are added to entities in the correct order based on their dependencies.
+
+**Why?** When using `registerComponentValidator` with dependencies, the dependencies must be added to an entity before the dependent component. This rule catches order violations at lint time.
+
+```typescript
+// Bad - Velocity requires Position, but Position not added yet
+engine.registerComponentValidator(Velocity, { dependencies: [Position] });
+const entity = engine.createEntity();
+entity.addComponent(Velocity, 1, 1);  // Error! Position required first
+
+// Bad - Ghost conflicts with Health which was already added
+engine.registerComponentValidator(Ghost, { conflicts: [Health] });
+const entity = engine.createEntity();
+entity.addComponent(Health, 100);
+entity.addComponent(Ghost);  // Error! Conflicts with Health
+
+// Good - dependencies added first
+const entity = engine.createEntity();
+entity.addComponent(Position, 0, 0);
+entity.addComponent(Velocity, 1, 1);  // OK - Position already added
+```
+
+**Issues Detected:**
+- Missing dependencies when adding components
+- Adding conflicting components to the same entity
+
+**Options:**
+- `dependencies`: Manual dependency map (component name → required dependencies)
+- `conflicts`: Manual conflict map (component name → conflicting components)
+
+```javascript
+// Configure known dependencies/conflicts if not using registerComponentValidator
+rules: {
+  'ecs/component-order': ['warn', {
+    dependencies: {
+      Velocity: ['Position'],
+      Movement: ['Position', 'Velocity'],
+    },
+    conflicts: {
+      Ghost: ['Health', 'Solid'],
+    },
+  }],
+}
+```
+
+**Note:** The rule automatically learns dependencies and conflicts from `registerComponentValidator` calls in the same file. Manual configuration is only needed for cross-file dependencies or when not using validators.
+
 ## Configuration
 
 ### Recommended Config
@@ -185,6 +234,7 @@ export default [
       'ecs/prefer-composition': 'warn',
       'ecs/no-entity-mutation-outside-system': 'off',
       'ecs/component-validator': 'error',
+      'ecs/component-order': 'warn',
     },
   },
 ];
@@ -200,6 +250,7 @@ rules: {
   'ecs/prefer-composition': 'error',
   'ecs/no-entity-mutation-outside-system': 'warn',
   'ecs/component-validator': 'error',
+  'ecs/component-order': 'error',
 }
 ```
 

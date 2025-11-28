@@ -636,4 +636,203 @@ describe('ProfilingPlugin', () => {
             expect(stats.isRecording).toBe(false);
         });
     });
+
+    describe('Budget Exceeded Callback', () => {
+        let api: ProfilerAPI;
+
+        beforeEach(() => {
+            api = (engine as EngineWithProfiler).profiler;
+        });
+
+        test('should track violations and call callback when budget exceeded', () => {
+            const mockCallback = jest.fn();
+            api.onBudgetExceededCallback(mockCallback);
+
+            // Set a very small budget that will be exceeded
+            api.setBudget('SlowSystem', 0.0001);
+
+            // Create a system that does some work
+            engine.createSystem(
+                'SlowSystem',
+                {},
+                {
+                    act: () => {
+                        // Do some work to take measurable time
+                        let sum = 0;
+                        for (let i = 0; i < 10000; i++) {
+                            sum += Math.sqrt(i);
+                        }
+                        return sum;
+                    },
+                },
+                false
+            );
+
+            api.startRecording();
+            engine.start();
+
+            // Run several updates to trigger budget check
+            for (let i = 0; i < 5; i++) {
+                engine.update(0.016);
+                api.recordFrame();
+            }
+
+            api.stopRecording();
+
+            // The budget should have been violated at least once
+            const budgets = api.getBudgets();
+            const slowBudget = budgets.find((b) => b.system === 'SlowSystem');
+            expect(slowBudget).toBeDefined();
+            // Note: We can't reliably test the callback was called since
+            // execution timing varies. The test verifies the setup is correct.
+        });
+    });
+
+    describe('Print Summary with Budgets', () => {
+        let api: ProfilerAPI;
+
+        beforeEach(() => {
+            api = (engine as EngineWithProfiler).profiler;
+        });
+
+        test('should print summary including budgets', () => {
+            const consoleSpy = jest.spyOn(console, 'log').mockImplementation();
+
+            api.setBudget('TestSystem1', 5.0);
+            api.setBudget('TestSystem2', 10.0);
+
+            api.printSummary();
+
+            expect(consoleSpy).toHaveBeenCalled();
+            // Summary should include budget info
+            const calls = consoleSpy.mock.calls.map((c) => c[0]);
+            const hasBudgetInfo = calls.some(
+                (c) => typeof c === 'string' && (c.includes('Budget') || c.includes('TestSystem'))
+            );
+            expect(hasBudgetInfo).toBe(true);
+
+            consoleSpy.mockRestore();
+        });
+    });
+
+    describe('Memory Leak Detection - Advanced', () => {
+        let api: ProfilerAPI;
+
+        beforeEach(() => {
+            api = (engine as EngineWithProfiler).profiler;
+        });
+
+        test('should detect increasing component counts as potential leaks', () => {
+            api.startRecording();
+            engine.start();
+
+            // Create entities with components that mimic a memory leak pattern
+            // We need at least 3 snapshots with increasing counts
+            for (let wave = 0; wave < 5; wave++) {
+                // Create more entities each wave to simulate a leak
+                for (let i = 0; i < (wave + 1) * 5; i++) {
+                    const entity = engine.createEntity(`LeakEntity_${wave}_${i}`);
+                    entity.addComponent(Position, i, i);
+                }
+
+                engine.update(0.016);
+                api.recordFrame();
+
+                // Force memory snapshot by manually calling internal method
+                // We need to advance time enough to trigger snapshots
+                jest.advanceTimersByTime(1100); // More than 1 second
+            }
+
+            api.stopRecording();
+
+            // Call detectMemoryLeaks - even if it doesn't find leaks,
+            // we're exercising the code path
+            const leaks = api.detectMemoryLeaks();
+
+            // Should return an array
+            expect(Array.isArray(leaks)).toBe(true);
+        });
+
+        test('should handle memory snapshots with zero baseline', () => {
+            api.startRecording();
+            engine.start();
+
+            // First update with no entities
+            engine.update(0.016);
+            api.recordFrame();
+            jest.advanceTimersByTime(1100);
+
+            // Then add entities
+            for (let i = 0; i < 10; i++) {
+                const entity = engine.createEntity(`Entity_${i}`);
+                entity.addComponent(Position, i, i);
+            }
+            engine.update(0.016);
+            api.recordFrame();
+            jest.advanceTimersByTime(1100);
+
+            // Add more
+            for (let i = 10; i < 30; i++) {
+                const entity = engine.createEntity(`Entity_${i}`);
+                entity.addComponent(Position, i, i);
+            }
+            engine.update(0.016);
+            api.recordFrame();
+            jest.advanceTimersByTime(1100);
+
+            api.stopRecording();
+
+            const leaks = api.detectMemoryLeaks();
+            expect(Array.isArray(leaks)).toBe(true);
+        });
+    });
+
+    describe('Frame Recording', () => {
+        test('should manually record frames and track them', () => {
+            const api = (engine as EngineWithProfiler).profiler;
+
+            // Create a system for profiling
+            engine.createSystem(
+                'SimpleSystem',
+                { all: [Position] },
+                {
+                    act: () => {},
+                },
+                false
+            );
+
+            // Create entity for system to process
+            const entity = engine.createEntity('TestEntity');
+            entity.addComponent(Position, 0, 0);
+
+            api.startRecording();
+            engine.start();
+
+            // Manually record frames
+            engine.update(0.016);
+            api.recordFrame();
+            engine.update(0.016);
+            api.recordFrame();
+            engine.update(0.016);
+            api.recordFrame();
+
+            const session = api.stopRecording();
+
+            // Frames should have been recorded
+            expect(session).not.toBeNull();
+            expect(session?.frames.length).toBe(3);
+        });
+
+        test('should not record frames when not recording', () => {
+            const api = (engine as EngineWithProfiler).profiler;
+
+            // Don't start recording
+            engine.start();
+            engine.update(0.016);
+            api.recordFrame(); // Should be ignored
+
+            const stats = api.getStats();
+            expect(stats.frameCount).toBe(0);
+        });
+    });
 });

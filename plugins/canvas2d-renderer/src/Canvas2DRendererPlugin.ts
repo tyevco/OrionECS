@@ -28,15 +28,6 @@ export class Transform {
         public scaleX: number = 1,
         public scaleY: number = 1
     ) {}
-
-    public get position(): { x: number; y: number } {
-        return { x: this.x, y: this.y };
-    }
-
-    public setPosition(x: number, y: number): void {
-        this.x = x;
-        this.y = y;
-    }
 }
 
 /**

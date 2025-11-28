@@ -13,7 +13,7 @@ import {
     Player,
     Position,
     Renderable,
-    waveManager,
+    WaveData,
 } from './space-shooter';
 
 // Constants
@@ -396,7 +396,8 @@ function updateUI() {
             healthEl.textContent = `${Math.max(0, health.current)}/${health.max}`;
             powerLevelEl.textContent = playerComp.powerLevel.toString();
 
-            // Update wave number
+            // Update wave number using singleton
+            const waveManager = engine.getSingleton(WaveData);
             if (waveManager) {
                 waveEl.textContent = waveManager.currentWave.toString();
             }

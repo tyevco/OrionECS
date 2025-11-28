@@ -58,19 +58,26 @@ class BoxCollider {
         public offsetX: number = 0,
         public offsetY: number = 0
     ) {}
+}
 
-    get left(): number {
-        return this.offsetX - this.width / 2;
-    }
-    get right(): number {
-        return this.offsetX + this.width / 2;
-    }
-    get top(): number {
-        return this.offsetY - this.height / 2;
-    }
-    get bottom(): number {
-        return this.offsetY + this.height / 2;
-    }
+// ============================================================================
+// Utility Functions - BoxCollider
+// ============================================================================
+
+function colliderLeft(collider: BoxCollider): number {
+    return collider.offsetX - collider.width / 2;
+}
+
+function colliderRight(collider: BoxCollider): number {
+    return collider.offsetX + collider.width / 2;
+}
+
+function colliderTop(collider: BoxCollider): number {
+    return collider.offsetY - collider.height / 2;
+}
+
+function colliderBottom(collider: BoxCollider): number {
+    return collider.offsetY + collider.height / 2;
 }
 
 /**
@@ -114,11 +121,15 @@ class CharacterState {
         public current: string = 'idle',
         public previous: string = 'idle'
     ) {}
+}
 
-    transition(newState: string): void {
-        this.previous = this.current;
-        this.current = newState;
-    }
+// ============================================================================
+// Utility Functions - CharacterState
+// ============================================================================
+
+function characterStateTransition(state: CharacterState, newState: string): void {
+    state.previous = state.current;
+    state.current = newState;
 }
 
 /**
@@ -409,7 +420,7 @@ engine.createSystem(
                 controller.coyoteTimer = 0;
                 controller.jumpBufferTimer = 0;
 
-                state.transition('jump');
+                characterStateTransition(state, 'jump');
 
                 engine.messageBus.publish('player-jump', {}, 'PlayerControllerSystem');
             }
@@ -428,18 +439,18 @@ engine.createSystem(
             if (controller.isGrounded) {
                 if (Math.abs(velocity.dx) > 10) {
                     if (state.current !== 'run') {
-                        state.transition('run');
+                        characterStateTransition(state, 'run');
                     }
                 } else {
                     if (state.current !== 'idle') {
-                        state.transition('idle');
+                        characterStateTransition(state, 'idle');
                     }
                 }
             } else {
                 if (velocity.dy < 0 && state.current !== 'jump') {
-                    state.transition('jump');
+                    characterStateTransition(state, 'jump');
                 } else if (velocity.dy > 0 && state.current !== 'fall') {
-                    state.transition('fall');
+                    characterStateTransition(state, 'fall');
                 }
             }
         },
@@ -491,15 +502,15 @@ engine.createSystem(
                 const platComp = platform.getComponent(Platform);
 
                 // Calculate overlap
-                const entityLeft = position.x + collider.left;
-                const entityRight = position.x + collider.right;
-                const entityTop = position.y + collider.top;
-                const entityBottom = position.y + collider.bottom;
+                const entityLeft = position.x + colliderLeft(collider);
+                const entityRight = position.x + colliderRight(collider);
+                const entityTop = position.y + colliderTop(collider);
+                const entityBottom = position.y + colliderBottom(collider);
 
-                const platformLeft = platPos.x + platCol.left;
-                const platformRight = platPos.x + platCol.right;
-                const platformTop = platPos.y + platCol.top;
-                const platformBottom = platPos.y + platCol.bottom;
+                const platformLeft = platPos.x + colliderLeft(platCol);
+                const platformRight = platPos.x + colliderRight(platCol);
+                const platformTop = platPos.y + colliderTop(platCol);
+                const platformBottom = platPos.y + colliderBottom(platCol);
 
                 // Check for collision
                 if (
@@ -511,7 +522,7 @@ engine.createSystem(
                     // One-way platform: only collide from above
                     if (platComp.isOneWay) {
                         if (velocity.dy > 0 && entityTop < platformTop) {
-                            position.y = platformTop + collider.top;
+                            position.y = platformTop + colliderTop(collider);
                             velocity.dy = 0;
 
                             if (entity.hasComponent(PlayerController)) {
@@ -538,7 +549,7 @@ engine.createSystem(
                     // Resolve collision
                     if (minOverlap === overlapTop) {
                         // Collision from top
-                        position.y = platformTop + collider.top;
+                        position.y = platformTop + colliderTop(collider);
                         velocity.dy = 0;
 
                         if (entity.hasComponent(PlayerController)) {
@@ -546,15 +557,15 @@ engine.createSystem(
                         }
                     } else if (minOverlap === overlapBottom) {
                         // Collision from bottom
-                        position.y = platformBottom + collider.bottom;
+                        position.y = platformBottom + colliderBottom(collider);
                         velocity.dy = 0;
                     } else if (minOverlap === overlapLeft) {
                         // Collision from left
-                        position.x = platformLeft + collider.left;
+                        position.x = platformLeft + colliderLeft(collider);
                         velocity.dx = 0;
                     } else if (minOverlap === overlapRight) {
                         // Collision from right
-                        position.x = platformRight + collider.right;
+                        position.x = platformRight + colliderRight(collider);
                         velocity.dx = 0;
                     }
                 }
@@ -951,6 +962,12 @@ export {
     EnemyAI,
     Collectible,
     PlayerStats,
+    // Component Utility Functions
+    colliderLeft,
+    colliderRight,
+    colliderTop,
+    colliderBottom,
+    characterStateTransition,
     // Functions
     initGame,
     gameLoop,

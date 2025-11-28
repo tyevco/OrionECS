@@ -1,4 +1,6 @@
 import * as vscode from 'vscode';
+import { EntityInspectorPanel } from '../panels/EntityInspectorPanel';
+import { SystemVisualizerPanel } from '../panels/SystemVisualizerPanel';
 import type { ComponentsTreeProvider } from '../views/ComponentsTreeProvider';
 import type { EntitiesTreeProvider } from '../views/EntitiesTreeProvider';
 import type { SystemsTreeProvider } from '../views/SystemsTreeProvider';
@@ -8,6 +10,7 @@ export interface CommandContext {
     systemsProvider: SystemsTreeProvider;
     entitiesProvider: EntitiesTreeProvider;
     outputChannel: vscode.OutputChannel;
+    extensionUri: vscode.Uri;
 }
 
 export function registerCommands(
@@ -132,30 +135,24 @@ export function registerCommands(
     // Show Entity Inspector command
     context.subscriptions.push(
         vscode.commands.registerCommand('orion-ecs.showEntityInspector', async () => {
-            const panel = vscode.window.createWebviewPanel(
-                'orionEntityInspector',
-                'Entity Inspector',
-                vscode.ViewColumn.Two,
-                { enableScripts: true }
-            );
-
-            panel.webview.html = getEntityInspectorHtml();
+            EntityInspectorPanel.createOrShow(providers.extensionUri, outputChannel);
             outputChannel.appendLine('Opened Entity Inspector');
         })
     );
 
-    // Show System Execution Order command
+    // Show System Execution Order command (now System Visualizer)
     context.subscriptions.push(
         vscode.commands.registerCommand('orion-ecs.showSystemExecutionOrder', async () => {
-            const panel = vscode.window.createWebviewPanel(
-                'orionSystemOrder',
-                'System Execution Order',
-                vscode.ViewColumn.Two,
-                { enableScripts: true }
-            );
+            SystemVisualizerPanel.createOrShow(providers.extensionUri, outputChannel);
+            outputChannel.appendLine('Opened System Visualizer');
+        })
+    );
 
-            panel.webview.html = getSystemExecutionOrderHtml();
-            outputChannel.appendLine('Opened System Execution Order view');
+    // Show System Visualizer command (alias)
+    context.subscriptions.push(
+        vscode.commands.registerCommand('orion-ecs.showSystemVisualizer', async () => {
+            SystemVisualizerPanel.createOrShow(providers.extensionUri, outputChannel);
+            outputChannel.appendLine('Opened System Visualizer');
         })
     );
 
@@ -292,124 +289,4 @@ async function insertSnippet(text: string): Promise<void> {
         });
         await vscode.window.showTextDocument(doc);
     }
-}
-
-function getEntityInspectorHtml(): string {
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Entity Inspector</title>
-  <style>
-    body {
-      font-family: var(--vscode-font-family);
-      color: var(--vscode-foreground);
-      background-color: var(--vscode-editor-background);
-      padding: 16px;
-    }
-    h1 { font-size: 1.5em; margin-bottom: 16px; }
-    .section { margin-bottom: 24px; }
-    .section-title {
-      font-weight: bold;
-      margin-bottom: 8px;
-      border-bottom: 1px solid var(--vscode-panel-border);
-      padding-bottom: 4px;
-    }
-    .placeholder {
-      color: var(--vscode-descriptionForeground);
-      font-style: italic;
-    }
-    .info-box {
-      background: var(--vscode-textBlockQuote-background);
-      padding: 12px;
-      border-radius: 4px;
-      margin-top: 8px;
-    }
-  </style>
-</head>
-<body>
-  <h1>Entity Inspector</h1>
-
-  <div class="info-box">
-    <p>The Entity Inspector provides runtime debugging of your ECS world.</p>
-    <p>To use this feature, connect your running game to the extension via the OrionECS Debug API.</p>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Selected Entity</div>
-    <p class="placeholder">No entity selected</p>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Components</div>
-    <p class="placeholder">Select an entity to view its components</p>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Tags</div>
-    <p class="placeholder">No tags</p>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Hierarchy</div>
-    <p class="placeholder">No parent/children</p>
-  </div>
-</body>
-</html>`;
-}
-
-function getSystemExecutionOrderHtml(): string {
-    return `<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>System Execution Order</title>
-  <style>
-    body {
-      font-family: var(--vscode-font-family);
-      color: var(--vscode-foreground);
-      background-color: var(--vscode-editor-background);
-      padding: 16px;
-    }
-    h1 { font-size: 1.5em; margin-bottom: 16px; }
-    .section { margin-bottom: 24px; }
-    .section-title {
-      font-weight: bold;
-      margin-bottom: 8px;
-      border-bottom: 1px solid var(--vscode-panel-border);
-      padding-bottom: 4px;
-    }
-    .placeholder {
-      color: var(--vscode-descriptionForeground);
-      font-style: italic;
-    }
-    .info-box {
-      background: var(--vscode-textBlockQuote-background);
-      padding: 12px;
-      border-radius: 4px;
-      margin-top: 8px;
-    }
-  </style>
-</head>
-<body>
-  <h1>System Execution Order</h1>
-
-  <div class="info-box">
-    <p>This view shows the order in which systems are executed during each engine update.</p>
-    <p>Systems are sorted by priority (higher priority runs first).</p>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Variable Update Systems</div>
-    <p class="placeholder">Scan your project to view systems</p>
-  </div>
-
-  <div class="section">
-    <div class="section-title">Fixed Update Systems</div>
-    <p class="placeholder">Scan your project to view systems</p>
-  </div>
-</body>
-</html>`;
 }

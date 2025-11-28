@@ -11,6 +11,7 @@
   "categories": [
     "Snippets",
     "Programming Languages",
+    "Debuggers",
     "Other"
   ],
   "keywords": [
@@ -52,6 +53,10 @@
       {
         "command": "orion-ecs.showSystemExecutionOrder",
         "title": "Orion: Show System Execution Order"
+      },
+      {
+        "command": "orion-ecs.showSystemVisualizer",
+        "title": "Orion: Show System Visualizer"
       },
       {
         "command": "orion-ecs.openDocumentation",
@@ -145,6 +150,16 @@
           "type": "boolean",
           "default": true,
           "description": "Automatically add imports when using snippets"
+        },
+        "orion-ecs.debugServerPort": {
+          "type": "number",
+          "default": 9229,
+          "description": "Port for connecting to OrionECS debug server"
+        },
+        "orion-ecs.autoConnectDebugger": {
+          "type": "boolean",
+          "default": false,
+          "description": "Automatically connect to debug server when opening debugging panels"
         }
       }
     }

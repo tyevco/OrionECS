@@ -68,6 +68,13 @@
       "rules": {
         "unicorn/no-array-sort": "off"
       }
+    },
+    {
+      "files": ["packages/vscode-extension/**/*.ts"],
+      "rules": {
+        "unicorn/require-post-message-target-origin": "off",
+        "promise/always-return": "off"
+      }
     }
   ]
 }

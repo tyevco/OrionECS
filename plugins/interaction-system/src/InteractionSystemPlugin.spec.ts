@@ -3,10 +3,10 @@
  *
  * Comprehensive tests covering:
  * - Component initialization and validation
- * - Click detection and handling
- * - Drag and drop functionality
- * - Selection management
- * - Hover detection
+ * - Click detection and handling (event-based)
+ * - Drag and drop functionality (event-based)
+ * - Selection management (event-based)
+ * - Hover detection (event-based)
  * - Layer-based interaction priority
  * - Integration with InputManager
  */
@@ -20,6 +20,7 @@ import type {
 } from '../../../packages/core/src/index';
 import {
     Clickable,
+    type ClickEvent,
     Draggable,
     Hoverable,
     InteractionAPI,
@@ -87,9 +88,12 @@ const mockInputAPI = {
 describe('InteractionSystemPlugin', () => {
     let engine: EngineWithInteraction;
     let plugin: InteractionSystemPlugin;
+    // Event listeners for testing
+    let eventListeners: Map<string, ((data: unknown) => void)[]>;
 
     beforeEach(() => {
         plugin = new InteractionSystemPlugin();
+        eventListeners = new Map();
 
         // Create engine without the plugin first
         const baseEngine = new TestEngineBuilder().build() as unknown as Engine;
@@ -122,6 +126,28 @@ describe('InteractionSystemPlugin', () => {
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
                 (baseEngine as any)[name] = api;
             },
+            on: (event: string, callback: (data: unknown) => void) => {
+                if (!eventListeners.has(event)) {
+                    eventListeners.set(event, []);
+                }
+                const listeners = eventListeners.get(event);
+                listeners?.push(callback);
+                return () => {
+                    const currentListeners = eventListeners.get(event);
+                    if (currentListeners) {
+                        const index = currentListeners.indexOf(callback);
+                        if (index > -1) {
+                            currentListeners.splice(index, 1);
+                        }
+                    }
+                };
+            },
+            emit: (event: string, data: unknown) => {
+                const listeners = eventListeners.get(event);
+                if (listeners) {
+                    listeners.forEach((callback) => callback(data));
+                }
+            },
             getEngine: () => baseEngine,
             messageBus: baseEngine.messageBus,
             engine: baseEngine,
@@ -134,6 +160,7 @@ describe('InteractionSystemPlugin', () => {
     afterEach(() => {
         engine.stop();
         mockInputAPI._callbacks.clear();
+        eventListeners.clear();
     });
 
     describe('Plugin Metadata', () => {
@@ -176,21 +203,12 @@ describe('InteractionSystemPlugin', () => {
             const clickable = new Clickable();
             expect(clickable.enabled).toBe(true);
             expect(clickable.layer).toBe(0);
-            expect(clickable.onClick).toBeUndefined();
         });
 
         test('should create Clickable with custom values', () => {
             const clickable = new Clickable(false, 5);
             expect(clickable.enabled).toBe(false);
             expect(clickable.layer).toBe(5);
-        });
-
-        test('should allow setting onClick callback', () => {
-            const clickable = new Clickable();
-            const mockCallback = jest.fn();
-
-            clickable.onClick = mockCallback;
-            expect(clickable.onClick).toBe(mockCallback);
         });
     });
 
@@ -209,21 +227,6 @@ describe('InteractionSystemPlugin', () => {
             expect(draggable.layer).toBe(3);
             expect(draggable.dragButton).toBe(2);
         });
-
-        test('should allow setting drag callbacks', () => {
-            const draggable = new Draggable();
-            const mockStart = jest.fn();
-            const mockDrag = jest.fn();
-            const mockEnd = jest.fn();
-
-            draggable.onDragStart = mockStart;
-            draggable.onDrag = mockDrag;
-            draggable.onDragEnd = mockEnd;
-
-            expect(draggable.onDragStart).toBe(mockStart);
-            expect(draggable.onDrag).toBe(mockDrag);
-            expect(draggable.onDragEnd).toBe(mockEnd);
-        });
     });
 
     describe('Component - Selectable', () => {
@@ -239,18 +242,6 @@ describe('InteractionSystemPlugin', () => {
             expect(selectable.enabled).toBe(false);
             expect(selectable.layer).toBe(2);
         });
-
-        test('should allow setting selection callbacks', () => {
-            const selectable = new Selectable();
-            const mockSelect = jest.fn();
-            const mockDeselect = jest.fn();
-
-            selectable.onSelect = mockSelect;
-            selectable.onDeselect = mockDeselect;
-
-            expect(selectable.onSelect).toBe(mockSelect);
-            expect(selectable.onDeselect).toBe(mockDeselect);
-        });
     });
 
     describe('Component - Hoverable', () => {
@@ -265,18 +256,6 @@ describe('InteractionSystemPlugin', () => {
             const hoverable = new Hoverable(false, 4);
             expect(hoverable.enabled).toBe(false);
             expect(hoverable.layer).toBe(4);
-        });
-
-        test('should allow setting hover callbacks', () => {
-            const hoverable = new Hoverable();
-            const mockEnter = jest.fn();
-            const mockExit = jest.fn();
-
-            hoverable.onHoverEnter = mockEnter;
-            hoverable.onHoverExit = mockExit;
-
-            expect(hoverable.onHoverEnter).toBe(mockEnter);
-            expect(hoverable.onHoverExit).toBe(mockExit);
         });
     });
 
@@ -333,32 +312,34 @@ describe('InteractionSystemPlugin', () => {
             expect(selectable?.selected).toBe(false);
         });
 
-        test('should call onSelect callback', () => {
+        test('should emit interaction:select event', () => {
             const mockCallback = jest.fn();
             const entity = engine.createEntity('TestEntity');
             entity.addComponent(Selectable);
-            const selectable = entity.getComponent(Selectable)!;
-            selectable.onSelect = mockCallback;
+
+            // Subscribe to event
+            eventListeners.set('interaction:select', [mockCallback]);
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             api.selectEntity(entity as any);
 
-            expect(mockCallback).toHaveBeenCalledWith(entity);
+            expect(mockCallback).toHaveBeenCalledWith(expect.objectContaining({ entity }));
         });
 
-        test('should call onDeselect callback', () => {
+        test('should emit interaction:deselect event', () => {
             const mockCallback = jest.fn();
             const entity = engine.createEntity('TestEntity');
             entity.addComponent(Selectable);
-            const selectable = entity.getComponent(Selectable)!;
-            selectable.onDeselect = mockCallback;
+
+            // Subscribe to event
+            eventListeners.set('interaction:deselect', [mockCallback]);
 
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             api.selectEntity(entity as any);
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
             api.deselectEntity(entity as any);
 
-            expect(mockCallback).toHaveBeenCalledWith(entity);
+            expect(mockCallback).toHaveBeenCalledWith(expect.objectContaining({ entity }));
         });
 
         test('should clear all selections', () => {
@@ -433,14 +414,13 @@ describe('InteractionSystemPlugin', () => {
             api = (engine as EngineWithInteraction).interaction;
         });
 
-        test('should trigger onClick callback when clicked', () => {
+        test('should emit interaction:click event when clicked', () => {
             const mockCallback = jest.fn();
+            eventListeners.set('interaction:click', [mockCallback]);
 
             const entity = engine.createEntity('Button');
             entity.addComponent(Clickable);
             entity.addComponent(Selectable, false); // Add Selectable (disabled) to prevent getComponent error
-            const clickable = entity.getComponent(Clickable)!;
-            clickable.onClick = mockCallback;
 
             const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
@@ -449,16 +429,20 @@ describe('InteractionSystemPlugin', () => {
                 position: { x: 50, y: 50 },
             });
 
-            expect(mockCallback).toHaveBeenCalled();
+            expect(mockCallback).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    entity: expect.anything(),
+                    position: expect.objectContaining({ x: 50, y: 50 }),
+                })
+            );
         });
 
-        test('should not trigger onClick when disabled', () => {
+        test('should not emit click event when disabled', () => {
             const mockCallback = jest.fn();
+            eventListeners.set('interaction:click', [mockCallback]);
 
             const entity = engine.createEntity('Button');
             entity.addComponent(Clickable, false); // disabled
-            const clickable = entity.getComponent(Clickable)!;
-            clickable.onClick = mockCallback;
 
             const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
@@ -494,8 +478,8 @@ describe('InteractionSystemPlugin', () => {
         });
 
         test('should prioritize higher layer entities', () => {
-            const mockCallback1 = jest.fn();
-            const mockCallback2 = jest.fn();
+            const mockCallback = jest.fn();
+            eventListeners.set('interaction:click', [mockCallback]);
 
             const Bounds = require('@orion-ecs/math').Bounds;
 
@@ -503,16 +487,12 @@ describe('InteractionSystemPlugin', () => {
             const entity1 = engine.createEntity('Button1');
             entity1.addComponent(Clickable, true, 0);
             entity1.addComponent(Selectable, false); // Add Selectable (disabled) to prevent getComponent error
-            const clickable1 = entity1.getComponent(Clickable)!;
-            clickable1.onClick = mockCallback1;
             entity1.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             // Higher layer entity (same position)
             const entity2 = engine.createEntity('Button2');
             entity2.addComponent(Clickable, true, 10);
             entity2.addComponent(Selectable, false); // Add Selectable (disabled) to prevent getComponent error
-            const clickable2 = entity2.getComponent(Clickable)!;
-            clickable2.onClick = mockCallback2;
             entity2.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             mockInputAPI._trigger('click', {
@@ -520,8 +500,9 @@ describe('InteractionSystemPlugin', () => {
             });
 
             // Only higher layer should be clicked
-            expect(mockCallback2).toHaveBeenCalled();
-            expect(mockCallback1).not.toHaveBeenCalled();
+            expect(mockCallback).toHaveBeenCalledTimes(1);
+            const clickEvent = mockCallback.mock.calls[0][0] as ClickEvent;
+            expect(clickEvent.entity).toBe(entity2);
         });
     });
 
@@ -532,13 +513,12 @@ describe('InteractionSystemPlugin', () => {
             _api = (engine as EngineWithInteraction).interaction;
         });
 
-        test('should trigger onDragStart callback', () => {
+        test('should emit interaction:dragStart event', () => {
             const mockCallback = jest.fn();
+            eventListeners.set('interaction:dragStart', [mockCallback]);
 
             const entity = engine.createEntity('Draggable');
             entity.addComponent(Draggable);
-            const draggable = entity.getComponent(Draggable)!;
-            draggable.onDragStart = mockCallback;
 
             const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
@@ -548,18 +528,25 @@ describe('InteractionSystemPlugin', () => {
                 startPosition: new Vector2(50, 50),
             });
 
-            expect(mockCallback).toHaveBeenCalled();
-            expect(draggable.isDragging).toBe(true);
+            expect(mockCallback).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    entity: expect.anything(),
+                    position: expect.objectContaining({ x: 50, y: 50 }),
+                })
+            );
+
+            const draggable = entity.getComponent(Draggable);
+            expect(draggable?.isDragging).toBe(true);
         });
 
-        test('should trigger onDrag callback', () => {
+        test('should emit interaction:drag event', () => {
             const mockCallback = jest.fn();
+            eventListeners.set('interaction:drag', [mockCallback]);
 
             const entity = engine.createEntity('Draggable');
             entity.addComponent(Draggable);
-            const draggable = entity.getComponent(Draggable)!;
-            draggable.onDrag = mockCallback;
-            draggable.isDragging = true; // Simulate drag started
+            const draggable = entity.getComponent(Draggable);
+            if (draggable) draggable.isDragging = true; // Simulate drag started
 
             const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
@@ -576,16 +563,20 @@ describe('InteractionSystemPlugin', () => {
                 deltaPosition: new Vector2(10, 5),
             });
 
-            expect(mockCallback).toHaveBeenCalled();
+            expect(mockCallback).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    entity: expect.anything(),
+                    delta: expect.objectContaining({ x: 10, y: 5 }),
+                })
+            );
         });
 
-        test('should trigger onDragEnd callback', () => {
+        test('should emit interaction:dragEnd event', () => {
             const mockCallback = jest.fn();
+            eventListeners.set('interaction:dragEnd', [mockCallback]);
 
             const entity = engine.createEntity('Draggable');
             entity.addComponent(Draggable);
-            const draggable = entity.getComponent(Draggable)!;
-            draggable.onDragEnd = mockCallback;
 
             const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
@@ -602,17 +593,23 @@ describe('InteractionSystemPlugin', () => {
                 currentPosition: new Vector2(60, 55),
             });
 
-            expect(mockCallback).toHaveBeenCalled();
-            expect(draggable.isDragging).toBe(false);
+            expect(mockCallback).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    entity: expect.anything(),
+                    position: expect.objectContaining({ x: 60, y: 55 }),
+                })
+            );
+
+            const draggable = entity.getComponent(Draggable);
+            expect(draggable?.isDragging).toBe(false);
         });
 
         test('should not drag when disabled', () => {
             const mockCallback = jest.fn();
+            eventListeners.set('interaction:dragStart', [mockCallback]);
 
             const entity = engine.createEntity('Draggable');
             entity.addComponent(Draggable, false); // disabled
-            const draggable = entity.getComponent(Draggable)!;
-            draggable.onDragStart = mockCallback;
 
             const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
@@ -633,13 +630,12 @@ describe('InteractionSystemPlugin', () => {
             _api = (engine as EngineWithInteraction).interaction;
         });
 
-        test('should trigger onHoverEnter callback', () => {
+        test('should emit interaction:hoverEnter event', () => {
             const mockCallback = jest.fn();
+            eventListeners.set('interaction:hoverEnter', [mockCallback]);
 
             const entity = engine.createEntity('Hoverable');
             entity.addComponent(Hoverable);
-            const hoverable = entity.getComponent(Hoverable)!;
-            hoverable.onHoverEnter = mockCallback;
 
             const Bounds = require('@orion-ecs/math').Bounds;
             entity.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
@@ -649,20 +645,26 @@ describe('InteractionSystemPlugin', () => {
                 position: new Vector2(50, 50),
             });
 
-            expect(mockCallback).toHaveBeenCalled();
-            expect(hoverable.hovered).toBe(true);
+            expect(mockCallback).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    entity: expect.anything(),
+                })
+            );
+
+            const hoverable = entity.getComponent(Hoverable);
+            expect(hoverable?.hovered).toBe(true);
         });
 
-        test('should trigger onHoverExit callback', () => {
-            const mockEnter = jest.fn();
-            const mockExit = jest.fn();
+        test('should emit interaction:hoverExit event', () => {
+            const mockEnterCallback = jest.fn();
+            const mockExitCallback = jest.fn();
+            eventListeners.set('interaction:hoverEnter', [mockEnterCallback]);
+            eventListeners.set('interaction:hoverExit', [mockExitCallback]);
 
             const entity = engine.createEntity('Hoverable');
             entity.addComponent(Hoverable);
-            const hoverable = entity.getComponent(Hoverable)!;
-            hoverable.onHoverEnter = mockEnter;
-            hoverable.onHoverExit = mockExit;
-            hoverable.hovered = true; // Start as hovered
+            const hoverable = entity.getComponent(Hoverable);
+            if (hoverable) hoverable.hovered = true; // Start as hovered
 
             const Bounds = require('@orion-ecs/math').Bounds;
             const bounds = new Bounds(0, 0, 100, 100);
@@ -676,8 +678,12 @@ describe('InteractionSystemPlugin', () => {
                 position: new Vector2(200, 200),
             });
 
-            expect(mockExit).toHaveBeenCalled();
-            expect(hoverable.hovered).toBe(false);
+            expect(mockExitCallback).toHaveBeenCalledWith(
+                expect.objectContaining({
+                    entity: expect.anything(),
+                })
+            );
+            expect(hoverable?.hovered).toBe(false);
         });
     });
 
@@ -711,32 +717,25 @@ describe('InteractionSystemPlugin', () => {
         });
 
         test('should handle multiple entities in same position', () => {
+            const mockCallback = jest.fn();
+            eventListeners.set('interaction:click', [mockCallback]);
+
             const Bounds = require('@orion-ecs/math').Bounds;
             const Vector2 = require('@orion-ecs/math').Vector2;
-
-            const mockCallback1 = jest.fn();
-            const mockCallback2 = jest.fn();
-            const mockCallback3 = jest.fn();
 
             const entity1 = engine.createEntity('Button1');
             entity1.addComponent(Clickable, true, 0);
             entity1.addComponent(Selectable, false); // Add Selectable (disabled) to prevent getComponent error
-            const clickable1 = entity1.getComponent(Clickable)!;
-            clickable1.onClick = mockCallback1;
             entity1.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             const entity2 = engine.createEntity('Button2');
             entity2.addComponent(Clickable, true, 5);
             entity2.addComponent(Selectable, false); // Add Selectable (disabled) to prevent getComponent error
-            const clickable2 = entity2.getComponent(Clickable)!;
-            clickable2.onClick = mockCallback2;
             entity2.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             const entity3 = engine.createEntity('Button3');
             entity3.addComponent(Clickable, true, 3);
             entity3.addComponent(Selectable, false); // Add Selectable (disabled) to prevent getComponent error
-            const clickable3 = entity3.getComponent(Clickable)!;
-            clickable3.onClick = mockCallback3;
             entity3.addComponent(InteractionBounds, new Bounds(0, 0, 100, 100));
 
             mockInputAPI._trigger('click', {
@@ -744,9 +743,9 @@ describe('InteractionSystemPlugin', () => {
             });
 
             // Only highest layer (5) should be clicked
-            expect(mockCallback2).toHaveBeenCalled();
-            expect(mockCallback1).not.toHaveBeenCalled();
-            expect(mockCallback3).not.toHaveBeenCalled();
+            expect(mockCallback).toHaveBeenCalledTimes(1);
+            const clickEvent = mockCallback.mock.calls[0][0] as ClickEvent;
+            expect(clickEvent.entity).toBe(entity2);
         });
     });
 });

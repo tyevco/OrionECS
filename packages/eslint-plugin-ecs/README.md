@@ -170,9 +170,9 @@ engine.registerComponentValidator(Health, {
 
 ### `ecs/component-order`
 
-Ensures components are added to entities in the correct order based on their dependencies.
+Ensures components are added to entities in the correct order based on their dependencies. Also validates prefabs registered via `registerPrefab`.
 
-**Why?** When using `registerComponentValidator` with dependencies, the dependencies must be added to an entity before the dependent component. This rule catches order violations at lint time.
+**Why?** When using `registerComponentValidator` with dependencies, the dependencies must be added to an entity before the dependent component. This rule catches order violations at lint time - both in runtime code and in prefab definitions.
 
 ```typescript
 // Bad - Velocity requires Position, but Position not added yet
@@ -192,9 +192,46 @@ entity.addComponent(Position, 0, 0);
 entity.addComponent(Velocity, 1, 1);  // OK - Position already added
 ```
 
+**Prefab Validation:**
+
+The rule also validates prefabs to ensure component order is correct:
+
+```typescript
+// Bad - Prefab has Velocity before Position
+engine.registerComponentValidator(Velocity, { dependencies: [Position] });
+engine.registerPrefab('Player', {
+  name: 'Player',
+  components: [
+    { type: Velocity, args: [1, 1] },  // Error! Position must come first
+    { type: Position, args: [0, 0] }
+  ]
+});
+
+// Bad - Prefab has conflicting components
+engine.registerComponentValidator(Ghost, { conflicts: [Health] });
+engine.registerPrefab('Invalid', {
+  name: 'Invalid',
+  components: [
+    { type: Health, args: [100] },
+    { type: Ghost }  // Error! Conflicts with Health
+  ]
+});
+
+// Good - Prefab with correct order
+engine.registerPrefab('Player', {
+  name: 'Player',
+  components: [
+    { type: Position, args: [0, 0] },
+    { type: Velocity, args: [1, 1] }  // OK - Position is before Velocity
+  ]
+});
+```
+
 **Issues Detected:**
-- Missing dependencies when adding components
+- Missing dependencies when adding components to entities
 - Adding conflicting components to the same entity
+- Prefab component arrays with wrong dependency order
+- Prefab component arrays with conflicting components
 
 **Options:**
 - `dependencies`: Manual dependency map (component name → required dependencies)

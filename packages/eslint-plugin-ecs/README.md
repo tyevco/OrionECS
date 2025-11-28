@@ -453,23 +453,61 @@ engine.createSystem('Movement', {
 }, { act: (e, v) => {} });
 ```
 
-**How it works:**
-1. When type information is available, the plugin scans all TypeScript files in the project
-2. It builds a registry of all `registerComponentValidator` calls to collect dependencies and conflicts
-3. This registry is cached per program instance for performance
-4. Rules use this registry to validate across file boundaries
+### TypeScript Type Resolution
 
-**Benefits:**
+When type-aware mode is enabled, the rules use the TypeScript type checker to **resolve imported types**. This means component validation works even when:
+
+- Components are imported from other files in your project
+- Components are imported from external packages (e.g., `node_modules`)
+- Components are re-exported through barrel files
+- Type aliases or renamed imports are used
+
+```typescript
+// external-package/components.ts (in node_modules)
+export class Position { /* ... */ }
+export class Velocity { /* ... */ }
+
+// your-project/validators.ts
+import { Position, Velocity } from 'external-package';
+engine.registerComponentValidator(Velocity, { dependencies: [Position] });
+
+// your-project/game.ts
+import { Position as Pos, Velocity as Vel } from 'external-package';
+const entity = engine.createEntity();
+entity.addComponent(Vel, 1, 1);  // Error! Position (aliased as Pos) required first
+entity.addComponent(Pos, 0, 0);
+```
+
+The type checker resolves `Vel` back to `Velocity` and `Pos` back to `Position`, so the dependency validation works correctly regardless of import aliases.
+
+### How it works
+
+1. When type information is available, the plugin scans all TypeScript files in the project
+2. It uses the TypeScript type checker (`ts.TypeChecker`) to resolve types:
+   - `resolveTypeInfo()` - Gets full type information including qualified names and source files
+   - `resolveComponentType()` - Resolves component arguments to their actual type names
+   - `isValidComponentClass()` - Verifies a type is a class (not an interface or type alias)
+3. It builds a registry of all `registerComponentValidator` calls with resolved type information
+4. The registry is cached per program instance for performance
+5. Rules use the type checker to match component usages against the registry
+
+### Benefits
+
 - Validators defined in one file work in all files
 - Catches dependency/conflict violations across module boundaries
+- Works with imported types from external packages
+- Handles type aliases and renamed imports correctly
 - No manual configuration needed for cross-file dependencies
 
-**Requirements:**
+### Requirements
+
 - TypeScript project with `tsconfig.json`
 - ESLint configured with `parserOptions.projectService` or `parserOptions.project`
 - `typescript-eslint` parser (included with `typescript-eslint` package)
 
-**Performance Note:** The first lint run scans all files to build the registry. Subsequent files in the same run use the cached registry. This adds minimal overhead compared to the benefits of cross-file validation.
+### Performance Note
+
+The first lint run scans all files to build the registry. Subsequent files in the same run use the cached registry. This adds minimal overhead compared to the benefits of cross-file validation.
 
 ## Integration with OrionECS
 

@@ -66,6 +66,22 @@
         "command": "orion-ecs.refreshEntityTree",
         "title": "Orion: Refresh Entity Tree",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "orion-ecs.findComponentReferences",
+        "title": "Orion: Find Component References"
+      },
+      {
+        "command": "orion-ecs.findSystemReferences",
+        "title": "Orion: Find System References"
+      },
+      {
+        "command": "orion-ecs.findPrefabReferences",
+        "title": "Orion: Find Prefab References"
+      },
+      {
+        "command": "orion-ecs.goToDefinition",
+        "title": "Orion: Go to ECS Definition"
       }
     ],
     "viewsContainers": {

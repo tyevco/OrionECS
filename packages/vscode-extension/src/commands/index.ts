@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import { EntityInspectorPanel } from '../panels/EntityInspectorPanel';
 import { SystemVisualizerPanel } from '../panels/SystemVisualizerPanel';
+import type { ECSReferenceProvider } from '../providers/ECSReferenceProvider';
 import type { ComponentsTreeProvider } from '../views/ComponentsTreeProvider';
 import type { EntitiesTreeProvider } from '../views/EntitiesTreeProvider';
 import type { SystemsTreeProvider } from '../views/SystemsTreeProvider';
@@ -9,6 +10,7 @@ export interface CommandContext {
     componentsProvider: ComponentsTreeProvider;
     systemsProvider: SystemsTreeProvider;
     entitiesProvider: EntitiesTreeProvider;
+    referenceProvider: ECSReferenceProvider;
     outputChannel: vscode.OutputChannel;
     extensionUri: vscode.Uri;
 }
@@ -17,7 +19,13 @@ export function registerCommands(
     context: vscode.ExtensionContext,
     providers: CommandContext
 ): void {
-    const { componentsProvider, systemsProvider, entitiesProvider, outputChannel } = providers;
+    const {
+        componentsProvider,
+        systemsProvider,
+        entitiesProvider,
+        referenceProvider,
+        outputChannel,
+    } = providers;
 
     // Create Component command
     context.subscriptions.push(
@@ -178,13 +186,143 @@ export function registerCommands(
         vscode.commands.registerCommand(
             'orion-ecs.findComponentReferences',
             async (componentName: string) => {
-                await vscode.commands.executeCommand('workbench.action.findInFiles', {
-                    query: componentName,
-                    triggerSearch: true,
-                    isRegex: false,
-                    isCaseSensitive: true,
-                    matchWholeWord: true,
-                });
+                try {
+                    const locations = await referenceProvider.findComponentReferences(
+                        componentName,
+                        true
+                    );
+
+                    if (locations.length === 0) {
+                        vscode.window.showInformationMessage(
+                            `No references found for component: ${componentName}`
+                        );
+                        return;
+                    }
+
+                    // Show results in peek view if we have a current editor
+                    const editor = vscode.window.activeTextEditor;
+                    if (editor) {
+                        await vscode.commands.executeCommand(
+                            'editor.action.showReferences',
+                            editor.document.uri,
+                            editor.selection.active,
+                            locations
+                        );
+                    } else {
+                        // Fallback to opening first location
+                        const firstLocation = locations[0];
+                        const doc = await vscode.workspace.openTextDocument(firstLocation.uri);
+                        await vscode.window.showTextDocument(doc, {
+                            selection: firstLocation.range,
+                        });
+                        vscode.window.showInformationMessage(
+                            `Found ${locations.length} references to ${componentName}`
+                        );
+                    }
+
+                    outputChannel.appendLine(
+                        `Found ${locations.length} references to component: ${componentName}`
+                    );
+                } catch (error) {
+                    outputChannel.appendLine(`Error finding references: ${error}`);
+                    vscode.window.showErrorMessage(`Error finding references for ${componentName}`);
+                }
+            }
+        )
+    );
+
+    // Find System References command
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            'orion-ecs.findSystemReferences',
+            async (systemName: string) => {
+                try {
+                    const locations = await referenceProvider.findSystemReferences(
+                        systemName,
+                        true
+                    );
+
+                    if (locations.length === 0) {
+                        vscode.window.showInformationMessage(
+                            `No references found for system: ${systemName}`
+                        );
+                        return;
+                    }
+
+                    const editor = vscode.window.activeTextEditor;
+                    if (editor) {
+                        await vscode.commands.executeCommand(
+                            'editor.action.showReferences',
+                            editor.document.uri,
+                            editor.selection.active,
+                            locations
+                        );
+                    } else {
+                        const firstLocation = locations[0];
+                        const doc = await vscode.workspace.openTextDocument(firstLocation.uri);
+                        await vscode.window.showTextDocument(doc, {
+                            selection: firstLocation.range,
+                        });
+                        vscode.window.showInformationMessage(
+                            `Found ${locations.length} references to ${systemName}`
+                        );
+                    }
+
+                    outputChannel.appendLine(
+                        `Found ${locations.length} references to system: ${systemName}`
+                    );
+                } catch (error) {
+                    outputChannel.appendLine(`Error finding references: ${error}`);
+                    vscode.window.showErrorMessage(`Error finding references for ${systemName}`);
+                }
+            }
+        )
+    );
+
+    // Find Prefab References command
+    context.subscriptions.push(
+        vscode.commands.registerCommand(
+            'orion-ecs.findPrefabReferences',
+            async (prefabName: string) => {
+                try {
+                    const locations = await referenceProvider.findPrefabReferences(
+                        prefabName,
+                        true
+                    );
+
+                    if (locations.length === 0) {
+                        vscode.window.showInformationMessage(
+                            `No references found for prefab: ${prefabName}`
+                        );
+                        return;
+                    }
+
+                    const editor = vscode.window.activeTextEditor;
+                    if (editor) {
+                        await vscode.commands.executeCommand(
+                            'editor.action.showReferences',
+                            editor.document.uri,
+                            editor.selection.active,
+                            locations
+                        );
+                    } else {
+                        const firstLocation = locations[0];
+                        const doc = await vscode.workspace.openTextDocument(firstLocation.uri);
+                        await vscode.window.showTextDocument(doc, {
+                            selection: firstLocation.range,
+                        });
+                        vscode.window.showInformationMessage(
+                            `Found ${locations.length} references to ${prefabName}`
+                        );
+                    }
+
+                    outputChannel.appendLine(
+                        `Found ${locations.length} references to prefab: ${prefabName}`
+                    );
+                } catch (error) {
+                    outputChannel.appendLine(`Error finding references: ${error}`);
+                    vscode.window.showErrorMessage(`Error finding references for ${prefabName}`);
+                }
             }
         )
     );

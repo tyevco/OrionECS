@@ -39,16 +39,20 @@ class Position {
         public x: number = 0,
         public y: number = 0
     ) {}
+}
 
-    distanceTo(other: Position): number {
-        const dx = this.x - other.x;
-        const dy = this.y - other.y;
-        return Math.sqrt(dx * dx + dy * dy);
-    }
+// ============================================================================
+// Utility Functions - Position
+// ============================================================================
 
-    clone(): Position {
-        return new Position(this.x, this.y);
-    }
+function distanceBetween(a: Position, b: Position): number {
+    const dx = a.x - b.x;
+    const dy = a.y - b.y;
+    return Math.sqrt(dx * dx + dy * dy);
+}
+
+function clonePosition(pos: Position): Position {
+    return new Position(pos.x, pos.y);
 }
 
 class Velocity {
@@ -56,10 +60,14 @@ class Velocity {
         public dx: number = 0,
         public dy: number = 0
     ) {}
+}
 
-    get speed(): number {
-        return Math.sqrt(this.dx * this.dx + this.dy * this.dy);
-    }
+// ============================================================================
+// Utility Functions - Velocity
+// ============================================================================
+
+function getSpeed(velocity: Velocity): number {
+    return Math.sqrt(velocity.dx * velocity.dx + velocity.dy * velocity.dy);
 }
 
 class Health {
@@ -67,22 +75,26 @@ class Health {
         public current: number = 100,
         public max: number = 100
     ) {}
+}
 
-    takeDamage(amount: number): void {
-        this.current = Math.max(0, this.current - amount);
-    }
+// ============================================================================
+// Utility Functions - Health
+// ============================================================================
 
-    heal(amount: number): void {
-        this.current = Math.min(this.max, this.current + amount);
-    }
+function healthTakeDamage(health: Health, amount: number): void {
+    health.current = Math.max(0, health.current - amount);
+}
 
-    isDead(): boolean {
-        return this.current <= 0;
-    }
+function healthHeal(health: Health, amount: number): void {
+    health.current = Math.min(health.max, health.current + amount);
+}
 
-    get percentage(): number {
-        return (this.current / this.max) * 100;
-    }
+function healthIsDead(health: Health): boolean {
+    return health.current <= 0;
+}
+
+function healthPercentage(health: Health): number {
+    return (health.current / health.max) * 100;
 }
 
 class Collider {
@@ -115,10 +127,14 @@ class Unit {
         public moveSpeed: number = 100, // units per second
         public lastAttackTime: number = 0
     ) {}
+}
 
-    canAttack(currentTime: number): boolean {
-        return currentTime - this.lastAttackTime >= this.attackSpeed;
-    }
+// ============================================================================
+// Utility Functions - Unit
+// ============================================================================
+
+function unitCanAttack(unit: Unit, currentTime: number): boolean {
+    return currentTime - unit.lastAttackTime >= unit.attackSpeed;
 }
 
 /**
@@ -141,16 +157,20 @@ class ResourceNode {
         public amount: number = 1000,
         public harvestRate: number = 10 // per second
     ) {}
+}
 
-    harvest(deltaTime: number): number {
-        const harvested = Math.min(this.amount, this.harvestRate * deltaTime);
-        this.amount -= harvested;
-        return harvested;
-    }
+// ============================================================================
+// Utility Functions - ResourceNode
+// ============================================================================
 
-    isDepleted(): boolean {
-        return this.amount <= 0;
-    }
+function resourceNodeHarvest(node: ResourceNode, deltaTime: number): number {
+    const harvested = Math.min(node.amount, node.harvestRate * deltaTime);
+    node.amount -= harvested;
+    return harvested;
+}
+
+function resourceNodeIsDepleted(node: ResourceNode): boolean {
+    return node.amount <= 0;
 }
 
 /**
@@ -165,30 +185,34 @@ class Selectable {
  */
 class CommandQueue {
     commands: Command[] = [];
+}
 
-    addCommand(command: Command, replace: boolean = false): void {
-        if (replace) {
-            this.commands = [command];
-        } else {
-            this.commands.push(command);
-        }
-    }
+// ============================================================================
+// Utility Functions - CommandQueue
+// ============================================================================
 
-    getCurrentCommand(): Command | null {
-        return this.commands[0] || null;
+function commandQueueAdd(queue: CommandQueue, command: Command, replace: boolean = false): void {
+    if (replace) {
+        queue.commands = [command];
+    } else {
+        queue.commands.push(command);
     }
+}
 
-    completeCurrentCommand(): void {
-        this.commands.shift();
-    }
+function commandQueueGetCurrent(queue: CommandQueue): Command | null {
+    return queue.commands[0] || null;
+}
 
-    clear(): void {
-        this.commands = [];
-    }
+function commandQueueCompleteCurrent(queue: CommandQueue): void {
+    queue.commands.shift();
+}
 
-    get hasCommands(): boolean {
-        return this.commands.length > 0;
-    }
+function commandQueueClear(queue: CommandQueue): void {
+    queue.commands = [];
+}
+
+function commandQueueHasCommands(queue: CommandQueue): boolean {
+    return queue.commands.length > 0;
 }
 
 /**
@@ -209,28 +233,32 @@ class PathFollower {
     path: Position[] = [];
     currentWaypoint: number = 0;
     arrivalDistance: number = 5;
+}
 
-    setPath(path: Position[]): void {
-        this.path = path;
-        this.currentWaypoint = 0;
-    }
+// ============================================================================
+// Utility Functions - PathFollower
+// ============================================================================
 
-    getCurrentWaypoint(): Position | null {
-        return this.path[this.currentWaypoint] || null;
-    }
+function pathFollowerSetPath(follower: PathFollower, path: Position[]): void {
+    follower.path = path;
+    follower.currentWaypoint = 0;
+}
 
-    advanceWaypoint(): void {
-        this.currentWaypoint++;
-    }
+function pathFollowerGetCurrentWaypoint(follower: PathFollower): Position | null {
+    return follower.path[follower.currentWaypoint] || null;
+}
 
-    hasReachedEnd(): boolean {
-        return this.currentWaypoint >= this.path.length;
-    }
+function pathFollowerAdvanceWaypoint(follower: PathFollower): void {
+    follower.currentWaypoint++;
+}
 
-    clear(): void {
-        this.path = [];
-        this.currentWaypoint = 0;
-    }
+function pathFollowerHasReachedEnd(follower: PathFollower): boolean {
+    return follower.currentWaypoint >= follower.path.length;
+}
+
+function pathFollowerClear(follower: PathFollower): void {
+    follower.path = [];
+    follower.currentWaypoint = 0;
 }
 
 /**
@@ -251,22 +279,29 @@ class Resources {
         public minerals: number = 1000,
         public gas: number = 0
     ) {}
+}
 
-    canAfford(cost: { minerals: number; gas: number }): boolean {
-        return this.minerals >= cost.minerals && this.gas >= cost.gas;
-    }
+// ============================================================================
+// Utility Functions - Resources
+// ============================================================================
 
-    spend(cost: { minerals: number; gas: number }): boolean {
-        if (!this.canAfford(cost)) return false;
-        this.minerals -= cost.minerals;
-        this.gas -= cost.gas;
-        return true;
-    }
+function resourcesCanAfford(
+    resources: Resources,
+    cost: { minerals: number; gas: number }
+): boolean {
+    return resources.minerals >= cost.minerals && resources.gas >= cost.gas;
+}
 
-    add(amount: { minerals: number; gas: number }): void {
-        this.minerals += amount.minerals;
-        this.gas += amount.gas;
-    }
+function resourcesSpend(resources: Resources, cost: { minerals: number; gas: number }): boolean {
+    if (!resourcesCanAfford(resources, cost)) return false;
+    resources.minerals -= cost.minerals;
+    resources.gas -= cost.gas;
+    return true;
+}
+
+function resourcesAdd(resources: Resources, amount: { minerals: number; gas: number }): void {
+    resources.minerals += amount.minerals;
+    resources.gas += amount.gas;
 }
 
 // ============================================================================
@@ -446,7 +481,7 @@ class Pathfinder {
         // In a real RTS, you'd implement full A* with obstacle avoidance
 
         const path: Position[] = [];
-        const distance = start.distanceTo(goal);
+        const distance = distanceBetween(start, goal);
         const numWaypoints = Math.ceil(distance / 50); // Waypoint every 50 units
 
         for (let i = 1; i <= numWaypoints; i++) {
@@ -626,7 +661,7 @@ engine.createSystem(
             commands: CommandQueue,
             pathFollower: PathFollower
         ) => {
-            const command = commands.getCurrentCommand();
+            const command = commandQueueGetCurrent(commands);
 
             if (!command || command.type !== 'move') {
                 velocity.dx = 0;
@@ -635,16 +670,16 @@ engine.createSystem(
             }
 
             // Get current waypoint or set new path
-            let waypoint = pathFollower.getCurrentWaypoint();
+            let waypoint = pathFollowerGetCurrentWaypoint(pathFollower);
 
             if (!waypoint) {
                 // Generate new path
                 const path = pathfinder.findPath(position, command.target);
-                pathFollower.setPath(path);
-                waypoint = pathFollower.getCurrentWaypoint();
+                pathFollowerSetPath(pathFollower, path);
+                waypoint = pathFollowerGetCurrentWaypoint(pathFollower);
 
                 if (!waypoint) {
-                    commands.completeCurrentCommand();
+                    commandQueueCompleteCurrent(commands);
                     return;
                 }
             }
@@ -656,14 +691,14 @@ engine.createSystem(
 
             if (distance < pathFollower.arrivalDistance) {
                 // Reached waypoint
-                pathFollower.advanceWaypoint();
+                pathFollowerAdvanceWaypoint(pathFollower);
 
-                if (pathFollower.hasReachedEnd()) {
+                if (pathFollowerHasReachedEnd(pathFollower)) {
                     // Reached final destination
                     velocity.dx = 0;
                     velocity.dy = 0;
-                    pathFollower.clear();
-                    commands.completeCurrentCommand();
+                    pathFollowerClear(pathFollower);
+                    commandQueueCompleteCurrent(commands);
                 }
             } else {
                 // Move towards waypoint
@@ -687,7 +722,7 @@ engine.createSystem(
     {
         priority: 900,
         act: (entity: EntityDef, position: Position, unit: Unit, commands: CommandQueue) => {
-            const command = commands.getCurrentCommand();
+            const command = commandQueueGetCurrent(commands);
 
             if (!command || command.type !== 'attack') return;
 
@@ -700,39 +735,39 @@ engine.createSystem(
                 targetEntity.isMarkedForDeletion
             ) {
                 // Target is gone
-                commands.completeCurrentCommand();
+                commandQueueCompleteCurrent(commands);
                 return;
             }
 
             const targetPos = targetEntity.getComponent(Position);
-            const distance = position.distanceTo(targetPos);
+            const distance = distanceBetween(position, targetPos);
 
             // Check if in range
             if (distance <= unit.attackRange) {
                 // Attack!
                 const currentTime = Date.now();
 
-                if (unit.canAttack(currentTime)) {
+                if (unitCanAttack(unit, currentTime)) {
                     unit.lastAttackTime = currentTime;
 
                     if (targetEntity.hasComponent(Health)) {
                         const targetHealth = targetEntity.getComponent(Health);
-                        targetHealth.takeDamage(unit.attackDamage);
+                        healthTakeDamage(targetHealth, unit.attackDamage);
 
                         console.log(
                             `[Attack] ${entity.name} attacked ${targetEntity.name} for ${unit.attackDamage} damage`
                         );
 
-                        if (targetHealth.isDead()) {
+                        if (healthIsDead(targetHealth)) {
                             targetEntity.queueFree();
-                            commands.completeCurrentCommand();
+                            commandQueueCompleteCurrent(commands);
                         }
                     }
                 }
             } else {
                 // Move closer - add move command
-                const moveCommand: Command = { type: 'move', target: targetPos.clone() };
-                commands.addCommand(moveCommand, false);
+                const moveCommand: Command = { type: 'move', target: clonePosition(targetPos) };
+                commandQueueAdd(commands, moveCommand, false);
             }
         },
     },
@@ -754,7 +789,7 @@ engine.createSystem(
             commands: CommandQueue,
             owner: Owner
         ) => {
-            const command = commands.getCurrentCommand();
+            const command = commandQueueGetCurrent(commands);
 
             if (!command || command.type !== 'gather') return;
 
@@ -768,39 +803,39 @@ engine.createSystem(
                 !resourceEntity.hasComponent(ResourceNode) ||
                 resourceEntity.isMarkedForDeletion
             ) {
-                commands.completeCurrentCommand();
+                commandQueueCompleteCurrent(commands);
                 return;
             }
 
             const resourceNode = resourceEntity.getComponent(ResourceNode);
             const resourcePos = resourceEntity.getComponent(Position);
-            const distance = position.distanceTo(resourcePos);
+            const distance = distanceBetween(position, resourcePos);
 
             // Check if close enough to harvest
             if (distance <= 20) {
                 // Harvest
                 const dt = 1 / 60;
-                const harvested = resourceNode.harvest(dt);
+                const harvested = resourceNodeHarvest(resourceNode, dt);
 
                 // Add to player resources
                 const playerRes = playerResources.get(owner.playerId);
                 if (playerRes) {
                     if (resourceNode.resourceType === 'minerals') {
-                        playerRes.add({ minerals: harvested, gas: 0 });
+                        resourcesAdd(playerRes, { minerals: harvested, gas: 0 });
                     } else {
-                        playerRes.add({ minerals: 0, gas: harvested });
+                        resourcesAdd(playerRes, { minerals: 0, gas: harvested });
                     }
                 }
 
                 // Check if depleted
-                if (resourceNode.isDepleted()) {
+                if (resourceNodeIsDepleted(resourceNode)) {
                     resourceEntity.queueFree();
-                    commands.completeCurrentCommand();
+                    commandQueueCompleteCurrent(commands);
                 }
             } else {
                 // Move closer
-                const moveCommand: Command = { type: 'move', target: resourcePos.clone() };
-                commands.addCommand(moveCommand, false);
+                const moveCommand: Command = { type: 'move', target: clonePosition(resourcePos) };
+                commandQueueAdd(commands, moveCommand, false);
             }
         },
     },
@@ -949,7 +984,7 @@ function issueCommand(command: Command): void {
 
         if (entity?.hasComponent(CommandQueue)) {
             const queue = entity.getComponent(CommandQueue);
-            queue.addCommand(command, true); // Replace current command
+            commandQueueAdd(queue, command, true); // Replace current command
         }
     }
 
@@ -1105,6 +1140,30 @@ export {
     PathFollower,
     Vision,
     Resources,
+    // Component Utility Functions
+    distanceBetween,
+    clonePosition,
+    getSpeed,
+    healthTakeDamage,
+    healthHeal,
+    healthIsDead,
+    healthPercentage,
+    unitCanAttack,
+    resourceNodeHarvest,
+    resourceNodeIsDepleted,
+    commandQueueAdd,
+    commandQueueGetCurrent,
+    commandQueueCompleteCurrent,
+    commandQueueClear,
+    commandQueueHasCommands,
+    pathFollowerSetPath,
+    pathFollowerGetCurrentWaypoint,
+    pathFollowerAdvanceWaypoint,
+    pathFollowerHasReachedEnd,
+    pathFollowerClear,
+    resourcesCanAfford,
+    resourcesSpend,
+    resourcesAdd,
     // Utilities
     SpatialGrid,
     Pathfinder,

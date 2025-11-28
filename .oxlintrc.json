@@ -4,20 +4,41 @@
     "correctness": "error",
     "suspicious": "warn",
     "perf": "warn",
+
+    "no-unused-vars": "error",
+    "eqeqeq": "warn",
+    "no-param-reassign": "warn",
+    "no-var": "warn",
+    "no-new-func": "warn",
+    "no-throw-literal": "warn",
+    "guard-for-in": "warn",
+    "default-case-last": "warn",
+    "no-template-curly-in-string": "warn",
+
     "typescript/no-explicit-any": "warn",
     "typescript/no-non-null-assertion": "warn",
-    "no-unused-vars": "error",
-    "no-param-reassign": "warn",
-    "eqeqeq": "warn",
+    "typescript/consistent-type-imports": "warn",
+    "typescript/adjacent-overload-signatures": "warn",
+    "typescript/prefer-for-of": "warn",
+
     "import/no-duplicates": "error",
-    "import/no-unused-modules": "error"
+    "import/no-unused-modules": "error",
+    "import/first": "warn",
+    "import/no-mutable-exports": "warn",
+
+    "jest/expect-expect": "warn",
+    "jest/no-focused-tests": "warn",
+    "jest/no-disabled-tests": "warn",
+    "jest/valid-expect": "warn",
+
+    "promise/no-return-wrap": "warn"
   },
   "categories": {
     "correctness": "error",
     "suspicious": "warn",
     "perf": "warn"
   },
-  "plugins": ["typescript", "unicorn"],
+  "plugins": ["typescript", "unicorn", "jest", "import", "promise"],
   "env": {
     "browser": false,
     "node": true,

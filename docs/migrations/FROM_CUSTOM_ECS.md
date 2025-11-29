@@ -643,6 +643,48 @@ gameLoop();
 - Use magic numbers
 - Tightly couple systems
 
+### 5. Debugging and Logging
+
+**Do:**
+- Use the built-in logger for all output
+- Create tagged loggers for subsystems
+- Enable debug mode during development
+- Disable debug mode in production
+
+**Don't:**
+- Use `console.log` directly (use `engine.logger` instead)
+- Leave debug mode enabled in production
+- Log sensitive information
+
+```typescript
+const engine = new EngineBuilder()
+  .withDebugMode(true)  // Enable during development
+  .build();
+
+// Use the engine's logger
+engine.logger.debug('Game loop started');     // Only shown in debug mode
+engine.logger.info('Player spawned');         // Informational messages
+engine.logger.warn('Resource limit reached'); // Warnings
+engine.logger.error('Failed to load asset');  // Errors
+
+// Create tagged loggers for subsystems
+const aiLogger = engine.logger.withTag('AI');
+aiLogger.debug('Enemy decision made');        // Output: [AI] Enemy decision made
+
+const physicsLogger = engine.logger.withTag('Physics');
+physicsLogger.debug('Step complete');         // Output: [Physics] Step complete
+
+// Get debug info
+const debugInfo = engine.getDebugInfo();
+engine.logger.info('Entities:', debugInfo.entityCount);
+
+// System profiling
+const profiles = engine.getSystemProfiles();
+for (const profile of profiles) {
+  engine.logger.debug(`${profile.name}: ${profile.averageTime.toFixed(2)}ms avg`);
+}
+```
+
 ---
 
 ## Resources

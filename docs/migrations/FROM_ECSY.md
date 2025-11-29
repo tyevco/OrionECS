@@ -586,12 +586,22 @@ engine.messageBus.subscribe('player-hit', (msg) => {
 });
 ```
 
-**Debugging:**
+**Debugging and Logging:**
 ```typescript
-// Debug mode
+// Debug mode enables detailed logging
 const engine = new EngineBuilder()
   .withDebugMode(true)
   .build();
+
+// Use the built-in logger for consistent output
+engine.logger.debug('Game initialized');      // Only shown in debug mode
+engine.logger.info('Player connected');       // Informational messages
+engine.logger.warn('Low memory');             // Warnings
+engine.logger.error('Connection lost');       // Errors
+
+// Create tagged loggers for subsystems
+const aiLogger = engine.logger.withTag('AI');
+aiLogger.debug('Decision made');              // Output: [AI] Decision made
 
 // Get debug info
 const debugInfo = engine.getDebugInfo();

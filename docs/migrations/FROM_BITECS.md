@@ -538,7 +538,7 @@ engine.registerPrefab('Enemy', config);
 engine.createFromPrefab('Enemy');
 ```
 
-### 3. Debugging
+### 3. Debugging and Logging
 
 **Named Entities:**
 ```typescript
@@ -547,18 +547,31 @@ const eid = addEntity(world); // eid = 42
 
 // OrionECS: Named entities
 const entity = engine.createEntity('Player');
-console.log(entity.name); // "Player"
+engine.logger.debug('Created entity:', entity.name); // "Player"
 ```
 
-**Debug Mode:**
+**Debug Mode and Logging:**
 ```typescript
 const engine = new EngineBuilder()
-  .withDebugMode(true) // Comprehensive error messages
+  .withDebugMode(true) // Enables debug logging
   .build();
+
+// Use the built-in logger for consistent output
+engine.logger.debug('Game initialized');      // Only shown in debug mode
+engine.logger.info('Player joined');          // Informational messages
+engine.logger.warn('Low memory');             // Warnings
+engine.logger.error('Connection lost');       // Errors
+
+// Create tagged loggers for subsystems
+const aiLogger = engine.logger.withTag('AI');
+aiLogger.debug('Enemy spotted player');       // Output: [AI] Enemy spotted player
+
+const renderLogger = engine.logger.withTag('Render');
+renderLogger.debug('Frame complete');         // Output: [Render] Frame complete
 
 // Get debug info
 const debugInfo = engine.getDebugInfo();
-console.log(debugInfo);
+engine.logger.info('Entities:', debugInfo.entityCount);
 ```
 
 ### 4. Convenience Features

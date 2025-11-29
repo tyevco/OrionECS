@@ -11,7 +11,7 @@
  */
 
 import type { Entity } from './core';
-import type { ComponentIdentifier, EntityDef } from './definitions';
+import type { ComponentIdentifier, EntityDef, Logger } from './definitions';
 import { deepCloneComponent } from './utils';
 
 /**
@@ -545,9 +545,13 @@ export class CommandBuffer {
     /** Engine reference for entity operations - uses interface to avoid circular deps */
     private engine: EngineInterface;
 
-    constructor(engine: EngineInterface, debugMode: boolean = false) {
+    /** Logger for command buffer operations */
+    private logger?: Logger;
+
+    constructor(engine: EngineInterface, debugMode: boolean = false, logger?: Logger) {
         this.engine = engine;
         this._debugMode = debugMode;
+        this.logger = logger?.withTag('Commands');
     }
 
     /**
@@ -729,8 +733,8 @@ export class CommandBuffer {
                 } catch (error) {
                     result.errors.push(error instanceof Error ? error : new Error(String(error)));
 
-                    if (this._debugMode) {
-                        console.error(`[Commands] Error executing command ${command.type}:`, error);
+                    if (this._debugMode && this.logger) {
+                        this.logger.error(`Error executing command ${command.type}:`, error);
                     }
 
                     if (rollbackOnError) {
@@ -750,8 +754,8 @@ export class CommandBuffer {
                             try {
                                 command.callback(entity);
                             } catch (error) {
-                                if (this._debugMode) {
-                                    console.error('[Commands] Error in spawn callback:', error);
+                                if (this._debugMode && this.logger) {
+                                    this.logger.error('Error in spawn callback:', error);
                                 }
                             }
                         }
@@ -765,9 +769,9 @@ export class CommandBuffer {
 
         result.executionTimeMs = performance.now() - startTime;
 
-        if (this._debugMode) {
-            console.log(
-                `[Commands] Executed ${result.commandsExecuted} commands in ${result.executionTimeMs.toFixed(2)}ms`
+        if (this._debugMode && this.logger) {
+            this.logger.debug(
+                `Executed ${result.commandsExecuted} commands in ${result.executionTimeMs.toFixed(2)}ms`
             );
         }
 
@@ -779,8 +783,8 @@ export class CommandBuffer {
      */
     clear(): void {
         this.commands = [];
-        if (this._debugMode) {
-            console.log('[Commands] Cleared all pending commands');
+        if (this._debugMode && this.logger) {
+            this.logger.debug('Cleared all pending commands');
         }
     }
 
@@ -1021,8 +1025,8 @@ export class CommandBuffer {
      * @internal
      */
     private rollback(state: RollbackState): void {
-        if (this._debugMode) {
-            console.log('[Commands] Rolling back changes...');
+        if (this._debugMode && this.logger) {
+            this.logger.debug('Rolling back changes...');
         }
 
         let failedOperations = 0;
@@ -1037,10 +1041,8 @@ export class CommandBuffer {
                 entity.setParent(oldParent ?? null);
             } else {
                 failedOperations++;
-                if (this._debugMode) {
-                    console.warn(
-                        `[Commands] Rollback skipped: entity not found for hierarchy change`
-                    );
+                if (this._debugMode && this.logger) {
+                    this.logger.warn('Rollback skipped: entity not found for hierarchy change');
                 }
             }
         }
@@ -1056,9 +1058,9 @@ export class CommandBuffer {
                 }
             } else {
                 failedOperations++;
-                if (this._debugMode) {
-                    console.warn(
-                        `[Commands] Rollback skipped: entity not found for tag change (${change.tag})`
+                if (this._debugMode && this.logger) {
+                    this.logger.warn(
+                        `Rollback skipped: entity not found for tag change (${change.tag})`
                     );
                 }
             }
@@ -1086,9 +1088,9 @@ export class CommandBuffer {
                 }
             } else {
                 failedOperations++;
-                if (this._debugMode) {
-                    console.warn(
-                        `[Commands] Rollback skipped: entity not found for component change (${change.componentType.name})`
+                if (this._debugMode && this.logger) {
+                    this.logger.warn(
+                        `Rollback skipped: entity not found for component change (${change.componentType.name})`
                     );
                 }
             }
@@ -1099,13 +1101,13 @@ export class CommandBuffer {
             entity.queueFree();
         }
 
-        if (this._debugMode) {
+        if (this._debugMode && this.logger) {
             if (failedOperations > 0) {
-                console.warn(
-                    `[Commands] Rollback partially complete: ${failedOperations} operation(s) skipped due to missing entities`
+                this.logger.warn(
+                    `Rollback partially complete: ${failedOperations} operation(s) skipped due to missing entities`
                 );
             } else {
-                console.log('[Commands] Rollback complete');
+                this.logger.debug('Rollback complete');
             }
         }
     }

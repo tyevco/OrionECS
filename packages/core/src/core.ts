@@ -13,6 +13,7 @@ import type {
     ComponentIdentifier,
     ComponentLifecycle,
     EntityDef,
+    Logger,
     QueryOptions,
     QueryStats,
     SerializedEntity,
@@ -2270,9 +2271,11 @@ export class System<C extends readonly unknown[] = unknown[]> {
 export class MessageBus {
     private subscribers: Map<string, Set<(message: SystemMessage) => void>> = new Map();
     private messageHistory: CircularBuffer<SystemMessage>;
+    private logger?: Logger;
 
-    constructor(maxHistorySize: number = MAX_MESSAGE_HISTORY) {
+    constructor(maxHistorySize: number = MAX_MESSAGE_HISTORY, logger?: Logger) {
         this.messageHistory = new CircularBuffer<SystemMessage>(maxHistorySize);
+        this.logger = logger;
     }
 
     subscribe(messageType: string, callback: (message: SystemMessage) => void): () => void {
@@ -2304,7 +2307,9 @@ export class MessageBus {
                 try {
                     callback(message);
                 } catch (error) {
-                    console.error(`Error in message subscriber for ${messageType}:`, error);
+                    if (this.logger) {
+                        this.logger.error(`Error in message subscriber for ${messageType}:`, error);
+                    }
                 }
             }
         }
@@ -2335,9 +2340,11 @@ export class MessageBus {
 export class EventEmitter {
     private listeners: Map<string, Set<(...args: unknown[]) => void>> = new Map();
     private eventHistory: CircularBuffer<{ event: string; args: unknown[]; timestamp: number }>;
+    private logger?: Logger;
 
-    constructor(maxHistorySize: number = MAX_EVENT_HISTORY) {
+    constructor(maxHistorySize: number = MAX_EVENT_HISTORY, logger?: Logger) {
         this.eventHistory = new CircularBuffer(maxHistorySize);
+        this.logger = logger;
     }
 
     on(event: string, callback: (...args: unknown[]) => void): () => void {
@@ -2367,7 +2374,9 @@ export class EventEmitter {
                 try {
                     callback(...args);
                 } catch (error) {
-                    console.error(`Error in event listener for ${event}:`, error);
+                    if (this.logger) {
+                        this.logger.error(`Error in event listener for ${event}:`, error);
+                    }
                 }
             }
         }

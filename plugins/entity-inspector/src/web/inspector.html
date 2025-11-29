@@ -659,6 +659,41 @@
         const connectOverlay = document.getElementById('connect-overlay');
         const connectDialog = document.getElementById('connect-dialog');
 
+        // Security: HTML escape utility to prevent XSS
+        function escapeHtml(unsafe) {
+            if (unsafe === null || unsafe === undefined) return '';
+            return String(unsafe)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;');
+        }
+
+        // Security: Escape for use in HTML attributes
+        function escapeAttr(unsafe) {
+            if (unsafe === null || unsafe === undefined) return '';
+            return String(unsafe)
+                .replace(/&/g, '&amp;')
+                .replace(/</g, '&lt;')
+                .replace(/>/g, '&gt;')
+                .replace(/"/g, '&quot;')
+                .replace(/'/g, '&#039;')
+                .replace(/\\/g, '\\\\');
+        }
+
+        // Security: Sanitize log messages to prevent log injection
+        function sanitizeLogMessage(message) {
+            if (message === null || message === undefined) return '';
+            return String(message).replace(/[\r\n]/g, ' ');
+        }
+
+        // Security: Validate numeric value
+        function safeNumber(value, defaultValue = 0) {
+            const num = Number(value);
+            return Number.isFinite(num) ? num : defaultValue;
+        }
+
         // Tabs
         document.querySelectorAll('.tab').forEach(tab => {
             tab.addEventListener('click', () => {
@@ -767,7 +802,7 @@
 
                 case 'update_result':
                     if (!message.data.success) {
-                        console.error('Update failed:', message.data.error);
+                        console.error('Update failed:', sanitizeLogMessage(message.data.error));
                     }
                     break;
             }
@@ -813,11 +848,11 @@
                 const isSelected = entity.id === selectedEntityId;
 
                 return `
-                    <div class="entity-item ${isSelected ? 'selected' : ''}" data-entity-id="${entity.id}">
+                    <div class="entity-item ${isSelected ? 'selected' : ''}" data-entity-id="${escapeAttr(entity.id)}">
                         <span class="entity-toggle">${hasChildren ? '&#9656;' : ''}</span>
                         <span class="entity-icon">&#128230;</span>
-                        <span class="entity-name">${entity.name || entity.id}</span>
-                        ${entity.tags.slice(0, 2).map(t => `<span class="entity-tag">${t}</span>`).join('')}
+                        <span class="entity-name">${escapeHtml(entity.name || entity.id)}</span>
+                        ${entity.tags.slice(0, 2).map(t => `<span class="entity-tag">${escapeHtml(t)}</span>`).join('')}
                     </div>
                     ${hasChildren ? `<div class="entity-children">${children.map(c => renderEntity(c, level + 1)).join('')}</div>` : ''}
                 `;
@@ -836,27 +871,29 @@
         }
 
         function renderEntityInspector(entity) {
+            const safeEntityId = escapeAttr(entity.id);
             let html = `
                 <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-                    <h3 style="font-size: 14px;">${entity.name || entity.id}</h3>
-                    <button class="btn btn-secondary" onclick="deleteEntity('${entity.id}')" style="font-size: 10px; color: var(--error);">Delete</button>
+                    <h3 style="font-size: 14px;">${escapeHtml(entity.name || entity.id)}</h3>
+                    <button class="btn btn-secondary" onclick="deleteEntity('${safeEntityId}')" style="font-size: 10px; color: var(--error);">Delete</button>
                 </div>
                 <div class="property-row" style="margin-bottom: 16px;">
                     <span class="property-label">Tags</span>
                     <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 4px;">
-                        ${entity.tags.map(t => `<span class="entity-tag">${t} <button onclick="removeTag('${entity.id}', '${t}')" style="background: none; border: none; cursor: pointer; color: inherit;">&#10005;</button></span>`).join('')}
-                        <input type="text" class="property-input" placeholder="Add tag..." style="width: 100px;" onkeydown="if(event.key==='Enter'){addTag('${entity.id}', this.value); this.value='';}">
+                        ${entity.tags.map(t => `<span class="entity-tag">${escapeHtml(t)} <button onclick="removeTag('${safeEntityId}', '${escapeAttr(t)}')" style="background: none; border: none; cursor: pointer; color: inherit;">&#10005;</button></span>`).join('')}
+                        <input type="text" class="property-input" placeholder="Add tag..." style="width: 100px;" onkeydown="if(event.key==='Enter'){addTag('${safeEntityId}', this.value); this.value='';}">
                     </div>
                 </div>
             `;
 
             // Components
             entity.components.forEach(component => {
+                const safeComponentType = escapeAttr(component.type);
                 html += `
                     <div class="component-section">
                         <div class="component-header">
-                            <span class="component-name">${component.type}</span>
-                            <button class="component-remove" onclick="removeComponent('${entity.id}', '${component.type}')" title="Remove component">&#10005;</button>
+                            <span class="component-name">${escapeHtml(component.type)}</span>
+                            <button class="component-remove" onclick="removeComponent('${safeEntityId}', '${safeComponentType}')" title="Remove component">&#10005;</button>
                         </div>
                         <div class="component-properties">
                             ${renderComponentProperties(entity.id, component)}
@@ -869,26 +906,34 @@
         }
 
         function renderComponentProperties(entityId, component) {
+            const safeEntityId = escapeAttr(entityId);
+            const safeComponentType = escapeAttr(component.type);
+
             return component.properties.map(prop => {
                 let input = '';
-                const id = `prop-${component.type}-${prop.name}`;
+                const safePropName = escapeAttr(prop.name);
+                const id = `prop-${escapeAttr(component.type)}-${safePropName}`;
 
                 switch (prop.typeHint) {
                     case 'boolean':
-                        input = `<input type="checkbox" class="property-input" id="${id}" ${prop.value ? 'checked' : ''} onchange="updateProperty('${entityId}', '${component.type}', '${prop.name}', this.checked)">`;
+                        input = `<input type="checkbox" class="property-input" id="${id}" ${prop.value ? 'checked' : ''} onchange="updateProperty('${safeEntityId}', '${safeComponentType}', '${safePropName}', this.checked)">`;
                         break;
                     case 'number':
-                        input = `<input type="number" class="property-input" id="${id}" value="${prop.value}" step="${prop.step || 'any'}" ${prop.min !== undefined ? `min="${prop.min}"` : ''} ${prop.max !== undefined ? `max="${prop.max}"` : ''} onchange="updateProperty('${entityId}', '${component.type}', '${prop.name}', parseFloat(this.value))">`;
+                        const numValue = safeNumber(prop.value);
+                        const numStep = prop.step ? safeNumber(prop.step, 'any') : 'any';
+                        const minAttr = prop.min !== undefined ? `min="${safeNumber(prop.min)}"` : '';
+                        const maxAttr = prop.max !== undefined ? `max="${safeNumber(prop.max)}"` : '';
+                        input = `<input type="number" class="property-input" id="${id}" value="${numValue}" step="${numStep}" ${minAttr} ${maxAttr} onchange="updateProperty('${safeEntityId}', '${safeComponentType}', '${safePropName}', parseFloat(this.value))">`;
                         break;
                     case 'color':
-                        input = `<input type="color" class="property-input" id="${id}" value="${prop.value}" onchange="updateProperty('${entityId}', '${component.type}', '${prop.name}', this.value)">`;
+                        input = `<input type="color" class="property-input" id="${id}" value="${escapeAttr(prop.value)}" onchange="updateProperty('${safeEntityId}', '${safeComponentType}', '${safePropName}', this.value)">`;
                         break;
                     case 'vector2':
                         const v2 = prop.value || { x: 0, y: 0 };
                         input = `
                             <div class="vector-inputs">
-                                <input type="number" class="vector-input" value="${v2.x}" onchange="updateVectorProperty('${entityId}', '${component.type}', '${prop.name}', 'x', parseFloat(this.value))" placeholder="X">
-                                <input type="number" class="vector-input" value="${v2.y}" onchange="updateVectorProperty('${entityId}', '${component.type}', '${prop.name}', 'y', parseFloat(this.value))" placeholder="Y">
+                                <input type="number" class="vector-input" value="${safeNumber(v2.x)}" onchange="updateVectorProperty('${safeEntityId}', '${safeComponentType}', '${safePropName}', 'x', parseFloat(this.value))" placeholder="X">
+                                <input type="number" class="vector-input" value="${safeNumber(v2.y)}" onchange="updateVectorProperty('${safeEntityId}', '${safeComponentType}', '${safePropName}', 'y', parseFloat(this.value))" placeholder="Y">
                             </div>
                         `;
                         break;
@@ -896,23 +941,23 @@
                         const v3 = prop.value || { x: 0, y: 0, z: 0 };
                         input = `
                             <div class="vector-inputs">
-                                <input type="number" class="vector-input" value="${v3.x}" onchange="updateVectorProperty('${entityId}', '${component.type}', '${prop.name}', 'x', parseFloat(this.value))" placeholder="X">
-                                <input type="number" class="vector-input" value="${v3.y}" onchange="updateVectorProperty('${entityId}', '${component.type}', '${prop.name}', 'y', parseFloat(this.value))" placeholder="Y">
-                                <input type="number" class="vector-input" value="${v3.z}" onchange="updateVectorProperty('${entityId}', '${component.type}', '${prop.name}', 'z', parseFloat(this.value))" placeholder="Z">
+                                <input type="number" class="vector-input" value="${safeNumber(v3.x)}" onchange="updateVectorProperty('${safeEntityId}', '${safeComponentType}', '${safePropName}', 'x', parseFloat(this.value))" placeholder="X">
+                                <input type="number" class="vector-input" value="${safeNumber(v3.y)}" onchange="updateVectorProperty('${safeEntityId}', '${safeComponentType}', '${safePropName}', 'y', parseFloat(this.value))" placeholder="Y">
+                                <input type="number" class="vector-input" value="${safeNumber(v3.z)}" onchange="updateVectorProperty('${safeEntityId}', '${safeComponentType}', '${safePropName}', 'z', parseFloat(this.value))" placeholder="Z">
                             </div>
                         `;
                         break;
                     case 'object':
                     case 'array':
-                        input = `<textarea class="property-input" id="${id}" style="font-family: monospace; resize: vertical; min-height: 60px;" onchange="updateProperty('${entityId}', '${component.type}', '${prop.name}', JSON.parse(this.value))">${JSON.stringify(prop.value, null, 2)}</textarea>`;
+                        input = `<textarea class="property-input" id="${id}" style="font-family: monospace; resize: vertical; min-height: 60px;" onchange="updateProperty('${safeEntityId}', '${safeComponentType}', '${safePropName}', JSON.parse(this.value))">${escapeHtml(JSON.stringify(prop.value, null, 2))}</textarea>`;
                         break;
                     default:
-                        input = `<input type="text" class="property-input" id="${id}" value="${prop.value ?? ''}" onchange="updateProperty('${entityId}', '${component.type}', '${prop.name}', this.value)">`;
+                        input = `<input type="text" class="property-input" id="${id}" value="${escapeAttr(prop.value ?? '')}" onchange="updateProperty('${safeEntityId}', '${safeComponentType}', '${safePropName}', this.value)">`;
                 }
 
                 return `
                     <div class="property-row">
-                        <span class="property-label">${prop.name}</span>
+                        <span class="property-label">${escapeHtml(prop.name)}</span>
                         ${input}
                     </div>
                 `;
@@ -922,11 +967,11 @@
         function renderSystems() {
             systemList.innerHTML = systems.map(system => `
                 <div class="system-item">
-                    <span class="system-priority">${system.priority}</span>
-                    <span class="system-name">${system.name}</span>
+                    <span class="system-priority">${safeNumber(system.priority)}</span>
+                    <span class="system-name">${escapeHtml(system.name)}</span>
                     ${system.profile ? `
-                        <span class="system-time">${system.profile.executionTime.toFixed(2)}ms</span>
-                        <span class="system-entities">${system.profile.entityCount} entities</span>
+                        <span class="system-time">${safeNumber(system.profile.executionTime).toFixed(2)}ms</span>
+                        <span class="system-entities">${safeNumber(system.profile.entityCount)} entities</span>
                     ` : ''}
                 </div>
             `).join('');
@@ -935,28 +980,29 @@
         function renderStats() {
             statsGrid.innerHTML = `
                 <div class="stat-card">
-                    <div class="stat-value">${stats.activeEntities || 0}</div>
+                    <div class="stat-value">${safeNumber(stats.activeEntities)}</div>
                     <div class="stat-label">Entities</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${stats.systemCount || 0}</div>
+                    <div class="stat-value">${safeNumber(stats.systemCount)}</div>
                     <div class="stat-label">Systems</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${stats.componentTypeCount || 0}</div>
+                    <div class="stat-value">${safeNumber(stats.componentTypeCount)}</div>
                     <div class="stat-label">Components</div>
                 </div>
                 <div class="stat-card">
-                    <div class="stat-value">${stats.queryCount || 0}</div>
+                    <div class="stat-value">${safeNumber(stats.queryCount)}</div>
                     <div class="stat-label">Queries</div>
                 </div>
             `;
         }
 
         function renderPerformanceChart() {
-            const maxTime = Math.max(...frameTimeHistory, 16.67);
-            chartBars.innerHTML = frameTimeHistory.map(time => {
-                const height = (time / maxTime) * 100;
+            const safeFrameHistory = frameTimeHistory.map(t => safeNumber(t));
+            const maxTime = Math.max(...safeFrameHistory, 16.67);
+            chartBars.innerHTML = safeFrameHistory.map(time => {
+                const height = safeNumber((time / maxTime) * 100);
                 const color = time > 16.67 ? 'var(--error)' : time > 8 ? 'var(--warning)' : 'var(--success)';
                 return `<div class="chart-bar" style="height: ${height}%; background: ${color};" title="${time.toFixed(2)}ms"></div>`;
             }).join('');

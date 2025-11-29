@@ -363,6 +363,16 @@ export interface SystemOptions<C extends readonly unknown[] = unknown[]> {
     runAfter?: string[];
     runBefore?: string[];
 
+    // ========== Error Recovery Options ==========
+
+    /**
+     * Error recovery configuration for this system.
+     *
+     * When specified, overrides the engine's default error recovery settings
+     * for this specific system.
+     */
+    errorConfig?: SystemErrorConfig;
+
     /**
      * Callback invoked when a component is added to any entity.
      *
@@ -813,4 +823,203 @@ export interface PoolStats {
 export interface ComponentPoolOptions {
     initialSize?: number;
     maxSize?: number;
+}
+
+// ========== Error Recovery & Resilience ==========
+
+/**
+ * Recovery strategy to apply when a system encounters an error.
+ *
+ * @public
+ */
+export type RecoveryStrategy =
+    | 'skip' // Skip this execution cycle and continue
+    | 'retry' // Retry the system execution (with exponential backoff)
+    | 'disable' // Disable the system until manually re-enabled
+    | 'fallback' // Use fallback behavior if defined
+    | 'ignore'; // Log and continue without any recovery action
+
+/**
+ * Error severity levels for categorizing system errors.
+ *
+ * @public
+ */
+export type ErrorSeverity = 'low' | 'medium' | 'high' | 'critical';
+
+/**
+ * Circuit breaker state for managing system health.
+ *
+ * @public
+ */
+export type CircuitBreakerState = 'closed' | 'open' | 'half-open';
+
+/**
+ * Detailed information about an error that occurred in the ECS.
+ *
+ * @public
+ */
+export interface SystemError {
+    /** Unique identifier for this error instance */
+    id: string;
+    /** The error that was thrown */
+    error: Error;
+    /** Name of the system that threw the error */
+    systemName: string;
+    /** Timestamp when the error occurred */
+    timestamp: number;
+    /** Severity level of the error */
+    severity: ErrorSeverity;
+    /** Recovery strategy that was applied */
+    recoveryStrategy: RecoveryStrategy;
+    /** Whether recovery was successful */
+    recovered: boolean;
+    /** Stack trace if available */
+    stack?: string;
+    /** Additional context about the error */
+    context?: Record<string, unknown>;
+    /** Entity ID if the error was related to a specific entity */
+    entityId?: number;
+    /** Component type name if the error was related to a specific component */
+    componentType?: string;
+}
+
+/**
+ * Health status of a system.
+ *
+ * @public
+ */
+export interface SystemHealth {
+    /** Name of the system */
+    systemName: string;
+    /** Current health status */
+    status: 'healthy' | 'degraded' | 'unhealthy' | 'disabled';
+    /** Current circuit breaker state */
+    circuitBreakerState: CircuitBreakerState;
+    /** Number of consecutive failures */
+    consecutiveFailures: number;
+    /** Number of consecutive successes (used for circuit breaker recovery) */
+    consecutiveSuccesses: number;
+    /** Total number of errors since engine start */
+    totalErrors: number;
+    /** Last error that occurred */
+    lastError?: SystemError;
+    /** Time of last successful execution */
+    lastSuccessTime?: number;
+    /** Time of last error */
+    lastErrorTime?: number;
+    /** Whether the system is currently enabled */
+    enabled: boolean;
+}
+
+/**
+ * Configuration for circuit breaker behavior.
+ *
+ * @public
+ */
+export interface CircuitBreakerConfig {
+    /** Number of failures before opening the circuit (default: 5) */
+    failureThreshold: number;
+    /** Time in ms before attempting to close the circuit (default: 30000) */
+    resetTimeout: number;
+    /** Number of successes in half-open state before fully closing (default: 3) */
+    successThreshold: number;
+}
+
+/**
+ * Configuration for error recovery behavior.
+ *
+ * @public
+ */
+export interface ErrorRecoveryConfig {
+    /** Default recovery strategy for all systems (default: 'skip') */
+    defaultStrategy: RecoveryStrategy;
+    /** Maximum number of retries when using 'retry' strategy (default: 3) */
+    maxRetries: number;
+    /** Base delay in ms for exponential backoff (default: 100) */
+    retryBaseDelay: number;
+    /** Maximum delay in ms for exponential backoff (default: 5000) */
+    retryMaxDelay: number;
+    /** Circuit breaker configuration */
+    circuitBreaker: CircuitBreakerConfig;
+    /** Whether to collect errors for reporting (default: true) */
+    collectErrors: boolean;
+    /** Maximum number of errors to keep in history (default: 100) */
+    maxErrorHistory: number;
+    /** Custom error handler callback */
+    onError?: (error: SystemError) => void;
+    /** Custom recovery callback */
+    onRecovery?: (systemName: string, error: SystemError, strategy: RecoveryStrategy) => void;
+    /** Callback when circuit breaker state changes */
+    onCircuitBreakerStateChange?: (
+        systemName: string,
+        oldState: CircuitBreakerState,
+        newState: CircuitBreakerState
+    ) => void;
+}
+
+/**
+ * Per-system error handling configuration.
+ *
+ * @public
+ */
+export interface SystemErrorConfig {
+    /** Recovery strategy for this specific system */
+    strategy?: RecoveryStrategy;
+    /** Whether this is a critical system (errors are escalated) */
+    critical?: boolean;
+    /** Custom circuit breaker config for this system */
+    circuitBreaker?: Partial<CircuitBreakerConfig>;
+    /** Fallback function to execute when using 'fallback' strategy */
+    fallback?: (deltaTime: number) => void;
+    /** Custom error handler for this system */
+    onError?: (error: SystemError) => void;
+}
+
+/**
+ * Event emitted when the engine's overall health changes.
+ *
+ * @public
+ */
+export interface EngineHealthEvent {
+    /** Previous overall health status */
+    previousStatus: 'healthy' | 'degraded' | 'unhealthy';
+    /** New overall health status */
+    newStatus: 'healthy' | 'degraded' | 'unhealthy';
+    /** Systems that are currently unhealthy */
+    unhealthySystems: string[];
+    /** Systems that are currently degraded */
+    degradedSystems: string[];
+    /** Timestamp of the health change */
+    timestamp: number;
+}
+
+/**
+ * Callback for engine health changes.
+ *
+ * @public
+ */
+export type EngineHealthListener = (event: EngineHealthEvent) => void;
+
+/**
+ * Error report for production error collection services.
+ *
+ * @public
+ */
+export interface ErrorReport {
+    /** All errors collected in this session */
+    errors: SystemError[];
+    /** Current health status of all systems */
+    systemHealth: SystemHealth[];
+    /** Overall engine health status */
+    engineHealth: 'healthy' | 'degraded' | 'unhealthy';
+    /** Session start time */
+    sessionStartTime: number;
+    /** Report generation time */
+    reportTime: number;
+    /** Engine statistics at report time */
+    engineStats?: {
+        entityCount: number;
+        systemCount: number;
+        uptime: number;
+    };
 }

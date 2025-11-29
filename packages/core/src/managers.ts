@@ -15,13 +15,23 @@ import {
     SystemGroup,
 } from './core';
 import type {
+    CircuitBreakerConfig,
+    CircuitBreakerState,
     ComponentIdentifier,
     ComponentPoolOptions,
     ComponentValidator,
+    EngineHealthEvent,
     EntityPrefab,
+    ErrorRecoveryConfig,
+    ErrorReport,
+    ErrorSeverity,
     PoolStats,
     QueryOptions,
+    RecoveryStrategy,
     SerializedWorld,
+    SystemError,
+    SystemErrorConfig,
+    SystemHealth,
     SystemMessage,
     SystemProfile,
 } from './definitions';
@@ -279,10 +289,36 @@ export class SystemManager {
     private groupVariableSystemsCache: Map<string, System<any>[]> = new Map();
     private groupFixedSystemsCache: Map<string, System<any>[]> = new Map();
     private groupSystemsCacheValid: boolean = false;
+    // Error recovery manager for system error isolation
+    private errorRecoveryManager?: ErrorRecoveryManager;
+    // Whether error recovery is enabled
+    private errorRecoveryEnabled: boolean = false;
 
     constructor(fixedUpdateFPS: number = 60, maxFixedIterations: number = 10) {
         this.fixedUpdateInterval = 1000 / fixedUpdateFPS;
         this.maxFixedIterations = maxFixedIterations;
+    }
+
+    /**
+     * Set the error recovery manager for system error isolation.
+     */
+    setErrorRecoveryManager(manager: ErrorRecoveryManager): void {
+        this.errorRecoveryManager = manager;
+        this.errorRecoveryEnabled = true;
+    }
+
+    /**
+     * Enable or disable error recovery for system execution.
+     */
+    setErrorRecoveryEnabled(enabled: boolean): void {
+        this.errorRecoveryEnabled = enabled;
+    }
+
+    /**
+     * Check if error recovery is enabled.
+     */
+    isErrorRecoveryEnabled(): boolean {
+        return this.errorRecoveryEnabled && this.errorRecoveryManager !== undefined;
     }
 
     createGroup(name: string, priority: number): SystemGroup {
@@ -298,7 +334,8 @@ export class SystemManager {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     createSystem<C extends readonly any[] = any[]>(
         system: System<C>,
-        isFixedUpdate: boolean = false
+        isFixedUpdate: boolean = false,
+        errorConfig?: SystemErrorConfig
     ): System<C> {
         // If system has a group, add it to that group
         if (system.group) {
@@ -318,6 +355,12 @@ export class SystemManager {
             this.systems.push(system);
             this.systemsSorted = false;
         }
+
+        // Register with error recovery manager if enabled
+        if (this.errorRecoveryManager) {
+            this.errorRecoveryManager.registerSystem(system.name, errorConfig);
+        }
+
         // Invalidate group systems cache when systems change
         this.groupSystemsCacheValid = false;
         return system;
@@ -514,7 +557,7 @@ export class SystemManager {
             }
 
             for (const system of groupSystems) {
-                system.step(deltaTime);
+                this.executeSystemWithRecovery(system, deltaTime);
             }
         }
 
@@ -526,8 +569,30 @@ export class SystemManager {
         // Then, execute systems without a group
         for (const system of this.systems) {
             if (!system.group) {
-                system.step(deltaTime);
+                this.executeSystemWithRecovery(system, deltaTime);
             }
+        }
+    }
+
+    /**
+     * Execute a single system with error recovery if enabled.
+     */
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    private executeSystemWithRecovery(system: System<any>, deltaTime: number): void {
+        if (this.errorRecoveryEnabled && this.errorRecoveryManager) {
+            // Check if the system is healthy enough to execute
+            if (!this.errorRecoveryManager.isSystemHealthy(system.name)) {
+                return;
+            }
+
+            this.errorRecoveryManager.executeWithRecovery(
+                system.name,
+                () => system.step(deltaTime),
+                deltaTime
+            );
+        } else {
+            // No error recovery - execute directly
+            system.step(deltaTime);
         }
     }
 
@@ -563,14 +628,14 @@ export class SystemManager {
                 }
 
                 for (const system of groupSystems) {
-                    system.step(this.fixedUpdateInterval);
+                    this.executeSystemWithRecovery(system, this.fixedUpdateInterval);
                 }
             }
 
             // Then, execute systems without a group
             for (const system of this.fixedUpdateSystems) {
                 if (!system.group) {
-                    system.step(this.fixedUpdateInterval);
+                    this.executeSystemWithRecovery(system, this.fixedUpdateInterval);
                 }
             }
 
@@ -660,6 +725,9 @@ export class SystemManager {
                 }
             }
 
+            // Unregister from error recovery manager
+            this.errorRecoveryManager?.unregisterSystem(name);
+
             // Destroy system (cleanup event listeners)
             system.destroy();
 
@@ -689,6 +757,9 @@ export class SystemManager {
                     }
                 }
             }
+
+            // Unregister from error recovery manager
+            this.errorRecoveryManager?.unregisterSystem(name);
 
             // Destroy system (cleanup event listeners)
             system.destroy();
@@ -1257,5 +1328,691 @@ export class ChangeTrackingManager {
 
         // Clear dirty components tracking
         this.dirtyComponentsMap.clear();
+    }
+}
+
+// ========== Error Recovery Constants ==========
+const DEFAULT_ERROR_RECOVERY_CONFIG: ErrorRecoveryConfig = {
+    defaultStrategy: 'skip',
+    maxRetries: 3,
+    retryBaseDelay: 100,
+    retryMaxDelay: 5000,
+    circuitBreaker: {
+        failureThreshold: 5,
+        resetTimeout: 30000,
+        successThreshold: 3,
+    },
+    collectErrors: true,
+    maxErrorHistory: 100,
+};
+
+/**
+ * Internal state for tracking system health and circuit breaker status.
+ */
+interface SystemHealthState {
+    systemName: string;
+    status: 'healthy' | 'degraded' | 'unhealthy' | 'disabled';
+    circuitBreakerState: CircuitBreakerState;
+    consecutiveFailures: number;
+    consecutiveSuccesses: number;
+    totalErrors: number;
+    lastError?: SystemError;
+    lastSuccessTime?: number;
+    lastErrorTime?: number;
+    circuitOpenedAt?: number;
+    retryCount: number;
+    config: SystemErrorConfig;
+}
+
+/**
+ * Manages error recovery, circuit breakers, and health monitoring for systems.
+ *
+ * The ErrorRecoveryManager provides:
+ * - System error isolation (errors don't crash the engine)
+ * - Multiple recovery strategies (skip, retry, disable, fallback)
+ * - Circuit breaker pattern to prevent cascading failures
+ * - Health monitoring and reporting
+ * - Production error collection hooks
+ *
+ * @example
+ * ```typescript
+ * const engine = new EngineBuilder()
+ *   .withErrorRecovery({
+ *     defaultStrategy: 'skip',
+ *     circuitBreaker: {
+ *       failureThreshold: 3,
+ *       resetTimeout: 10000,
+ *     },
+ *     onError: (error) => {
+ *       // Send to error tracking service
+ *       Sentry.captureException(error.error);
+ *     }
+ *   })
+ *   .build();
+ * ```
+ *
+ * @public
+ */
+export class ErrorRecoveryManager {
+    private config: ErrorRecoveryConfig;
+    private systemHealth: Map<string, SystemHealthState> = new Map();
+    private errorHistory: SystemError[] = [];
+    private sessionStartTime: number = Date.now();
+    private errorIdCounter: number = 0;
+    private engineHealthStatus: 'healthy' | 'degraded' | 'unhealthy' = 'healthy';
+    private eventEmitter?: EventEmitter;
+    private debugMode: boolean = false;
+
+    constructor(config: Partial<ErrorRecoveryConfig> = {}, eventEmitter?: EventEmitter) {
+        this.config = {
+            ...DEFAULT_ERROR_RECOVERY_CONFIG,
+            ...config,
+            circuitBreaker: {
+                ...DEFAULT_ERROR_RECOVERY_CONFIG.circuitBreaker,
+                ...config.circuitBreaker,
+            },
+        };
+        this.eventEmitter = eventEmitter;
+    }
+
+    /**
+     * Set debug mode for enhanced logging.
+     */
+    setDebugMode(enabled: boolean): void {
+        this.debugMode = enabled;
+    }
+
+    /**
+     * Register a system for health tracking.
+     */
+    registerSystem(systemName: string, config: SystemErrorConfig = {}): void {
+        if (!this.systemHealth.has(systemName)) {
+            this.systemHealth.set(systemName, {
+                systemName,
+                status: 'healthy',
+                circuitBreakerState: 'closed',
+                consecutiveFailures: 0,
+                consecutiveSuccesses: 0,
+                totalErrors: 0,
+                retryCount: 0,
+                config: {
+                    strategy: config.strategy ?? this.config.defaultStrategy,
+                    critical: config.critical ?? false,
+                    circuitBreaker: config.circuitBreaker,
+                    fallback: config.fallback,
+                    onError: config.onError,
+                },
+            });
+        }
+    }
+
+    /**
+     * Unregister a system from health tracking.
+     */
+    unregisterSystem(systemName: string): void {
+        this.systemHealth.delete(systemName);
+    }
+
+    /**
+     * Execute a system with error isolation and recovery.
+     *
+     * @param systemName - Name of the system
+     * @param execute - Function that executes the system
+     * @param deltaTime - Delta time for fallback execution
+     * @returns true if execution succeeded, false if it failed
+     */
+    executeWithRecovery(systemName: string, execute: () => void, deltaTime: number): boolean {
+        // Ensure system is registered
+        if (!this.systemHealth.has(systemName)) {
+            this.registerSystem(systemName);
+        }
+
+        // Check circuit breaker state
+        if (!this.shouldExecute(systemName)) {
+            if (this.debugMode) {
+                console.log(`[ECS Debug] System "${systemName}" skipped: circuit breaker open`);
+            }
+            // Execute fallback if available
+            this.executeFallback(systemName, deltaTime);
+            return false;
+        }
+
+        try {
+            execute();
+            this.recordSuccess(systemName);
+            return true;
+        } catch (error) {
+            return this.handleError(systemName, error, execute, deltaTime);
+        }
+    }
+
+    /**
+     * Check if a system should execute based on circuit breaker state.
+     */
+    private shouldExecute(systemName: string): boolean {
+        const healthState = this.systemHealth.get(systemName);
+        if (!healthState) return true;
+
+        const cbState = healthState.circuitBreakerState;
+
+        if (cbState === 'closed') {
+            return true;
+        }
+
+        if (cbState === 'open') {
+            const cbConfig = this.getCircuitBreakerConfig(systemName);
+            const timeSinceOpen = Date.now() - (healthState.circuitOpenedAt || 0);
+
+            if (timeSinceOpen >= cbConfig.resetTimeout) {
+                // Transition to half-open
+                this.setCircuitBreakerState(systemName, 'half-open');
+                return true;
+            }
+            return false;
+        }
+
+        // half-open: allow execution to test if system has recovered
+        return true;
+    }
+
+    /**
+     * Handle an error from system execution.
+     */
+    private handleError(
+        systemName: string,
+        error: unknown,
+        execute: () => void,
+        deltaTime: number
+    ): boolean {
+        const healthState = this.systemHealth.get(systemName)!;
+        const systemError = this.createSystemError(systemName, error, healthState);
+
+        // Record the failure
+        this.recordFailure(systemName, systemError);
+
+        // Execute custom error handler
+        healthState.config.onError?.(systemError);
+        this.config.onError?.(systemError);
+
+        // Apply recovery strategy
+        const strategy = healthState.config.strategy ?? this.config.defaultStrategy;
+        const recovered = this.applyRecoveryStrategy(
+            systemName,
+            strategy,
+            execute,
+            deltaTime,
+            systemError
+        );
+
+        // Update error with recovery result
+        systemError.recovered = recovered;
+
+        // Collect error for reporting
+        if (this.config.collectErrors) {
+            this.errorHistory.push(systemError);
+            // Trim history if needed
+            while (this.errorHistory.length > this.config.maxErrorHistory) {
+                this.errorHistory.shift();
+            }
+        }
+
+        // Emit error event
+        this.eventEmitter?.emit('onSystemError', systemError);
+
+        // Notify recovery callback
+        this.config.onRecovery?.(systemName, systemError, strategy);
+
+        return recovered;
+    }
+
+    /**
+     * Apply a recovery strategy.
+     */
+    private applyRecoveryStrategy(
+        systemName: string,
+        strategy: RecoveryStrategy,
+        execute: () => void,
+        deltaTime: number,
+        error: SystemError
+    ): boolean {
+        switch (strategy) {
+            case 'skip':
+                if (this.debugMode) {
+                    console.warn(
+                        `[ECS] System "${systemName}" error skipped:`,
+                        error.error.message
+                    );
+                }
+                return true; // Considered "recovered" as we continue gracefully
+
+            case 'retry':
+                return this.retryExecution(systemName, execute);
+
+            case 'disable':
+                this.disableSystem(systemName);
+                if (this.debugMode) {
+                    console.warn(
+                        `[ECS] System "${systemName}" disabled due to error:`,
+                        error.error.message
+                    );
+                }
+                return false;
+
+            case 'fallback':
+                this.executeFallback(systemName, deltaTime);
+                return true;
+
+            case 'ignore':
+            default:
+                // Just log and continue
+                console.error(`[ECS] System "${systemName}" error:`, error.error);
+                return true;
+        }
+    }
+
+    /**
+     * Retry system execution with exponential backoff.
+     */
+    private retryExecution(systemName: string, execute: () => void): boolean {
+        const healthState = this.systemHealth.get(systemName)!;
+        const maxRetries = this.config.maxRetries;
+
+        while (healthState.retryCount < maxRetries) {
+            healthState.retryCount++;
+
+            // Calculate delay with exponential backoff (unused in sync execution, but kept for future async support)
+            const _delay = Math.min(
+                this.config.retryBaseDelay * Math.pow(2, healthState.retryCount - 1),
+                this.config.retryMaxDelay
+            );
+
+            if (this.debugMode) {
+                console.log(
+                    `[ECS Debug] Retrying "${systemName}" (attempt ${healthState.retryCount}/${maxRetries})`
+                );
+            }
+
+            // For synchronous execution, we don't actually delay
+            // In a real async system, you would use setTimeout or similar
+            try {
+                execute();
+                // Success - reset retry count
+                healthState.retryCount = 0;
+                this.recordSuccess(systemName);
+                return true;
+            } catch (retryError) {
+                if (healthState.retryCount >= maxRetries) {
+                    console.error(
+                        `[ECS] System "${systemName}" failed after ${maxRetries} retries:`,
+                        retryError
+                    );
+                    // Fall through to failure handling
+                }
+            }
+        }
+
+        // All retries exhausted
+        healthState.retryCount = 0;
+        return false;
+    }
+
+    /**
+     * Execute a fallback function for a system.
+     */
+    private executeFallback(systemName: string, deltaTime: number): void {
+        const healthState = this.systemHealth.get(systemName);
+        if (healthState?.config.fallback) {
+            try {
+                healthState.config.fallback(deltaTime);
+                if (this.debugMode) {
+                    console.log(`[ECS Debug] Executed fallback for "${systemName}"`);
+                }
+            } catch (fallbackError) {
+                console.error(`[ECS] Fallback for "${systemName}" also failed:`, fallbackError);
+            }
+        }
+    }
+
+    /**
+     * Record a successful system execution.
+     */
+    private recordSuccess(systemName: string): void {
+        const healthState = this.systemHealth.get(systemName);
+        if (!healthState) return;
+
+        healthState.consecutiveFailures = 0;
+        healthState.consecutiveSuccesses++;
+        healthState.lastSuccessTime = Date.now();
+
+        // Handle circuit breaker state transitions
+        if (healthState.circuitBreakerState === 'half-open') {
+            const cbConfig = this.getCircuitBreakerConfig(systemName);
+            if (healthState.consecutiveSuccesses >= cbConfig.successThreshold) {
+                this.setCircuitBreakerState(systemName, 'closed');
+                healthState.status = 'healthy';
+            }
+        } else if (healthState.status === 'degraded') {
+            // Reset to healthy after sustained success
+            healthState.status = 'healthy';
+        }
+
+        this.updateEngineHealth();
+    }
+
+    /**
+     * Record a system failure.
+     */
+    private recordFailure(systemName: string, error: SystemError): void {
+        const healthState = this.systemHealth.get(systemName);
+        if (!healthState) return;
+
+        healthState.consecutiveFailures++;
+        healthState.consecutiveSuccesses = 0;
+        healthState.totalErrors++;
+        healthState.lastError = error;
+        healthState.lastErrorTime = Date.now();
+
+        // Update health status
+        if (healthState.consecutiveFailures >= 3) {
+            healthState.status = 'unhealthy';
+        } else if (healthState.consecutiveFailures >= 1) {
+            healthState.status = 'degraded';
+        }
+
+        // Check if circuit breaker should open
+        const cbConfig = this.getCircuitBreakerConfig(systemName);
+        if (healthState.consecutiveFailures >= cbConfig.failureThreshold) {
+            if (healthState.circuitBreakerState !== 'open') {
+                this.setCircuitBreakerState(systemName, 'open');
+                healthState.circuitOpenedAt = Date.now();
+            }
+        }
+
+        this.updateEngineHealth();
+    }
+
+    /**
+     * Set circuit breaker state and emit event.
+     */
+    private setCircuitBreakerState(systemName: string, newState: CircuitBreakerState): void {
+        const healthState = this.systemHealth.get(systemName);
+        if (!healthState) return;
+
+        const oldState = healthState.circuitBreakerState;
+        if (oldState === newState) return;
+
+        healthState.circuitBreakerState = newState;
+
+        if (this.debugMode) {
+            console.log(
+                `[ECS Debug] Circuit breaker for "${systemName}": ${oldState} -> ${newState}`
+            );
+        }
+
+        // Emit state change event
+        this.config.onCircuitBreakerStateChange?.(systemName, oldState, newState);
+        this.eventEmitter?.emit('onCircuitBreakerStateChange', {
+            systemName,
+            oldState,
+            newState,
+            timestamp: Date.now(),
+        });
+    }
+
+    /**
+     * Get circuit breaker config for a system.
+     */
+    private getCircuitBreakerConfig(systemName: string): CircuitBreakerConfig {
+        const healthState = this.systemHealth.get(systemName);
+        return {
+            ...this.config.circuitBreaker,
+            ...healthState?.config.circuitBreaker,
+        };
+    }
+
+    /**
+     * Create a SystemError object from an error.
+     */
+    private createSystemError(
+        systemName: string,
+        error: unknown,
+        healthState: SystemHealthState
+    ): SystemError {
+        const errorObj = error instanceof Error ? error : new Error(String(error));
+        const severity = this.determineSeverity(healthState);
+
+        return {
+            id: `err_${++this.errorIdCounter}_${Date.now()}`,
+            error: errorObj,
+            systemName,
+            timestamp: Date.now(),
+            severity,
+            recoveryStrategy: healthState.config.strategy ?? this.config.defaultStrategy,
+            recovered: false,
+            stack: errorObj.stack,
+            context: {
+                consecutiveFailures: healthState.consecutiveFailures + 1,
+                circuitBreakerState: healthState.circuitBreakerState,
+                isCritical: healthState.config.critical,
+            },
+        };
+    }
+
+    /**
+     * Determine error severity based on system state.
+     */
+    private determineSeverity(healthState: SystemHealthState): ErrorSeverity {
+        if (healthState.config.critical) {
+            return 'critical';
+        }
+        if (healthState.consecutiveFailures >= 5) {
+            return 'high';
+        }
+        if (healthState.consecutiveFailures >= 2) {
+            return 'medium';
+        }
+        return 'low';
+    }
+
+    /**
+     * Disable a system (marks it for skipping in execution).
+     */
+    private disableSystem(systemName: string): void {
+        const healthState = this.systemHealth.get(systemName);
+        if (healthState) {
+            healthState.status = 'disabled';
+        }
+        this.eventEmitter?.emit('onSystemDisabledByError', { systemName, timestamp: Date.now() });
+    }
+
+    /**
+     * Manually re-enable a system that was disabled by errors.
+     */
+    resetSystem(systemName: string): void {
+        const healthState = this.systemHealth.get(systemName);
+        if (healthState) {
+            healthState.status = 'healthy';
+            healthState.circuitBreakerState = 'closed';
+            healthState.consecutiveFailures = 0;
+            healthState.consecutiveSuccesses = 0;
+            healthState.retryCount = 0;
+            healthState.circuitOpenedAt = undefined;
+
+            if (this.debugMode) {
+                console.log(`[ECS Debug] System "${systemName}" reset to healthy state`);
+            }
+
+            this.updateEngineHealth();
+        }
+    }
+
+    /**
+     * Reset all systems to healthy state.
+     */
+    resetAllSystems(): void {
+        for (const systemName of this.systemHealth.keys()) {
+            this.resetSystem(systemName);
+        }
+    }
+
+    /**
+     * Update overall engine health based on system health.
+     */
+    private updateEngineHealth(): void {
+        let unhealthyCount = 0;
+        let degradedCount = 0;
+        let criticalUnhealthy = false;
+
+        for (const healthState of this.systemHealth.values()) {
+            if (healthState.status === 'unhealthy' || healthState.status === 'disabled') {
+                unhealthyCount++;
+                if (healthState.config.critical) {
+                    criticalUnhealthy = true;
+                }
+            } else if (healthState.status === 'degraded') {
+                degradedCount++;
+            }
+        }
+
+        const previousStatus = this.engineHealthStatus;
+        let newStatus: 'healthy' | 'degraded' | 'unhealthy';
+
+        if (criticalUnhealthy || unhealthyCount >= 3) {
+            newStatus = 'unhealthy';
+        } else if (unhealthyCount > 0 || degradedCount > 0) {
+            newStatus = 'degraded';
+        } else {
+            newStatus = 'healthy';
+        }
+
+        if (previousStatus !== newStatus) {
+            this.engineHealthStatus = newStatus;
+
+            const unhealthySystems: string[] = [];
+            const degradedSystems: string[] = [];
+
+            for (const [name, state] of this.systemHealth) {
+                if (state.status === 'unhealthy' || state.status === 'disabled') {
+                    unhealthySystems.push(name);
+                } else if (state.status === 'degraded') {
+                    degradedSystems.push(name);
+                }
+            }
+
+            const event: EngineHealthEvent = {
+                previousStatus,
+                newStatus,
+                unhealthySystems,
+                degradedSystems,
+                timestamp: Date.now(),
+            };
+
+            this.eventEmitter?.emit('onEngineHealthChanged', event);
+        }
+    }
+
+    /**
+     * Get the health status of a specific system.
+     */
+    getSystemHealth(systemName: string): SystemHealth | undefined {
+        const state = this.systemHealth.get(systemName);
+        if (!state) return undefined;
+
+        return {
+            systemName: state.systemName,
+            status: state.status,
+            circuitBreakerState: state.circuitBreakerState,
+            consecutiveFailures: state.consecutiveFailures,
+            consecutiveSuccesses: state.consecutiveSuccesses,
+            totalErrors: state.totalErrors,
+            lastError: state.lastError,
+            lastSuccessTime: state.lastSuccessTime,
+            lastErrorTime: state.lastErrorTime,
+            enabled: state.status !== 'disabled',
+        };
+    }
+
+    /**
+     * Get health status of all systems.
+     */
+    getAllSystemHealth(): SystemHealth[] {
+        const result: SystemHealth[] = [];
+        for (const state of this.systemHealth.values()) {
+            const health = this.getSystemHealth(state.systemName);
+            if (health) {
+                result.push(health);
+            }
+        }
+        return result;
+    }
+
+    /**
+     * Get overall engine health status.
+     */
+    getEngineHealth(): 'healthy' | 'degraded' | 'unhealthy' {
+        return this.engineHealthStatus;
+    }
+
+    /**
+     * Get error history.
+     */
+    getErrorHistory(): SystemError[] {
+        return [...this.errorHistory];
+    }
+
+    /**
+     * Clear error history.
+     */
+    clearErrorHistory(): void {
+        this.errorHistory = [];
+    }
+
+    /**
+     * Generate a comprehensive error report for production error services.
+     */
+    generateErrorReport(entityCount?: number, systemCount?: number): ErrorReport {
+        return {
+            errors: [...this.errorHistory],
+            systemHealth: this.getAllSystemHealth(),
+            engineHealth: this.engineHealthStatus,
+            sessionStartTime: this.sessionStartTime,
+            reportTime: Date.now(),
+            engineStats:
+                entityCount !== undefined && systemCount !== undefined
+                    ? {
+                          entityCount,
+                          systemCount,
+                          uptime: Date.now() - this.sessionStartTime,
+                      }
+                    : undefined,
+        };
+    }
+
+    /**
+     * Check if a system is currently healthy (can execute).
+     */
+    isSystemHealthy(systemName: string): boolean {
+        const state = this.systemHealth.get(systemName);
+        if (!state) return true; // Unknown systems are assumed healthy
+
+        return state.status === 'healthy' || state.status === 'degraded';
+    }
+
+    /**
+     * Update configuration for a registered system.
+     */
+    updateSystemConfig(systemName: string, config: Partial<SystemErrorConfig>): void {
+        const state = this.systemHealth.get(systemName);
+        if (state) {
+            state.config = { ...state.config, ...config };
+        }
+    }
+
+    /**
+     * Clean up resources.
+     */
+    dispose(): void {
+        this.systemHealth.clear();
+        this.errorHistory = [];
     }
 }

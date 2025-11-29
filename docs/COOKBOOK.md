@@ -429,100 +429,65 @@ class Position {
 
 **Problem:** Components with many properties are tedious to initialize and prone to errors with constructor argument ordering.
 
-**Solution:** Use the builder pattern, factories, or `defineComponent` for type-safe initialization:
-
-**Approach 1: ComponentBuilder (Fluent API)**
-
-```typescript
-import { ComponentBuilder } from '@orion-ecs/core';
-
-// Complex component with many properties
-class CharacterStats {
-  health = 100;
-  maxHealth = 100;
-  mana = 50;
-  maxMana = 50;
-  strength = 10;
-  dexterity = 10;
-  intelligence = 10;
-  armor = 0;
-  magicResist = 0;
-}
-
-// Build with explicit property setting (type-safe!)
-const warrior = ComponentBuilder.for(CharacterStats)
-  .set('health', 150)
-  .set('maxHealth', 150)
-  .set('strength', 18)
-  .set('armor', 25)
-  .build();
-
-const mage = ComponentBuilder.for(CharacterStats)
-  .set('mana', 120)
-  .set('maxMana', 120)
-  .set('intelligence', 18)
-  .set('magicResist', 15)
-  .build();
-
-// Type errors caught at compile time:
-// ComponentBuilder.for(CharacterStats).set('invalid', 10); // ❌ Error
-// ComponentBuilder.for(CharacterStats).set('health', 'string'); // ❌ Error
-```
-
-**Approach 2: Factory Functions**
-
-```typescript
-import { createComponentFactory } from '@orion-ecs/core';
-
-// Create factory with default values
-const createEnemy = createComponentFactory(EnemyStats, {
-  health: 50,
-  damage: 10,
-  speed: 5,
-  aggressive: true
-});
-
-// Create variations by overriding specific properties
-const goblin = createEnemy();  // Uses all defaults
-const fastGoblin = createEnemy({ speed: 12 });
-const toughGoblin = createEnemy({ health: 100, damage: 15 });
-const boss = createEnemy({ health: 500, damage: 50, speed: 3 });
-
-// Use in entity creation
-const enemy = engine.createEntity('Enemy');
-enemy.addComponent(EnemyStats);
-Object.assign(enemy.getComponent(EnemyStats)!, createEnemy({ health: 75 }));
-```
-
-**Approach 3: defineComponent (Inline Definition)**
+**Solution:** Use `defineComponent` to create component classes with typed defaults that work directly with `addComponent`:
 
 ```typescript
 import { defineComponent } from '@orion-ecs/core';
 
-// Define a new component class with typed defaults
-const PowerUp = defineComponent('PowerUp', {
-  type: 'health' as 'health' | 'mana' | 'speed',
-  value: 25,
-  duration: 10,
-  stackable: false
+// Define a component with typed properties and defaults
+const CharacterStats = defineComponent('CharacterStats', {
+  health: 100,
+  maxHealth: 100,
+  mana: 50,
+  maxMana: 50,
+  strength: 10,
+  dexterity: 10,
+  intelligence: 10,
+  armor: 0,
+  magicResist: 0
 });
 
-// Use like any other component class
-const pickup = engine.createEntity('HealthPickup');
-pickup.addComponent(PowerUp, { type: 'health', value: 50 });
+// Create entities with different stat configurations
+const warrior = engine.createEntity('Warrior');
+warrior.addComponent(CharacterStats, {
+  health: 150,
+  maxHealth: 150,
+  strength: 18,
+  armor: 25
+});
 
-const speedBoost = engine.createEntity('SpeedBoost');
-speedBoost.addComponent(PowerUp, { type: 'speed', duration: 5 });
+const mage = engine.createEntity('Mage');
+mage.addComponent(CharacterStats, {
+  mana: 120,
+  maxMana: 120,
+  intelligence: 18,
+  magicResist: 15
+});
+
+// Type errors caught at compile time:
+// entity.addComponent(CharacterStats, { invalid: 10 }); // ❌ Error
+// entity.addComponent(CharacterStats, { health: 'string' }); // ❌ Error
+
+// Full type inference when accessing
+const stats = warrior.getComponent(CharacterStats);
+stats.strength;  // number
+stats.armor;     // number
 ```
 
-**When to Use Each Pattern:**
+**Benefits of `defineComponent`:**
+- Single allocation (no intermediate objects)
+- Works with component pools when registered
+- Full TypeScript type inference
+- Default values for all properties
+- Override only what you need
+
+**When to Use:**
 
 | Pattern | Use Case |
 |---------|----------|
-| `ComponentBuilder` | One-off complex initialization with IDE autocomplete |
-| `createComponentFactory` | Creating many similar components with consistent defaults |
-| `defineComponent` | Defining new component types with typed properties |
-| Constructor args | Simple components with 1-3 required properties |
+| `defineComponent` | Components with many optional properties |
+| Class with constructor | Components with required parameters or methods |
+| Simple class | Components with 1-3 properties using defaults |
 
 ---
 

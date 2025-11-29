@@ -121,36 +121,28 @@ game.start();
 
 ## Advanced Usage
 
-### Component Builder Pattern
+### Defining Components with Type-Safe Defaults
 
-For complex components with many properties, use the builder pattern for type-safe, fluent initialization:
+Use `defineComponent` to create component classes with typed defaults that work directly with `addComponent`:
 
 ```typescript
-import { ComponentBuilder, createComponentFactory, defineComponent } from '@orion-ecs/core';
+import { defineComponent } from '@orion-ecs/core';
 
-// Fluent builder for step-by-step initialization
-const player = ComponentBuilder.for(PlayerStats)
-  .set('health', 100)
-  .set('armor', 50)
-  .set('speed', 10)
-  .build();
-
-// Factory with defaults for repeated creation
-const createEnemy = createComponentFactory(EnemyStats, {
-  health: 50,
-  damage: 10,
-  speed: 5
+// Define a component with typed properties and defaults
+const Health = defineComponent('Health', {
+  current: 100,
+  max: 100,
+  regenRate: 0
 });
-const goblin = createEnemy({ damage: 15 });  // Override specific values
-const orc = createEnemy({ health: 100, damage: 25 });
 
-// Define new component classes with type-safe defaults
-const PowerUp = defineComponent('PowerUp', {
-  type: 'health',
-  value: 25,
-  duration: 10
-});
-entity.addComponent(PowerUp, { type: 'speed', value: 50 });
+// Use with addComponent - single allocation, pool-compatible
+entity.addComponent(Health, { current: 50 });  // Override specific values
+entity.addComponent(Health);  // Use all defaults
+
+// Full type inference when accessing
+const health = entity.getComponent(Health);
+health.current;    // number
+health.regenRate;  // number
 ```
 
 ### Component Validation

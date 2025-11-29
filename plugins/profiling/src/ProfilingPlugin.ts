@@ -304,14 +304,19 @@ export class ProfilerAPI implements IProfilerAPI {
 
             // Calculate trend
             const recent = counts.slice(-3);
-            const isIncreasing = recent[2] > recent[1] && recent[1] > recent[0];
-            const isDecreasing = recent[2] < recent[1] && recent[1] < recent[0];
+            if (recent.length < 3) return;
+
+            const r0 = recent[0]!;
+            const r1 = recent[1]!;
+            const r2 = recent[2]!;
+
+            const isIncreasing = r2 > r1 && r1 > r0;
+            const isDecreasing = r2 < r1 && r1 < r0;
 
             const trend = isIncreasing ? 'increasing' : isDecreasing ? 'decreasing' : 'stable';
 
             // Calculate severity (guard against division by zero)
-            const growthRate =
-                recent[0] === 0 ? (recent[2] > 0 ? 1 : 0) : (recent[2] - recent[0]) / recent[0];
+            const growthRate = r0 === 0 ? (r2 > 0 ? 1 : 0) : (r2 - r0) / r0;
             let severity: 'low' | 'medium' | 'high' = 'low';
 
             if (growthRate > 0.5) severity = 'high';
@@ -320,7 +325,7 @@ export class ProfilerAPI implements IProfilerAPI {
             if (trend === 'increasing' && severity !== 'low') {
                 leaks.push({
                     type,
-                    count: recent[2],
+                    count: r2,
                     trend,
                     severity,
                 });

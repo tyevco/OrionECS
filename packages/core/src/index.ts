@@ -119,8 +119,6 @@ export {
 } from './managers';
 // Export utility functions
 export {
-    ComponentBuilder,
-    createComponentFactory,
     createTagComponent,
     deepCloneComponent,
     defineComponent,

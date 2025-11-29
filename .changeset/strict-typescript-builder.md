@@ -5,15 +5,14 @@
 "@orion-ecs/network": patch
 "@orion-ecs/state-machine": patch
 "@orion-ecs/canvas2d-renderer": patch
+"@orion-ecs/profiling": patch
 ---
 
-Add strict TypeScript configuration and builder pattern for components
+Add strict TypeScript configuration and defineComponent utility
 
 **Core Package (minor):**
 - Enable `noUncheckedIndexedAccess`, `noImplicitAny`, and `strictNullChecks` in TypeScript config
-- Add `ComponentBuilder` class for fluent, type-safe component construction
-- Add `createComponentFactory` for reusable component factories with defaults
-- Add `defineComponent` utility for defining components with typed properties
+- Add `defineComponent` utility for defining components with typed properties and defaults
 - Add ESLint/oxlint configuration for type safety rules
 - Add comprehensive plugin system integration tests
 
@@ -23,4 +22,3 @@ Add strict TypeScript configuration and builder pattern for components
 
 **Breaking Changes:**
 - `noUncheckedIndexedAccess` may require code updates for array access patterns
-- See `docs/migrations/STRICT-TYPESCRIPT.md` for migration guide

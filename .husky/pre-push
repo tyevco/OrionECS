@@ -1,0 +1,31 @@
+# Check for changeset requirement before pushing
+# This helps catch missing changesets before CI runs
+
+# Get the remote and branch being pushed to
+remote="$1"
+url="$2"
+
+# Only check when pushing to origin (not forks or other remotes)
+if [[ "$url" != *"tyevco/OrionECS"* ]] && [[ "$remote" != "origin" ]]; then
+    exit 0
+fi
+
+# Determine the base branch to compare against
+# Default to origin/main, but could be customized
+BASE_BRANCH="origin/main"
+
+# Fetch the latest main branch to ensure accurate comparison
+git fetch origin main:refs/remotes/origin/main 2>/dev/null || true
+
+# Run the changeset check script
+if [ -f "./scripts/check-changeset.sh" ]; then
+    echo "Checking changeset requirement..."
+    if ! ./scripts/check-changeset.sh "$BASE_BRANCH"; then
+        echo ""
+        echo "Push blocked: Please add a changeset before pushing."
+        echo "Run 'npx changeset' to create one."
+        echo ""
+        echo "To skip this check (not recommended), use: git push --no-verify"
+        exit 1
+    fi
+fi

@@ -959,10 +959,7 @@ export class Entity implements EntityDef {
         throw new Error('[ECS] Invalid entity type - expected Entity instance');
     }
 
-    addComponent<T>(
-        type: ComponentIdentifier<T>,
-        ...args: ConstructorParameters<typeof type>
-    ): this {
+    addComponent<C extends ComponentIdentifier>(type: C, ...args: ConstructorParameters<C>): this {
         if (!this._componentIndices.has(type)) {
             const validator = this.componentManager.getValidator(type);
 

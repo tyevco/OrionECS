@@ -63,7 +63,18 @@ export class ComponentManager {
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private singletonComponents: Map<ComponentIdentifier, any> = new Map();
 
-    getComponentArray<T>(type: ComponentIdentifier): ComponentArray<T> {
+    /**
+     * Get the component array for a specific component type.
+     * Creates a new array if one doesn't exist.
+     *
+     * Type safety is enforced via the generic parameter constraint - the type
+     * parameter T is bound to the ComponentIdentifier<T>, ensuring the returned
+     * ComponentArray<T> matches the requested component type.
+     *
+     * @param type - The component class/constructor
+     * @returns The ComponentArray for storing instances of this component type
+     */
+    getComponentArray<T>(type: ComponentIdentifier<T>): ComponentArray<T> {
         if (!this.componentArrays.has(type)) {
             this.componentArrays.set(type, new ComponentArray<T>());
         }
@@ -172,6 +183,20 @@ export class ComponentManager {
      */
     hasComponentPool<T extends object>(type: ComponentIdentifier<T>): boolean {
         return this.componentPools.has(type);
+    }
+
+    /**
+     * Get the pool for a specific component type.
+     *
+     * Type safety is enforced via the generic parameter constraint - the type
+     * parameter T is bound to the ComponentIdentifier<T>, ensuring the returned
+     * Pool<T> matches the requested component type.
+     *
+     * @param type - The component class/constructor
+     * @returns The Pool for this component type, or undefined if not registered
+     */
+    getPool<T extends object>(type: ComponentIdentifier<T>): Pool<T> | undefined {
+        return this.componentPools.get(type) as Pool<T> | undefined;
     }
 
     /**

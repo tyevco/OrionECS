@@ -80,8 +80,39 @@ class Trail {
     ) {}
 }
 
-// Initialize engine
-const game = new EngineBuilder().withDebugMode(true).withFixedUpdateFPS(60).build();
+// Singleton for particle system configuration
+class ParticleConfig {
+    constructor(
+        public maxParticles: number = 5000,
+        public deltaTime: number = 0.016,
+        public canvasWidth: number = 800,
+        public canvasHeight: number = 600
+    ) {}
+}
+
+// Initialize engine with optimizations for high-volume particle systems
+const game = new EngineBuilder()
+    .withDebugMode(true)
+    .withFixedUpdateFPS(60)
+    .withArchetypes(true) // Critical for particle system performance
+    .withProfiling(true)
+    .withErrorRecovery({
+        defaultStrategy: 'skip',
+        maxRetries: 1,
+    })
+    .build();
+
+// Set up particle configuration singleton
+game.setSingleton(ParticleConfig);
+
+// Register component pools for high-churn particle components
+// This is critical for particle systems to minimize GC pressure
+game.registerComponentPool(Position, { initialSize: 1000, maxSize: 5000 });
+game.registerComponentPool(Velocity, { initialSize: 1000, maxSize: 5000 });
+game.registerComponentPool(Lifetime, { initialSize: 1000, maxSize: 5000 });
+game.registerComponentPool(ParticleVisual, { initialSize: 1000, maxSize: 5000 });
+game.registerComponentPool(ParticlePhysics, { initialSize: 1000, maxSize: 5000 });
+game.registerComponentPool(Trail, { initialSize: 200, maxSize: 1000 });
 
 // Particle Update System - handles physics
 game.createSystem(
@@ -178,7 +209,7 @@ game.createSystem(
     }
 );
 
-// Emitter System - spawns new particles
+// Emitter System - spawns new particles using command buffer for safe iteration
 game.createSystem(
     'EmitterSystem',
     {
@@ -188,8 +219,10 @@ game.createSystem(
     {
         priority: 110,
         act: (_entity, position, emitter) => {
+            const config = game.getSingleton(ParticleConfig)!;
+
             // Calculate how many particles to spawn this frame
-            emitter.accumulator += emitter.particlesPerSecond * 0.016;
+            emitter.accumulator += emitter.particlesPerSecond * config.deltaTime;
 
             while (emitter.accumulator >= 1) {
                 emitter.accumulator -= 1;
@@ -204,19 +237,21 @@ game.createSystem(
                 const lifetime =
                     emitter.lifetime + (Math.random() - 0.5) * emitter.lifetimeVariance;
 
-                // Create particle
-                const particle = game.createEntity();
-                particle
-                    .addComponent(Position, position.x, position.y)
-                    .addComponent(Velocity, vx, vy)
-                    .addComponent(Lifetime, lifetime, lifetime)
-                    .addComponent(ParticleVisual, 4, getRandomColor(), 1.0, getRandomShape())
-                    .addComponent(ParticlePhysics, 200, 0.99, 0.7, Math.random() * 10)
-                    .addTag('particle');
+                // Use command buffer to safely spawn particles during system iteration
+                // This prevents archetype invalidation during iteration
+                const hasTrail = Math.random() < 0.2;
+                const builder = game.commands
+                    .spawn()
+                    .with(Position, position.x, position.y)
+                    .with(Velocity, vx, vy)
+                    .with(Lifetime, lifetime, lifetime)
+                    .with(ParticleVisual, 4, getRandomColor(), 1.0, getRandomShape())
+                    .with(ParticlePhysics, 200, 0.99, 0.7, Math.random() * 10)
+                    .withTag('particle');
 
                 // Add trail to some particles
-                if (Math.random() < 0.2) {
-                    particle.addComponent(Trail, [], 15);
+                if (hasTrail) {
+                    builder.with(Trail, [], 15);
                 }
             }
         },
@@ -351,6 +386,22 @@ setInterval(() => {
     const particles = game.getEntitiesByTag('particle');
     const withTrails = particles.filter((p) => p.hasComponent(Trail)).length;
     console.log(`\nParticles with trails: ${withTrails}/${particles.length}`);
+
+    // Show component pool statistics - critical for particle systems
+    const posPoolStats = game.getComponentPoolStats(Position);
+    const lifetimePoolStats = game.getComponentPoolStats(Lifetime);
+    if (posPoolStats && lifetimePoolStats) {
+        console.log('\n=== Pool Statistics ===');
+        console.log(
+            `Position Pool: ${posPoolStats.available} available, ${(posPoolStats.reuseRate * 100).toFixed(1)}% reuse`
+        );
+        console.log(
+            `Lifetime Pool: ${lifetimePoolStats.available} available, ${(lifetimePoolStats.reuseRate * 100).toFixed(1)}% reuse`
+        );
+    }
+
+    // Show command buffer stats
+    console.log(`Pending commands: ${game.commands.pendingCount}`);
 }, 5000);
 
 // Create a prefab for burst effects
@@ -412,12 +463,15 @@ game.createSystem(
 console.log('Starting Particle System Example...');
 console.log('Features demonstrated:');
 console.log('- High-performance particle effects');
-console.log('- Object pooling for thousands of entities');
+console.log('- Component pooling for thousands of particles');
+console.log('- Command buffer for safe entity spawning during iteration');
+console.log('- Singleton configuration for particle settings');
 console.log('- Different emitter types (fireworks, fountain, explosion, snow)');
 console.log('- Particle physics with gravity and bounce');
 console.log('- Trail effects for certain particles');
 console.log('- Bulk entity creation with prefabs');
-console.log('- Dynamic emission rate control\n');
+console.log('- Dynamic emission rate control');
+console.log('- Archetype system for fast queries\n');
 
 game.run();
 

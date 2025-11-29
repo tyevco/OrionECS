@@ -91,8 +91,40 @@ function isAbilityReady(ability: Ability): boolean {
     return Date.now() - ability.lastUsed >= ability.cooldown;
 }
 
-// Initialize engine with validation
-const game = new EngineBuilder().withDebugMode(true).withFixedUpdateFPS(60).build();
+// Singleton for game time tracking - accessible from anywhere
+class GameTime {
+    constructor(
+        public elapsed: number = 0,
+        public deltaTime: number = 0.016,
+        public combatRoundTime: number = 0
+    ) {}
+}
+
+// Initialize engine with enhanced configuration
+const game = new EngineBuilder()
+    .withDebugMode(true)
+    .withFixedUpdateFPS(60)
+    .withArchetypes(true)
+    .withProfiling(true)
+    .withChangeTracking({
+        enableProxyTracking: false, // Manual tracking for better control
+        batchMode: false,
+    })
+    .withErrorRecovery({
+        defaultStrategy: 'skip',
+        maxRetries: 2,
+        onError: (error) => {
+            console.error(`Combat system ${error.systemName} error:`, error.error.message);
+        },
+    })
+    .build();
+
+// Set up game time singleton
+game.setSingleton(GameTime);
+
+// Register component pools for frequently modified components
+game.registerComponentPool(Health, { initialSize: 50, maxSize: 200 });
+game.registerComponentPool(StatusEffect, { initialSize: 20, maxSize: 100 });
 
 // Register component validators
 game.registerComponentValidator(Health, {
@@ -368,7 +400,7 @@ game.messageBus.subscribe('entity-death', (message) => {
     }
 });
 
-// Mana Regeneration System
+// Mana Regeneration System - uses singleton for delta time
 game.createSystem(
     'ManaRegenerationSystem',
     {
@@ -378,8 +410,9 @@ game.createSystem(
     {
         priority: 50,
         act: (_entity, mana) => {
-            // Regenerate 1 mana per second
-            mana.current = Math.min(mana.max, mana.current + 0.016);
+            const gameTime = game.getSingleton(GameTime)!;
+            // Regenerate 1 mana per second using singleton delta time
+            mana.current = Math.min(mana.max, mana.current + gameTime.deltaTime);
         },
     }
 );
@@ -530,7 +563,11 @@ console.log('- Status effects (poison, burn, freeze, stun)');
 console.log('- Ability system with mana costs');
 console.log('- Experience and leveling system');
 console.log('- Component validation and dependencies');
-console.log('- Event-driven combat logging\n');
+console.log('- Event-driven combat logging');
+console.log('- Singleton components for game time');
+console.log('- Component pooling for health/effects');
+console.log('- Change tracking configuration');
+console.log('- Error recovery for system resilience\n');
 
 game.run();
 

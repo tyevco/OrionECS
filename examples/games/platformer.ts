@@ -206,6 +206,20 @@ const SCREEN_WIDTH = 800;
 const SCREEN_HEIGHT = 600;
 
 // ============================================================================
+// Singleton for Game Configuration
+// ============================================================================
+
+/**
+ * Physics configuration singleton - accessible from any system
+ */
+class PhysicsConfig {
+    deltaTime: number = 1 / 60;
+    gravity: number = GRAVITY;
+    screenWidth: number = SCREEN_WIDTH;
+    screenHeight: number = SCREEN_HEIGHT;
+}
+
+// ============================================================================
 // Engine Setup
 // ============================================================================
 
@@ -213,7 +227,23 @@ const engine = new EngineBuilder()
     .withDebugMode(false)
     .withFixedUpdateFPS(60)
     .withMaxFixedIterations(10)
+    .withArchetypes(true) // Enable archetype system for better query performance
+    .withProfiling(true) // Enable system profiling for performance monitoring
+    .withErrorRecovery({
+        defaultStrategy: 'skip', // Skip failing systems to prevent game crashes
+        maxRetries: 2,
+        onError: (error) => {
+            console.error(`Game system ${error.systemName} error:`, error.error.message);
+        },
+    })
     .build();
+
+// Set up physics configuration singleton
+engine.setSingleton(PhysicsConfig);
+
+// Register component pools for frequently modified components
+engine.registerComponentPool(Position, { initialSize: 100, maxSize: 500 });
+engine.registerComponentPool(Velocity, { initialSize: 100, maxSize: 500 });
 
 // ============================================================================
 // Prefabs

@@ -3,7 +3,7 @@
  * Demonstrates inter-system communication, event-driven gameplay, and decoupled architecture
  */
 
-import { EngineBuilder } from '@orion-ecs/core';
+import { type Engine, EngineBuilder } from '@orion-ecs/core';
 
 // ============================================================================
 // COMPONENTS (Pure data - no business logic)
@@ -80,8 +80,40 @@ class GameState {
     ) {}
 }
 
-// Initialize engine with message bus
-const game = new EngineBuilder().withDebugMode(true).withFixedUpdateFPS(60).build();
+// Singleton for event configuration
+class EventConfig {
+    constructor(
+        public maxMessageHistory: number = 1000,
+        public deltaTime: number = 0.016,
+        public debugEvents: boolean = true
+    ) {}
+}
+
+// Initialize engine with message bus and event optimizations
+const game = new EngineBuilder()
+    .withDebugMode(true)
+    .withFixedUpdateFPS(60)
+    .withArchetypes(true)
+    .withProfiling(true)
+    .withChangeTracking({
+        enableProxyTracking: false,
+        batchMode: false,
+    })
+    .withErrorRecovery({
+        defaultStrategy: 'skip',
+        maxRetries: 2,
+        onError: (error) => {
+            console.error(`Event system ${error.systemName} error:`, error.error.message);
+        },
+    })
+    .build();
+
+// Set up event configuration singleton
+game.setSingleton(EventConfig);
+
+// Register component pools for frequently created/destroyed components
+game.registerComponentPool(Position, { initialSize: 100, maxSize: 500 });
+game.registerComponentPool(Collectible, { initialSize: 50, maxSize: 200 });
 
 // Event type definitions for documentation (commented to avoid unused warning)
 // These types show the expected data shape for each event:
@@ -563,7 +595,11 @@ console.log('- Achievement system with progress tracking');
 console.log('- Score and combo system');
 console.log('- Power-up management');
 console.log('- Wave-based spawning');
-console.log('- Decoupled architecture with events\n');
+console.log('- Decoupled architecture with events');
+console.log('- Singleton configuration for event settings');
+console.log('- Component pooling for collectibles');
+console.log('- Change tracking configuration');
+console.log('- Error recovery for system resilience\n');
 
 game.run();
 

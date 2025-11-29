@@ -167,6 +167,22 @@ const ENEMY_BULLET_SPEED = 300;
 const ENEMY_BASE_SPEED = 100;
 
 // ============================================================================
+// Singleton for Game Configuration
+// ============================================================================
+
+/**
+ * Game configuration singleton - accessible from any system
+ */
+class GameConfig {
+    deltaTime: number = 1 / 60;
+    screenWidth: number = SCREEN_WIDTH;
+    screenHeight: number = SCREEN_HEIGHT;
+    playerBulletSpeed: number = PLAYER_BULLET_SPEED;
+    enemyBulletSpeed: number = ENEMY_BULLET_SPEED;
+    enemyBaseSpeed: number = ENEMY_BASE_SPEED;
+}
+
+// ============================================================================
 // Engine Setup
 // ============================================================================
 
@@ -174,7 +190,19 @@ const engine = new EngineBuilder()
     .withDebugMode(false)
     .withFixedUpdateFPS(60)
     .withMaxFixedIterations(10)
+    .withArchetypes(true) // Enable archetype system for better query performance
+    .withProfiling(true) // Enable system profiling for performance monitoring
+    .withErrorRecovery({
+        defaultStrategy: 'skip', // Skip failing systems to prevent game crashes
+        maxRetries: 2,
+        onError: (error) => {
+            console.error(`Game system ${error.systemName} error:`, error.error.message);
+        },
+    })
     .build();
+
+// Set up game configuration singleton
+engine.setSingleton(GameConfig);
 
 // ============================================================================
 // Component Pooling
@@ -1184,6 +1212,8 @@ export {
     InputState,
     WaveData,
     Background,
+    // Singletons
+    GameConfig,
     // Functions
     initGame,
     gameLoop,

@@ -228,3 +228,6 @@ plugins/*/docs/
 # Coverage reports
 coverage/
 **/coverage/
+
+# Performance reports (generated)
+.performance/reports/

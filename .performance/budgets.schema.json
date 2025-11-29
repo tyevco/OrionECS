@@ -1,0 +1,95 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "title": "Performance Budgets Schema",
+  "description": "Schema for OrionECS performance budget configuration",
+  "type": "object",
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "description": {
+      "type": "string"
+    },
+    "version": {
+      "type": "string",
+      "pattern": "^\\d+\\.\\d+\\.\\d+$"
+    },
+    "defaults": {
+      "type": "object",
+      "properties": {
+        "regressionThreshold": {
+          "type": "number",
+          "description": "Default percentage threshold for detecting regressions",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "improvementThreshold": {
+          "type": "number",
+          "description": "Default percentage threshold for detecting improvements",
+          "minimum": 0,
+          "maximum": 100
+        },
+        "minSamples": {
+          "type": "integer",
+          "description": "Minimum number of samples required for valid comparison",
+          "minimum": 1
+        },
+        "confidenceLevel": {
+          "type": "number",
+          "description": "Statistical confidence level for comparisons",
+          "minimum": 0,
+          "maximum": 1
+        }
+      },
+      "required": ["regressionThreshold", "improvementThreshold"]
+    },
+    "budgets": {
+      "type": "object",
+      "description": "Performance budgets organized by benchmark suite",
+      "additionalProperties": {
+        "type": "object",
+        "additionalProperties": {
+          "type": "object",
+          "properties": {
+            "minOpsPerSecond": {
+              "type": "number",
+              "description": "Minimum acceptable operations per second"
+            },
+            "maxMeanMs": {
+              "type": "number",
+              "description": "Maximum acceptable mean execution time in milliseconds"
+            },
+            "regressionThreshold": {
+              "type": "number",
+              "description": "Custom regression threshold for this benchmark"
+            },
+            "description": {
+              "type": "string"
+            }
+          }
+        }
+      }
+    },
+    "categories": {
+      "type": "object",
+      "properties": {
+        "critical": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Critical benchmarks that must always pass"
+        },
+        "important": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Important benchmarks with stricter thresholds"
+        },
+        "standard": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Standard benchmarks with default thresholds"
+        }
+      }
+    }
+  },
+  "required": ["version", "defaults", "budgets"]
+}

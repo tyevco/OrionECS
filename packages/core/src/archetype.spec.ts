@@ -194,7 +194,7 @@ describe('Archetype', () => {
 
             const results: Array<{ entity: Entity; position: Position; velocity: Velocity }> = [];
 
-            archetype.forEach((e, position, velocity) => {
+            archetype.forEach<[Position, Velocity]>((e, position, velocity) => {
                 results.push({ entity: e, position, velocity });
             });
 

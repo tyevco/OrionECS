@@ -539,7 +539,9 @@ export class Archetype {
      * Thread Safety: During iteration, entity removals are automatically deferred
      * until iteration completes to prevent data corruption from concurrent modifications.
      */
-    forEach(callback: (entity: Entity, ...components: any[]) => void): void {
+    forEach<C extends readonly unknown[]>(
+        callback: (entity: Entity, ...components: C) => void
+    ): void {
         const componentArraysArray: any[][] = [];
 
         // Pre-fetch component arrays for better performance
@@ -562,7 +564,7 @@ export class Archetype {
                 // Skip entities that are pending removal
                 if (entity && !this._pendingRemovals.has(entity)) {
                     const components = componentArraysArray.map((arr) => arr[i]);
-                    callback(entity, ...components);
+                    callback(entity, ...(components as unknown as C));
                 }
             }
         } finally {

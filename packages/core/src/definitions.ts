@@ -527,6 +527,8 @@ export interface EntityDef {
     hasComponent<T>(type: new (...args: any[]) => T): boolean;
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getComponent<T>(type: new (...args: any[]) => T): T;
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    tryGetComponent<T>(type: new (...args: any[]) => T): T | null;
     addTag(tag: string): this;
     removeTag(tag: string): this;
     hasTag(tag: string): boolean;

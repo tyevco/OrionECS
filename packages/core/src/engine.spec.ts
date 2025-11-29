@@ -463,6 +463,31 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(pos.y).toBe(20);
         });
 
+        test('should tryGetComponent return component when present', () => {
+            const entity = engine.createEntity();
+            entity.addComponent(Position, 15, 25);
+
+            const pos = entity.tryGetComponent(Position);
+            expect(pos).not.toBeNull();
+            expect(pos?.x).toBe(15);
+            expect(pos?.y).toBe(25);
+        });
+
+        test('should tryGetComponent return null when component not present', () => {
+            const entity = engine.createEntity();
+
+            const pos = entity.tryGetComponent(Position);
+            expect(pos).toBeNull();
+        });
+
+        test('should getComponent throw when component not present', () => {
+            const entity = engine.createEntity('TestEntity');
+
+            expect(() => entity.getComponent(Position)).toThrow(
+                '[ECS] Component Position not found on entity TestEntity'
+            );
+        });
+
         test('should validate components', () => {
             engine.registerComponentValidator(Health, {
                 validate: (component: Health) => {

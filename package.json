@@ -33,6 +33,7 @@
   },
   "workspaces": [
     "packages/core",
+    "packages/create",
     "packages/math",
     "packages/graphics",
     "packages/plugin-api",

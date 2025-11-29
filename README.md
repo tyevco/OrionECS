@@ -121,6 +121,38 @@ game.start();
 
 ## Advanced Usage
 
+### Component Builder Pattern
+
+For complex components with many properties, use the builder pattern for type-safe, fluent initialization:
+
+```typescript
+import { ComponentBuilder, createComponentFactory, defineComponent } from '@orion-ecs/core';
+
+// Fluent builder for step-by-step initialization
+const player = ComponentBuilder.for(PlayerStats)
+  .set('health', 100)
+  .set('armor', 50)
+  .set('speed', 10)
+  .build();
+
+// Factory with defaults for repeated creation
+const createEnemy = createComponentFactory(EnemyStats, {
+  health: 50,
+  damage: 10,
+  speed: 5
+});
+const goblin = createEnemy({ damage: 15 });  // Override specific values
+const orc = createEnemy({ health: 100, damage: 25 });
+
+// Define new component classes with type-safe defaults
+const PowerUp = defineComponent('PowerUp', {
+  type: 'health',
+  value: 25,
+  duration: 10
+});
+entity.addComponent(PowerUp, { type: 'speed', value: 50 });
+```
+
 ### Component Validation
 
 ```typescript

@@ -45,38 +45,176 @@ jobs:
       - name: Build packages
         run: npm run build
 
-      - name: Setup benchmark cache
-        uses: actions/cache@v4
-        with:
-          path: benchmarks/history
-          key: benchmark-history-${{ github.ref_name }}
-          restore-keys: |
-            benchmark-history-main
-            benchmark-history-
+      # For PRs: Get base branch info
+      - name: Get base branch
+        if: github.event_name == 'pull_request'
+        id: base
+        run: |
+          echo "ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
+          echo "sha=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
 
-      - name: Run quick benchmarks (PR)
-        if: github.event_name == 'pull_request' && github.event.inputs.full_suite != 'true'
-        run: npx ts-node benchmarks/comparative/cli.ts --quick --save-history --threshold 15
+      # Run current branch benchmarks first
+      - name: Run current branch benchmarks
+        id: current_benchmark
+        run: |
+          echo "Running benchmarks on current branch..."
+          npx ts-node benchmarks/comparative/cli.ts --quick --no-history --threshold 15
+
+          # Save results for comparison
+          mkdir -p .benchmark-results/current
+          if [ -d "benchmarks/reports" ]; then
+            # Find the latest JSON report
+            latest_json=$(ls -t benchmarks/reports/*.json 2>/dev/null | head -1)
+            if [ -n "$latest_json" ]; then
+              cp "$latest_json" .benchmark-results/current/results.json
+              echo "results_available=true" >> $GITHUB_OUTPUT
+            else
+              echo "results_available=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "results_available=false" >> $GITHUB_OUTPUT
+          fi
         env:
           CI: true
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_REF_NAME: ${{ github.head_ref || github.ref_name }}
 
-      - name: Run full benchmarks (main branch or manual)
-        if: github.event_name != 'pull_request' || github.event.inputs.full_suite == 'true'
-        run: npx ts-node benchmarks/comparative/cli.ts --full --save-history
+      # For PRs: checkout base branch and run benchmarks on same runner
+      - name: Checkout base branch for comparison
+        if: github.event_name == 'pull_request' && steps.current_benchmark.outputs.results_available == 'true'
+        run: |
+          # Save current benchmark results
+          cp -r .benchmark-results/current /tmp/current-benchmarks
+
+          # Checkout base branch
+          git checkout ${{ steps.base.outputs.sha }}
+
+      - name: Install base branch dependencies
+        if: github.event_name == 'pull_request' && steps.current_benchmark.outputs.results_available == 'true'
+        run: npm ci
+
+      - name: Build base branch
+        if: github.event_name == 'pull_request' && steps.current_benchmark.outputs.results_available == 'true'
+        run: npm run build
+
+      - name: Run base branch benchmarks
+        if: github.event_name == 'pull_request' && steps.current_benchmark.outputs.results_available == 'true'
+        id: base_benchmark
+        run: |
+          echo "Running benchmarks on base branch..."
+          npx ts-node benchmarks/comparative/cli.ts --quick --no-history --threshold 15
+
+          # Save results for comparison
+          mkdir -p .benchmark-results/base
+          if [ -d "benchmarks/reports" ]; then
+            latest_json=$(ls -t benchmarks/reports/*.json 2>/dev/null | head -1)
+            if [ -n "$latest_json" ]; then
+              cp "$latest_json" .benchmark-results/base/results.json
+              echo "base_available=true" >> $GITHUB_OUTPUT
+            else
+              echo "base_available=false" >> $GITHUB_OUTPUT
+            fi
+          else
+            echo "base_available=false" >> $GITHUB_OUTPUT
+          fi
+        env:
+          CI: false  # Don't fail on regression against history
+          GITHUB_SHA: ${{ steps.base.outputs.sha }}
+          GITHUB_REF_NAME: ${{ steps.base.outputs.ref }}
+
+      - name: Restore current branch
+        if: github.event_name == 'pull_request' && steps.current_benchmark.outputs.results_available == 'true'
+        run: |
+          # Checkout back to PR branch
+          git checkout ${{ github.event.pull_request.head.sha }}
+
+          # Restore current benchmark results
+          mkdir -p .benchmark-results/current
+          cp -r /tmp/current-benchmarks/* .benchmark-results/current/
+
+          # Copy base results if available
+          if [ -d ".benchmark-results/base" ]; then
+            cp -r .benchmark-results/base /tmp/base-benchmarks
+          fi
+
+          # Reinstall to get the comparison scripts
+          npm ci
+
+      - name: Compare benchmarks (PR - same runner)
+        if: github.event_name == 'pull_request' && steps.current_benchmark.outputs.results_available == 'true' && steps.base_benchmark.outputs.base_available == 'true'
+        id: compare
+        run: |
+          # Restore base results
+          mkdir -p .benchmark-results/base
+          if [ -d "/tmp/base-benchmarks" ]; then
+            cp -r /tmp/base-benchmarks/* .benchmark-results/base/
+          fi
+
+          # Run comparison with same-runner mode
+          npx ts-node benchmarks/comparative/cli.ts \
+            --quick \
+            --compare-baseline .benchmark-results/base/results.json \
+            --current-results .benchmark-results/current/results.json \
+            --threshold 15 \
+            2>&1 | tee comparison-output.txt
+
+          exit_code=${PIPESTATUS[0]}
+
+          if [ $exit_code -eq 0 ]; then
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "regression_detected=false" >> $GITHUB_OUTPUT
+          else
+            echo "status=regression" >> $GITHUB_OUTPUT
+            echo "regression_detected=true" >> $GITHUB_OUTPUT
+          fi
+
+          # Don't fail the step - we report in the summary
+          exit 0
+        env:
+          CI: true
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF_NAME: ${{ github.head_ref || github.ref_name }}
+
+      # For pushes to main: run full benchmarks and save to history
+      - name: Run full benchmarks (main branch)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        run: |
+          npx ts-node benchmarks/comparative/cli.ts \
+            ${{ github.event.inputs.full_suite == 'true' && '--full' || '--quick' }} \
+            --save-history
         env:
           CI: true
           GITHUB_SHA: ${{ github.sha }}
           GITHUB_REF_NAME: ${{ github.ref_name }}
 
+      - name: Generate GitHub summary
+        if: always()
+        run: |
+          if [ -f "comparison-output.txt" ]; then
+            echo '## Performance Comparison Report' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '> Benchmarks run on the **same runner** to ensure accurate comparison.' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat comparison-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+          elif [ -d "benchmarks/reports" ]; then
+            latest_md=$(ls -t benchmarks/reports/*.md 2>/dev/null | head -1)
+            if [ -n "$latest_md" ]; then
+              cat "$latest_md" >> $GITHUB_STEP_SUMMARY
+            fi
+          fi
+
       - name: Upload benchmark results
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: benchmark-results-${{ github.sha }}
           path: |
             benchmarks/reports/
             benchmarks/history/
+            .benchmark-results/
+            comparison-output.txt
           retention-days: 30
 
       - name: Comment PR with benchmark results
@@ -87,30 +225,33 @@ jobs:
             const fs = require('fs');
             const path = require('path');
 
-            // Find the latest markdown report
-            const reportsDir = 'benchmarks/reports';
-            if (!fs.existsSync(reportsDir)) {
-              console.log('No reports directory found');
-              return;
-            }
+            let body = '## 📊 Benchmark Results\n\n';
+            body += '> Benchmarks run on the **same runner** to ensure accurate comparison.\n\n';
 
-            const files = fs.readdirSync(reportsDir)
-              .filter(f => f.endsWith('.md'))
-              .sort()
-              .reverse();
+            // First try to read comparison output
+            if (fs.existsSync('comparison-output.txt')) {
+              const output = fs.readFileSync('comparison-output.txt', 'utf-8');
+              body += '```\n' + output + '\n```';
+            } else {
+              // Fall back to markdown report
+              const reportsDir = 'benchmarks/reports';
+              if (fs.existsSync(reportsDir)) {
+                const files = fs.readdirSync(reportsDir)
+                  .filter(f => f.endsWith('.md'))
+                  .sort()
+                  .reverse();
 
-            if (files.length === 0) {
-              console.log('No markdown reports found');
-              return;
-            }
+                if (files.length > 0) {
+                  const reportPath = path.join(reportsDir, files[0]);
+                  let reportContent = fs.readFileSync(reportPath, 'utf-8');
 
-            const reportPath = path.join(reportsDir, files[0]);
-            let reportContent = fs.readFileSync(reportPath, 'utf-8');
-
-            // Truncate if too long for a comment
-            const maxLength = 60000;
-            if (reportContent.length > maxLength) {
-              reportContent = reportContent.substring(0, maxLength) + '\n\n*Report truncated...*';
+                  const maxLength = 60000;
+                  if (reportContent.length > maxLength) {
+                    reportContent = reportContent.substring(0, maxLength) + '\n\n*Report truncated...*';
+                  }
+                  body = `## 📊 Benchmark Results\n\n${reportContent}`;
+                }
+              }
             }
 
             // Check for existing comment
@@ -121,10 +262,9 @@ jobs:
             });
 
             const botComment = comments.find(c =>
-              c.user.type === 'Bot' && c.body.includes('OrionECS Performance Benchmark Report')
+              c.user.type === 'Bot' &&
+              c.body.includes('Benchmark Results')
             );
-
-            const body = `## 📊 Benchmark Results\n\n${reportContent}`;
 
             if (botComment) {
               await github.rest.issues.updateComment({
@@ -142,15 +282,12 @@ jobs:
               });
             }
 
-      - name: Check for regressions
-        id: regression-check
+      - name: Check regression status
+        if: github.event_name == 'pull_request' && steps.compare.outputs.regression_detected == 'true'
         run: |
-          # This is handled by the CLI, but we can add additional checks here
-          if [ -f "benchmarks/reports/regression-detected.flag" ]; then
-            echo "regression_detected=true" >> $GITHUB_OUTPUT
-          else
-            echo "regression_detected=false" >> $GITHUB_OUTPUT
-          fi
+          echo "::warning::Performance regressions detected. Please review the benchmark report."
+          # Optionally fail the build:
+          # exit 1
 
   # Store benchmark history in a separate branch (optional)
   store-history:

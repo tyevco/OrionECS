@@ -1,0 +1,96 @@
+{
+  "$schema": "./budgets.schema.json",
+  "description": "Performance budgets for OrionECS benchmarks. These define acceptable thresholds for each benchmark.",
+  "version": "1.0.0",
+  "defaults": {
+    "regressionThreshold": 10,
+    "improvementThreshold": 5,
+    "minSamples": 5,
+    "confidenceLevel": 0.95
+  },
+  "budgets": {
+    "Enhanced ECS Performance Benchmarks": {
+      "Entity Creation (1000 entities)": {
+        "minOpsPerSecond": 180,
+        "maxMeanMs": 6,
+        "regressionThreshold": 15,
+        "description": "Core entity creation performance - critical path"
+      },
+      "Bulk Entity Creation (1000 entities)": {
+        "minOpsPerSecond": 140,
+        "maxMeanMs": 8,
+        "description": "Prefab-based bulk entity creation"
+      },
+      "Component Addition (10000 operations)": {
+        "minOpsPerSecond": 30,
+        "maxMeanMs": 35,
+        "description": "Component add/remove operations"
+      },
+      "Simple Query Performance (1000 entities)": {
+        "minOpsPerSecond": 50,
+        "maxMeanMs": 20,
+        "description": "Basic query iteration performance"
+      },
+      "Complex Query Performance (ALL/ANY/NOT)": {
+        "minOpsPerSecond": 12,
+        "maxMeanMs": 85,
+        "description": "Complex query with multiple filters"
+      },
+      "Tag Query Performance": {
+        "minOpsPerSecond": 30,
+        "maxMeanMs": 35,
+        "description": "Tag-based query performance"
+      },
+      "Multi-System Execution (5 systems, 1000 entities)": {
+        "minOpsPerSecond": 11,
+        "maxMeanMs": 95,
+        "description": "Multiple systems executing in priority order"
+      },
+      "Entity Hierarchy Operations": {
+        "minOpsPerSecond": 10,
+        "maxMeanMs": 105,
+        "description": "Parent-child hierarchy operations"
+      },
+      "Component Validation Overhead": {
+        "minOpsPerSecond": 350,
+        "maxMeanMs": 3,
+        "description": "Component validator overhead"
+      },
+      "Entity Lifecycle (Create/Destroy)": {
+        "minOpsPerSecond": 7,
+        "maxMeanMs": 150,
+        "description": "Entity creation and destruction cycles"
+      },
+      "World Serialization": {
+        "minOpsPerSecond": 28,
+        "maxMeanMs": 40,
+        "description": "World state serialization"
+      },
+      "Inter-System Messaging": {
+        "minOpsPerSecond": 230,
+        "maxMeanMs": 5,
+        "description": "Message bus publish/subscribe performance"
+      }
+    }
+  },
+  "categories": {
+    "critical": [
+      "Entity Creation (1000 entities)",
+      "Simple Query Performance (1000 entities)",
+      "Multi-System Execution (5 systems, 1000 entities)"
+    ],
+    "important": [
+      "Bulk Entity Creation (1000 entities)",
+      "Component Addition (10000 operations)",
+      "Complex Query Performance (ALL/ANY/NOT)"
+    ],
+    "standard": [
+      "Tag Query Performance",
+      "Entity Hierarchy Operations",
+      "Component Validation Overhead",
+      "Entity Lifecycle (Create/Destroy)",
+      "World Serialization",
+      "Inter-System Messaging"
+    ]
+  }
+}

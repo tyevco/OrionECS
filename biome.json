@@ -12,6 +12,7 @@
       "plugins/*/src/**/*",
       "benchmarks/**/*",
       "examples/**/*",
+      "scripts/**/*",
       "*.json",
       "*.ts",
       "*.js"

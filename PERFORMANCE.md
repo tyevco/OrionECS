@@ -178,6 +178,29 @@ class Transform {
 }
 ```
 
+## 🔄 Automated Regression Testing
+
+OrionECS includes automated performance regression testing to catch performance degradations:
+
+```bash
+# Run benchmarks
+npm run benchmark
+
+# Check for regressions against baseline
+npm run perf:check
+
+# Update baseline after release
+npm run perf:update-baseline
+```
+
+**Key features:**
+- Automatic regression detection in CI/CD
+- Configurable performance budgets
+- PR comments with performance impact
+- Historical baseline tracking
+
+For detailed documentation, see [Performance Regression Testing](./docs/PERFORMANCE-REGRESSION-TESTING.md).
+
 ## 💡 Performance Monitoring
 
 Use the built-in profiling tools to monitor performance in your application:

@@ -1,0 +1,130 @@
+{
+  "version": "1.0.0",
+  "generatedAt": "2025-11-28T00:00:00.000Z",
+  "gitRef": "main",
+  "gitCommit": "36c3308",
+  "nodeVersion": "v20.x",
+  "platform": "linux",
+  "benchmarks": {
+    "Enhanced ECS Performance Benchmarks::Entity Creation (1000 entities)": {
+      "name": "Entity Creation (1000 entities)",
+      "suite": "Enhanced ECS Performance Benchmarks",
+      "opsPerSecond": 220.43900547558533,
+      "meanMs": 4.536402248062015,
+      "variance": 3.088439263064196e-7,
+      "rme": 2.5891953669458716,
+      "sampleCount": 86,
+      "timestamp": 1763735870864
+    },
+    "Enhanced ECS Performance Benchmarks::Bulk Entity Creation (1000 entities)": {
+      "name": "Bulk Entity Creation (1000 entities)",
+      "suite": "Enhanced ECS Performance Benchmarks",
+      "opsPerSecond": 176.20871703671267,
+      "meanMs": 5.675088138753387,
+      "variance": 1.3061019729919345e-7,
+      "rme": 1.3783676667874416,
+      "sampleCount": 82,
+      "timestamp": 1763735876810
+    },
+    "Enhanced ECS Performance Benchmarks::Component Addition (10000 operations)": {
+      "name": "Component Addition (10000 operations)",
+      "suite": "Enhanced ECS Performance Benchmarks",
+      "opsPerSecond": 37.94673380640977,
+      "meanMs": 26.352729199346402,
+      "variance": 0.000008920984147458984,
+      "rme": 3.1106544364668887,
+      "sampleCount": 51,
+      "timestamp": 1763735882652
+    },
+    "Enhanced ECS Performance Benchmarks::Simple Query Performance (1000 entities)": {
+      "name": "Simple Query Performance (1000 entities)",
+      "suite": "Enhanced ECS Performance Benchmarks",
+      "opsPerSecond": 64.98785546618754,
+      "meanMs": 15.387490367647057,
+      "variance": 0.000005657732041926154,
+      "rme": 3.6741341424975134,
+      "sampleCount": 68,
+      "timestamp": 1763735888430
+    },
+    "Enhanced ECS Performance Benchmarks::Complex Query Performance (ALL/ANY/NOT)": {
+      "name": "Complex Query Performance (ALL/ANY/NOT)",
+      "suite": "Enhanced ECS Performance Benchmarks",
+      "opsPerSecond": 15.651358770655158,
+      "meanMs": 63.89221630232558,
+      "variance": 0.000004340422937927552,
+      "rme": 0.9746303142812617,
+      "sampleCount": 43,
+      "timestamp": 1763735894327
+    },
+    "Enhanced ECS Performance Benchmarks::Tag Query Performance": {
+      "name": "Tag Query Performance",
+      "suite": "Enhanced ECS Performance Benchmarks",
+      "opsPerSecond": 37.06452929930297,
+      "meanMs": 26.979973006666668,
+      "variance": 0.000008236803704887992,
+      "rme": 2.948552849863434,
+      "sampleCount": 50,
+      "timestamp": 1763735900173
+    },
+    "Enhanced ECS Performance Benchmarks::Multi-System Execution (5 systems, 1000 entities)": {
+      "name": "Multi-System Execution (5 systems, 1000 entities)",
+      "suite": "Enhanced ECS Performance Benchmarks",
+      "opsPerSecond": 14.256031327685871,
+      "meanMs": 70.14574933333331,
+      "variance": 0.00005919338302547122,
+      "rme": 3.4423814251640596,
+      "sampleCount": 39,
+      "timestamp": 1763735906107
+    },
+    "Enhanced ECS Performance Benchmarks::Entity Hierarchy Operations": {
+      "name": "Entity Hierarchy Operations",
+      "suite": "Enhanced ECS Performance Benchmarks",
+      "opsPerSecond": 13.419427464195445,
+      "meanMs": 74.51882747368421,
+      "variance": 0.000026468193656407623,
+      "rme": 2.1951308434342653,
+      "sampleCount": 38,
+      "timestamp": 1763735912022
+    },
+    "Enhanced ECS Performance Benchmarks::Component Validation Overhead": {
+      "name": "Component Validation Overhead",
+      "suite": "Enhanced ECS Performance Benchmarks",
+      "opsPerSecond": 426.8120180748777,
+      "meanMs": 2.3429518327775043,
+      "variance": 1.3783835797843118e-8,
+      "rme": 1.0469752623441635,
+      "sampleCount": 88,
+      "timestamp": 1763735918002
+    },
+    "Enhanced ECS Performance Benchmarks::Entity Lifecycle (Create/Destroy)": {
+      "name": "Entity Lifecycle (Create/Destroy)",
+      "suite": "Enhanced ECS Performance Benchmarks",
+      "opsPerSecond": 9.563691290809398,
+      "meanMs": 104.56213710714282,
+      "variance": 0.00000831067921990284,
+      "rme": 1.0691586389645034,
+      "sampleCount": 28,
+      "timestamp": 1763735923926
+    },
+    "Enhanced ECS Performance Benchmarks::World Serialization": {
+      "name": "World Serialization",
+      "suite": "Enhanced ECS Performance Benchmarks",
+      "opsPerSecond": 36.40211163407687,
+      "meanMs": 27.47093383076922,
+      "variance": 0.0000036111583778853548,
+      "rme": 1.6817027650978704,
+      "sampleCount": 65,
+      "timestamp": 1763735930084
+    },
+    "Enhanced ECS Performance Benchmarks::Inter-System Messaging": {
+      "name": "Inter-System Messaging",
+      "suite": "Enhanced ECS Performance Benchmarks",
+      "opsPerSecond": 293.53620635700713,
+      "meanMs": 3.4067347684659088,
+      "variance": 1.0079266579997071e-7,
+      "rme": 1.947111753207058,
+      "sampleCount": 88,
+      "timestamp": 1763735935967
+    }
+  }
+}

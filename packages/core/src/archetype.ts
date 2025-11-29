@@ -101,8 +101,9 @@ export const MemoryEstimationConfig = {
         // Detect JavaScript engine
         if (typeof process !== 'undefined' && process.versions?.v8) {
             engine = 'V8';
-        } else if (typeof navigator !== 'undefined') {
-            const ua = navigator.userAgent;
+        } else if (typeof globalThis !== 'undefined' && 'navigator' in globalThis) {
+            const nav = (globalThis as unknown as { navigator?: { userAgent?: string } }).navigator;
+            const ua = nav?.userAgent || '';
             if (ua.includes('Firefox')) {
                 engine = 'SpiderMonkey';
                 // SpiderMonkey has higher Map overhead

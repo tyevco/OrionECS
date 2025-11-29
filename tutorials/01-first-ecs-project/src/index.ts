@@ -81,6 +81,9 @@ engine.createSystem(
 
 log.info('MovementSystem created');
 
+// Create a render logger for the render system output
+const renderLog = engine.logger.withTag('Render');
+
 /**
  * RenderSystem displays entities in the console
  * This system processes entities with Position and Renderable components
@@ -92,23 +95,17 @@ engine.createSystem(
   },
   {
     before: () => {
-      // Clear console before rendering (simple approach for this tutorial)
-      console.clear();
-      console.log('╔' + '═'.repeat(48) + '╗');
-      console.log('║' + ' OrionECS Tutorial 1: Your First ECS Project '.padEnd(48) + '║');
-      console.log('╠' + '═'.repeat(48) + '╣');
+      renderLog.info('--- Frame ' + frameCount + ' ---');
     },
     act: (entity, position: Position, renderable: Renderable) => {
       // Simple console rendering
       const x = Math.round(position.x).toString().padStart(3);
       const y = Math.round(position.y).toString().padStart(3);
       const name = entity.name || 'Unknown';
-      console.log(`║ ${renderable.symbol} ${name.padEnd(12)} at (${x}, ${y})           ║`);
+      renderLog.info(`${renderable.symbol} ${name} at (${x}, ${y})`);
     },
     after: () => {
-      console.log('╠' + '═'.repeat(48) + '╣');
-      console.log(`║ Frame: ${frameCount.toString().padStart(3)}  |  Entities: ${engine.entityCount}                    ║`);
-      console.log('╚' + '═'.repeat(48) + '╝');
+      renderLog.info(`Entities: ${engine.entityCount}`);
     }
   }
 );
@@ -134,12 +131,9 @@ function update() {
     setTimeout(update, 100); // Slow down for visibility (100ms delay)
   } else {
     // Simulation complete - show final statistics
-    console.log('\n╔' + '═'.repeat(48) + '╗');
-    console.log('║' + ' Simulation Complete! '.padEnd(48) + '║');
-    console.log('╠' + '═'.repeat(48) + '╣');
-    console.log(`║ Total frames: ${frameCount.toString().padEnd(35)} ║`);
-    console.log('╠' + '═'.repeat(48) + '╣');
-    console.log('║ Final positions:'.padEnd(49) + '║');
+    log.info('=== Simulation Complete! ===');
+    log.info(`Total frames: ${frameCount}`);
+    log.info('Final positions:');
 
     // Display final state using a query
     // createQuery is the preferred API for one-off queries
@@ -149,11 +143,10 @@ function update() {
       const x = Math.round(pos.x).toString().padStart(3);
       const y = Math.round(pos.y).toString().padStart(3);
       const name = entity.name || 'Unknown';
-      console.log(`║   ${name.padEnd(12)}: (${x}, ${y})              ║`);
+      log.info(`  ${name}: (${x}, ${y})`);
     }
 
-    console.log('╚' + '═'.repeat(48) + '╝');
-    log.info('Simulation complete! Try the challenges in the tutorial to learn more.');
+    log.info('Try the challenges in the tutorial to learn more!');
     log.info('Next: Tutorial 2 - Understanding Entities, Components, and Systems');
   }
 }

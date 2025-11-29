@@ -105,6 +105,56 @@ npx changeset        # Create a new changeset (interactive)
 npx changeset status # View pending changesets
 ```
 
+### Changeset Requirements
+
+**IMPORTANT: All code changes that affect package functionality MUST include a changeset.**
+
+When creating a changeset, you must:
+1. Select the affected package(s)
+2. Choose the appropriate semantic version bump
+3. Write a clear, descriptive summary of the change
+
+### Semantic Version Levels
+
+| Level | When to Use | Examples |
+|-------|-------------|----------|
+| **patch** | Bug fixes, performance improvements, internal fixes that don't change API | Fix query caching bug, Optimize archetype iteration, Fix memory leak |
+| **minor** | New features, new APIs, non-breaking enhancements | Add new query operator, Add component pooling, New system lifecycle hook |
+| **major** | Breaking changes, removed APIs, incompatible changes | Remove deprecated method, Change method signature, Rename public class |
+
+### Changeset Description Guidelines
+
+Write descriptions that explain **what changed and why**, not implementation details:
+
+**Good descriptions:**
+- `Add support for optional component queries using the 'optional' modifier`
+- `Fix entity removal not properly cleaning up parent-child relationships`
+- `Improve system iteration performance by 30% through archetype caching`
+
+**Bad descriptions:**
+- `Update code` (too vague)
+- `Fix bug` (no context)
+- `Changed the loop in line 42 to use forEach` (implementation detail)
+
+### Creating Changesets
+
+```bash
+# Interactive mode (recommended)
+npx changeset
+
+# The changeset file will be created in .changeset/ directory
+# Commit the changeset file along with your code changes
+```
+
+### When to Skip Changesets
+
+Do NOT create changesets for:
+- Documentation-only changes (README, CLAUDE.md, docs/)
+- Test-only changes (adding/updating tests without code changes)
+- Internal refactoring that doesn't affect public API or behavior
+- CI/CD configuration changes
+- Example updates (unless they demonstrate new features)
+
 **For detailed changeset workflow and release process, see [RELEASE.md](./RELEASE.md).**
 
 ## Repository Structure

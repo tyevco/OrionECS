@@ -159,6 +159,9 @@ const engine = new EngineBuilder()
   .withDebugMode(true)
   .build();
 
+// Get a tagged logger for this tutorial
+const log = engine.logger.withTag('Tutorial');
+
 // Register our component types
 engine.registerComponent(Position);
 engine.registerComponent(Velocity);
@@ -184,7 +187,7 @@ function createEntities() {
   entity3.addComponent(Velocity, 0, -1);
   entity3.addComponent(Renderable, '↑', 'yellow');
 
-  console.log(`Created ${engine.entityCount} entities`);
+  log.info(`Created ${engine.entityCount} entities`);
 }
 
 createEntities();
@@ -193,6 +196,7 @@ createEntities();
 **Explanation:**
 - **EngineBuilder**: Fluent API for configuring the engine
 - **Debug mode**: Provides helpful error messages during development
+- **engine.logger**: Built-in logger with automatic sanitization and tagging
 - **registerComponent**: Tells the engine about our component types
 - **createEntity**: Creates a new entity with an optional name
 - **addComponent**: Attaches a component to an entity with initial values
@@ -214,7 +218,7 @@ engine.createSystem(
     all: [Position, Velocity]  // Only process entities with BOTH components
   },
   {
-    act: (_entity, position, velocity) => {
+    act: (_entity, position: Position, velocity: Velocity) => {
       // Update position based on velocity
       // Components are passed in the same order as specified in the query
       position.x += velocity.x;
@@ -223,7 +227,7 @@ engine.createSystem(
   }
 );
 
-console.log('MovementSystem created');
+log.info('MovementSystem created');
 ```
 
 **Explanation:**
@@ -254,7 +258,7 @@ engine.createSystem(
       console.clear();
       console.log('='.repeat(50));
     },
-    act: (entity, position, renderable) => {
+    act: (entity, position: Position, renderable: Renderable) => {
       // Simple console rendering
       const x = Math.round(position.x);
       const y = Math.round(position.y);
@@ -267,7 +271,7 @@ engine.createSystem(
   }
 );
 
-console.log('RenderSystem created');
+log.info('RenderSystem created');
 ```
 
 **Explanation:**
@@ -377,6 +381,9 @@ const engine = new EngineBuilder()
   .withDebugMode(true)
   .build();
 
+// Get a tagged logger for this tutorial
+const log = engine.logger.withTag('Tutorial');
+
 // Register components
 engine.registerComponent(Position);
 engine.registerComponent(Velocity);
@@ -399,7 +406,7 @@ function createEntities() {
   entity3.addComponent(Velocity, 0, -1);
   entity3.addComponent(Renderable, '↑', 'yellow');
 
-  console.log(`Created ${engine.entityCount} entities`);
+  log.info(`Created ${engine.entityCount} entities`);
 }
 
 createEntities();
@@ -411,7 +418,7 @@ engine.createSystem(
     all: [Position, Velocity]
   },
   {
-    act: (_entity, position, velocity) => {
+    act: (_entity, position: Position, velocity: Velocity) => {
       position.x += velocity.x;
       position.y += velocity.y;
     }
@@ -429,7 +436,7 @@ engine.createSystem(
       console.clear();
       console.log('='.repeat(50));
     },
-    act: (entity, position, renderable) => {
+    act: (entity, position: Position, renderable: Renderable) => {
       const x = Math.round(position.x);
       const y = Math.round(position.y);
       console.log(`${renderable.symbol} ${entity.name} at (${x}, ${y})`);
@@ -577,7 +584,7 @@ engine.createSystem(
   { all: [Position] },
   {
     priority: 5,  // Run after MovementSystem (default priority 10)
-    act: (_entity, position) => {
+    act: (_entity, position: Position) => {
       // Wrap x coordinate
       if (position.x < 0) position.x = 80;
       if (position.x > 80) position.x = 0;
@@ -620,7 +627,7 @@ engine.createSystem(
   { all: [Velocity, Acceleration] },
   {
     priority: 15,  // Run before MovementSystem
-    act: (_entity, velocity, acceleration) => {
+    act: (_entity, velocity: Velocity, acceleration: Acceleration) => {
       velocity.x += acceleration.x;
       velocity.y += acceleration.y;
     }

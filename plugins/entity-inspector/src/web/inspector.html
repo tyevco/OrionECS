@@ -1,0 +1,1097 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>OrionECS Entity Inspector</title>
+    <style>
+        :root {
+            --bg-primary: #1e1e2e;
+            --bg-secondary: #2a2a3e;
+            --bg-tertiary: #363650;
+            --text-primary: #cdd6f4;
+            --text-secondary: #a6adc8;
+            --text-muted: #6c7086;
+            --accent: #89b4fa;
+            --accent-hover: #b4befe;
+            --success: #a6e3a1;
+            --warning: #f9e2af;
+            --error: #f38ba8;
+            --border: #45475a;
+            --input-bg: #313244;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            font-family: 'Segoe UI', system-ui, -apple-system, sans-serif;
+            font-size: 13px;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            height: 100vh;
+            overflow: hidden;
+        }
+
+        /* Layout */
+        .app {
+            display: grid;
+            grid-template-columns: 280px 1fr 320px;
+            grid-template-rows: 48px 1fr 200px;
+            height: 100vh;
+        }
+
+        .header {
+            grid-column: 1 / -1;
+            background: var(--bg-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            padding: 0 16px;
+            gap: 16px;
+        }
+
+        .sidebar-left {
+            grid-row: 2 / -1;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .main-content {
+            grid-row: 2;
+            overflow: auto;
+            padding: 16px;
+        }
+
+        .sidebar-right {
+            grid-row: 2 / -1;
+            background: var(--bg-secondary);
+            border-left: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .bottom-panel {
+            grid-column: 2;
+            background: var(--bg-secondary);
+            border-top: 1px solid var(--border);
+            overflow: auto;
+        }
+
+        /* Header */
+        .logo {
+            font-size: 18px;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        .connection-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 4px;
+            background: var(--bg-tertiary);
+        }
+
+        .status-indicator {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--error);
+        }
+
+        .status-indicator.connected {
+            background: var(--success);
+        }
+
+        .controls {
+            display: flex;
+            gap: 8px;
+            margin-left: auto;
+        }
+
+        .btn {
+            padding: 6px 12px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 500;
+            transition: all 0.15s;
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .btn-primary:hover {
+            background: var(--accent-hover);
+        }
+
+        .btn-secondary {
+            background: var(--bg-tertiary);
+            color: var(--text-primary);
+        }
+
+        .btn-secondary:hover {
+            background: var(--border);
+        }
+
+        .btn:disabled {
+            opacity: 0.5;
+            cursor: not-allowed;
+        }
+
+        /* Panels */
+        .panel-header {
+            padding: 12px 16px;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-secondary);
+            border-bottom: 1px solid var(--border);
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+        }
+
+        .panel-content {
+            flex: 1;
+            overflow: auto;
+            padding: 8px;
+        }
+
+        /* Search */
+        .search-box {
+            padding: 8px;
+        }
+
+        .search-input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 12px;
+        }
+
+        .search-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        /* Entity Tree */
+        .entity-tree {
+            font-size: 12px;
+        }
+
+        .entity-item {
+            display: flex;
+            align-items: center;
+            padding: 4px 8px;
+            cursor: pointer;
+            border-radius: 4px;
+            gap: 6px;
+        }
+
+        .entity-item:hover {
+            background: var(--bg-tertiary);
+        }
+
+        .entity-item.selected {
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .entity-toggle {
+            width: 16px;
+            height: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 10px;
+            color: var(--text-muted);
+        }
+
+        .entity-icon {
+            width: 16px;
+            height: 16px;
+            font-size: 14px;
+        }
+
+        .entity-name {
+            flex: 1;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .entity-tags {
+            display: flex;
+            gap: 4px;
+        }
+
+        .entity-tag {
+            font-size: 10px;
+            padding: 1px 4px;
+            border-radius: 2px;
+            background: var(--accent);
+            color: var(--bg-primary);
+        }
+
+        .entity-children {
+            margin-left: 20px;
+        }
+
+        /* Component Editor */
+        .component-section {
+            margin-bottom: 16px;
+        }
+
+        .component-header {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            cursor: pointer;
+            gap: 8px;
+        }
+
+        .component-header:hover {
+            background: var(--border);
+        }
+
+        .component-name {
+            font-weight: 600;
+            flex: 1;
+        }
+
+        .component-remove {
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: transparent;
+            color: var(--text-muted);
+            cursor: pointer;
+            border-radius: 4px;
+        }
+
+        .component-remove:hover {
+            background: var(--error);
+            color: var(--bg-primary);
+        }
+
+        .component-properties {
+            padding: 8px 12px;
+        }
+
+        .property-row {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 8px;
+        }
+
+        .property-label {
+            width: 100px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .property-input {
+            flex: 1;
+            padding: 6px 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 12px;
+        }
+
+        .property-input:focus {
+            outline: none;
+            border-color: var(--accent);
+        }
+
+        .property-input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+        }
+
+        .property-input[type="color"] {
+            width: 40px;
+            height: 24px;
+            padding: 2px;
+        }
+
+        /* Vector inputs */
+        .vector-inputs {
+            display: flex;
+            gap: 8px;
+            flex: 1;
+        }
+
+        .vector-input {
+            flex: 1;
+            padding: 6px 8px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+            font-size: 12px;
+        }
+
+        /* Stats Panel */
+        .stats-grid {
+            display: grid;
+            grid-template-columns: repeat(2, 1fr);
+            gap: 8px;
+            padding: 12px;
+        }
+
+        .stat-card {
+            padding: 12px;
+            background: var(--bg-tertiary);
+            border-radius: 8px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 24px;
+            font-weight: 700;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 10px;
+            text-transform: uppercase;
+            color: var(--text-muted);
+            margin-top: 4px;
+        }
+
+        /* Systems Panel */
+        .system-list {
+            font-size: 12px;
+        }
+
+        .system-item {
+            display: flex;
+            align-items: center;
+            padding: 8px 12px;
+            border-bottom: 1px solid var(--border);
+            gap: 12px;
+        }
+
+        .system-priority {
+            width: 40px;
+            text-align: center;
+            font-size: 10px;
+            padding: 2px 6px;
+            background: var(--bg-tertiary);
+            border-radius: 4px;
+            color: var(--text-muted);
+        }
+
+        .system-name {
+            flex: 1;
+        }
+
+        .system-time {
+            color: var(--success);
+            font-family: monospace;
+        }
+
+        .system-entities {
+            color: var(--text-muted);
+            font-size: 10px;
+        }
+
+        /* Profiling Chart */
+        .profiling-chart {
+            height: 160px;
+            padding: 16px;
+        }
+
+        .chart-bars {
+            display: flex;
+            align-items: flex-end;
+            height: 100%;
+            gap: 2px;
+        }
+
+        .chart-bar {
+            flex: 1;
+            background: var(--accent);
+            min-height: 2px;
+            border-radius: 2px 2px 0 0;
+            transition: height 0.1s;
+        }
+
+        /* Tabs */
+        .tabs {
+            display: flex;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .tab {
+            padding: 8px 16px;
+            cursor: pointer;
+            font-size: 12px;
+            color: var(--text-muted);
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab:hover {
+            color: var(--text-primary);
+        }
+
+        .tab.active {
+            color: var(--accent);
+            border-bottom-color: var(--accent);
+        }
+
+        /* Empty State */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 200px;
+            color: var(--text-muted);
+        }
+
+        .empty-state-icon {
+            font-size: 48px;
+            margin-bottom: 16px;
+            opacity: 0.5;
+        }
+
+        /* Connection Dialog */
+        .connect-dialog {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background: var(--bg-secondary);
+            padding: 24px;
+            border-radius: 8px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+            z-index: 1000;
+            min-width: 320px;
+        }
+
+        .connect-dialog h2 {
+            margin-bottom: 16px;
+            font-size: 16px;
+        }
+
+        .connect-dialog .form-group {
+            margin-bottom: 16px;
+        }
+
+        .connect-dialog label {
+            display: block;
+            margin-bottom: 4px;
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .connect-dialog input {
+            width: 100%;
+            padding: 8px 12px;
+            border: 1px solid var(--border);
+            border-radius: 4px;
+            background: var(--input-bg);
+            color: var(--text-primary);
+        }
+
+        .overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0, 0, 0, 0.5);
+            z-index: 999;
+        }
+
+        .hidden {
+            display: none !important;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar {
+            width: 8px;
+            height: 8px;
+        }
+
+        ::-webkit-scrollbar-track {
+            background: var(--bg-secondary);
+        }
+
+        ::-webkit-scrollbar-thumb {
+            background: var(--border);
+            border-radius: 4px;
+        }
+
+        ::-webkit-scrollbar-thumb:hover {
+            background: var(--text-muted);
+        }
+    </style>
+</head>
+<body>
+    <div class="app">
+        <!-- Header -->
+        <header class="header">
+            <div class="logo">OrionECS Inspector</div>
+            <div class="connection-status">
+                <span class="status-indicator" id="status-indicator"></span>
+                <span id="connection-text">Disconnected</span>
+            </div>
+            <div class="controls">
+                <button class="btn btn-secondary" id="btn-pause" disabled>Pause</button>
+                <button class="btn btn-secondary" id="btn-step" disabled>Step</button>
+                <button class="btn btn-secondary" id="btn-resume" disabled>Resume</button>
+                <button class="btn btn-primary" id="btn-refresh">Refresh</button>
+            </div>
+        </header>
+
+        <!-- Left Sidebar - Entity Tree -->
+        <aside class="sidebar-left">
+            <div class="panel-header">
+                Entities
+                <button class="btn btn-secondary" id="btn-create-entity" style="padding: 4px 8px; font-size: 10px;">+ New</button>
+            </div>
+            <div class="search-box">
+                <input type="text" class="search-input" id="entity-search" placeholder="Search entities...">
+            </div>
+            <div class="panel-content" id="entity-tree">
+                <div class="empty-state">
+                    <div class="empty-state-icon">&#128220;</div>
+                    <span>No entities</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content" id="main-content">
+            <div class="empty-state">
+                <div class="empty-state-icon">&#128269;</div>
+                <span>Select an entity to inspect</span>
+            </div>
+        </main>
+
+        <!-- Right Sidebar - Inspector -->
+        <aside class="sidebar-right">
+            <div class="tabs">
+                <div class="tab active" data-tab="inspector">Inspector</div>
+                <div class="tab" data-tab="systems">Systems</div>
+                <div class="tab" data-tab="stats">Stats</div>
+            </div>
+            <div class="panel-content" id="inspector-panel">
+                <div class="empty-state">
+                    <span>Select an entity</span>
+                </div>
+            </div>
+            <div class="panel-content hidden" id="systems-panel">
+                <div class="system-list" id="system-list"></div>
+            </div>
+            <div class="panel-content hidden" id="stats-panel">
+                <div class="stats-grid" id="stats-grid"></div>
+            </div>
+        </aside>
+
+        <!-- Bottom Panel - Profiling -->
+        <div class="bottom-panel">
+            <div class="panel-header">Performance</div>
+            <div class="profiling-chart" id="profiling-chart">
+                <div class="chart-bars" id="chart-bars"></div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Connect Dialog -->
+    <div class="overlay hidden" id="connect-overlay"></div>
+    <div class="connect-dialog hidden" id="connect-dialog">
+        <h2>Connect to Inspector</h2>
+        <div class="form-group">
+            <label>WebSocket URL</label>
+            <input type="text" id="ws-url" value="ws://localhost:8765">
+        </div>
+        <button class="btn btn-primary" id="btn-connect" style="width: 100%;">Connect</button>
+    </div>
+
+    <script>
+        // State
+        let ws = null;
+        let connected = false;
+        let isPaused = false;
+        let selectedEntityId = null;
+        let entities = [];
+        let systems = [];
+        let stats = {};
+        let frameTimeHistory = [];
+        const MAX_FRAME_HISTORY = 100;
+
+        // DOM Elements
+        const statusIndicator = document.getElementById('status-indicator');
+        const connectionText = document.getElementById('connection-text');
+        const entityTree = document.getElementById('entity-tree');
+        const mainContent = document.getElementById('main-content');
+        const inspectorPanel = document.getElementById('inspector-panel');
+        const systemsPanel = document.getElementById('systems-panel');
+        const statsPanel = document.getElementById('stats-panel');
+        const systemList = document.getElementById('system-list');
+        const statsGrid = document.getElementById('stats-grid');
+        const chartBars = document.getElementById('chart-bars');
+        const connectOverlay = document.getElementById('connect-overlay');
+        const connectDialog = document.getElementById('connect-dialog');
+
+        // Tabs
+        document.querySelectorAll('.tab').forEach(tab => {
+            tab.addEventListener('click', () => {
+                document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+                tab.classList.add('active');
+
+                const tabName = tab.dataset.tab;
+                inspectorPanel.classList.toggle('hidden', tabName !== 'inspector');
+                systemsPanel.classList.toggle('hidden', tabName !== 'systems');
+                statsPanel.classList.toggle('hidden', tabName !== 'stats');
+            });
+        });
+
+        // Connect/Disconnect
+        function connect() {
+            const url = document.getElementById('ws-url').value;
+            ws = new WebSocket(url);
+
+            ws.onopen = () => {
+                connected = true;
+                statusIndicator.classList.add('connected');
+                connectionText.textContent = 'Connected';
+                connectOverlay.classList.add('hidden');
+                connectDialog.classList.add('hidden');
+
+                document.getElementById('btn-pause').disabled = false;
+                document.getElementById('btn-step').disabled = false;
+                document.getElementById('btn-resume').disabled = false;
+                document.getElementById('btn-create-entity').disabled = false;
+
+                // Request initial data
+                send({ type: 'get_entities', timestamp: Date.now() });
+                send({ type: 'get_systems', timestamp: Date.now() });
+                send({ type: 'get_stats', timestamp: Date.now() });
+            };
+
+            ws.onclose = () => {
+                connected = false;
+                statusIndicator.classList.remove('connected');
+                connectionText.textContent = 'Disconnected';
+
+                document.getElementById('btn-pause').disabled = true;
+                document.getElementById('btn-step').disabled = true;
+                document.getElementById('btn-resume').disabled = true;
+
+                // Show connect dialog
+                connectOverlay.classList.remove('hidden');
+                connectDialog.classList.remove('hidden');
+            };
+
+            ws.onmessage = (event) => {
+                const message = JSON.parse(event.data);
+                handleMessage(message);
+            };
+
+            ws.onerror = (error) => {
+                console.error('WebSocket error:', error);
+            };
+        }
+
+        function send(message) {
+            if (ws && ws.readyState === WebSocket.OPEN) {
+                ws.send(JSON.stringify(message));
+            }
+        }
+
+        function handleMessage(message) {
+            switch (message.type) {
+                case 'connected':
+                    isPaused = message.data.isPaused;
+                    updatePauseButtons();
+                    break;
+
+                case 'entities':
+                    entities = message.data.entities;
+                    renderEntityTree();
+                    break;
+
+                case 'entity':
+                    if (message.data) {
+                        renderEntityInspector(message.data);
+                    }
+                    break;
+
+                case 'systems':
+                    systems = message.data;
+                    renderSystems();
+                    break;
+
+                case 'stats':
+                    stats = message.data;
+                    renderStats();
+                    break;
+
+                case 'profiling':
+                    frameTimeHistory.push(message.data.frameTime);
+                    if (frameTimeHistory.length > MAX_FRAME_HISTORY) {
+                        frameTimeHistory.shift();
+                    }
+                    renderPerformanceChart();
+                    break;
+
+                case 'event':
+                    handleEvent(message.data);
+                    break;
+
+                case 'update_result':
+                    if (!message.data.success) {
+                        console.error('Update failed:', message.data.error);
+                    }
+                    break;
+            }
+        }
+
+        function handleEvent(event) {
+            // Refresh data on changes
+            send({ type: 'get_entities', timestamp: Date.now() });
+            send({ type: 'get_stats', timestamp: Date.now() });
+
+            if (selectedEntityId && event.entityId === selectedEntityId) {
+                send({ type: 'get_entity', timestamp: Date.now(), data: { entityId: selectedEntityId } });
+            }
+        }
+
+        // Rendering
+        function renderEntityTree() {
+            if (entities.length === 0) {
+                entityTree.innerHTML = `
+                    <div class="empty-state">
+                        <div class="empty-state-icon">&#128220;</div>
+                        <span>No entities</span>
+                    </div>
+                `;
+                return;
+            }
+
+            // Build hierarchy
+            const rootEntities = entities.filter(e => !e.parentId);
+            const childMap = new Map();
+            entities.forEach(e => {
+                if (e.parentId) {
+                    if (!childMap.has(e.parentId)) {
+                        childMap.set(e.parentId, []);
+                    }
+                    childMap.get(e.parentId).push(e);
+                }
+            });
+
+            function renderEntity(entity, level = 0) {
+                const children = childMap.get(entity.id) || [];
+                const hasChildren = children.length > 0;
+                const isSelected = entity.id === selectedEntityId;
+
+                return `
+                    <div class="entity-item ${isSelected ? 'selected' : ''}" data-entity-id="${entity.id}">
+                        <span class="entity-toggle">${hasChildren ? '&#9656;' : ''}</span>
+                        <span class="entity-icon">&#128230;</span>
+                        <span class="entity-name">${entity.name || entity.id}</span>
+                        ${entity.tags.slice(0, 2).map(t => `<span class="entity-tag">${t}</span>`).join('')}
+                    </div>
+                    ${hasChildren ? `<div class="entity-children">${children.map(c => renderEntity(c, level + 1)).join('')}</div>` : ''}
+                `;
+            }
+
+            entityTree.innerHTML = rootEntities.map(e => renderEntity(e)).join('');
+
+            // Add click handlers
+            entityTree.querySelectorAll('.entity-item').forEach(item => {
+                item.addEventListener('click', () => {
+                    selectedEntityId = item.dataset.entityId;
+                    renderEntityTree();
+                    send({ type: 'get_entity', timestamp: Date.now(), data: { entityId: selectedEntityId } });
+                });
+            });
+        }
+
+        function renderEntityInspector(entity) {
+            let html = `
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+                    <h3 style="font-size: 14px;">${entity.name || entity.id}</h3>
+                    <button class="btn btn-secondary" onclick="deleteEntity('${entity.id}')" style="font-size: 10px; color: var(--error);">Delete</button>
+                </div>
+                <div class="property-row" style="margin-bottom: 16px;">
+                    <span class="property-label">Tags</span>
+                    <div style="flex: 1; display: flex; flex-wrap: wrap; gap: 4px;">
+                        ${entity.tags.map(t => `<span class="entity-tag">${t} <button onclick="removeTag('${entity.id}', '${t}')" style="background: none; border: none; cursor: pointer; color: inherit;">&#10005;</button></span>`).join('')}
+                        <input type="text" class="property-input" placeholder="Add tag..." style="width: 100px;" onkeydown="if(event.key==='Enter'){addTag('${entity.id}', this.value); this.value='';}">
+                    </div>
+                </div>
+            `;
+
+            // Components
+            entity.components.forEach(component => {
+                html += `
+                    <div class="component-section">
+                        <div class="component-header">
+                            <span class="component-name">${component.type}</span>
+                            <button class="component-remove" onclick="removeComponent('${entity.id}', '${component.type}')" title="Remove component">&#10005;</button>
+                        </div>
+                        <div class="component-properties">
+                            ${renderComponentProperties(entity.id, component)}
+                        </div>
+                    </div>
+                `;
+            });
+
+            inspectorPanel.innerHTML = html;
+        }
+
+        function renderComponentProperties(entityId, component) {
+            return component.properties.map(prop => {
+                let input = '';
+                const id = `prop-${component.type}-${prop.name}`;
+
+                switch (prop.typeHint) {
+                    case 'boolean':
+                        input = `<input type="checkbox" class="property-input" id="${id}" ${prop.value ? 'checked' : ''} onchange="updateProperty('${entityId}', '${component.type}', '${prop.name}', this.checked)">`;
+                        break;
+                    case 'number':
+                        input = `<input type="number" class="property-input" id="${id}" value="${prop.value}" step="${prop.step || 'any'}" ${prop.min !== undefined ? `min="${prop.min}"` : ''} ${prop.max !== undefined ? `max="${prop.max}"` : ''} onchange="updateProperty('${entityId}', '${component.type}', '${prop.name}', parseFloat(this.value))">`;
+                        break;
+                    case 'color':
+                        input = `<input type="color" class="property-input" id="${id}" value="${prop.value}" onchange="updateProperty('${entityId}', '${component.type}', '${prop.name}', this.value)">`;
+                        break;
+                    case 'vector2':
+                        const v2 = prop.value || { x: 0, y: 0 };
+                        input = `
+                            <div class="vector-inputs">
+                                <input type="number" class="vector-input" value="${v2.x}" onchange="updateVectorProperty('${entityId}', '${component.type}', '${prop.name}', 'x', parseFloat(this.value))" placeholder="X">
+                                <input type="number" class="vector-input" value="${v2.y}" onchange="updateVectorProperty('${entityId}', '${component.type}', '${prop.name}', 'y', parseFloat(this.value))" placeholder="Y">
+                            </div>
+                        `;
+                        break;
+                    case 'vector3':
+                        const v3 = prop.value || { x: 0, y: 0, z: 0 };
+                        input = `
+                            <div class="vector-inputs">
+                                <input type="number" class="vector-input" value="${v3.x}" onchange="updateVectorProperty('${entityId}', '${component.type}', '${prop.name}', 'x', parseFloat(this.value))" placeholder="X">
+                                <input type="number" class="vector-input" value="${v3.y}" onchange="updateVectorProperty('${entityId}', '${component.type}', '${prop.name}', 'y', parseFloat(this.value))" placeholder="Y">
+                                <input type="number" class="vector-input" value="${v3.z}" onchange="updateVectorProperty('${entityId}', '${component.type}', '${prop.name}', 'z', parseFloat(this.value))" placeholder="Z">
+                            </div>
+                        `;
+                        break;
+                    case 'object':
+                    case 'array':
+                        input = `<textarea class="property-input" id="${id}" style="font-family: monospace; resize: vertical; min-height: 60px;" onchange="updateProperty('${entityId}', '${component.type}', '${prop.name}', JSON.parse(this.value))">${JSON.stringify(prop.value, null, 2)}</textarea>`;
+                        break;
+                    default:
+                        input = `<input type="text" class="property-input" id="${id}" value="${prop.value ?? ''}" onchange="updateProperty('${entityId}', '${component.type}', '${prop.name}', this.value)">`;
+                }
+
+                return `
+                    <div class="property-row">
+                        <span class="property-label">${prop.name}</span>
+                        ${input}
+                    </div>
+                `;
+            }).join('');
+        }
+
+        function renderSystems() {
+            systemList.innerHTML = systems.map(system => `
+                <div class="system-item">
+                    <span class="system-priority">${system.priority}</span>
+                    <span class="system-name">${system.name}</span>
+                    ${system.profile ? `
+                        <span class="system-time">${system.profile.executionTime.toFixed(2)}ms</span>
+                        <span class="system-entities">${system.profile.entityCount} entities</span>
+                    ` : ''}
+                </div>
+            `).join('');
+        }
+
+        function renderStats() {
+            statsGrid.innerHTML = `
+                <div class="stat-card">
+                    <div class="stat-value">${stats.activeEntities || 0}</div>
+                    <div class="stat-label">Entities</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.systemCount || 0}</div>
+                    <div class="stat-label">Systems</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.componentTypeCount || 0}</div>
+                    <div class="stat-label">Components</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-value">${stats.queryCount || 0}</div>
+                    <div class="stat-label">Queries</div>
+                </div>
+            `;
+        }
+
+        function renderPerformanceChart() {
+            const maxTime = Math.max(...frameTimeHistory, 16.67);
+            chartBars.innerHTML = frameTimeHistory.map(time => {
+                const height = (time / maxTime) * 100;
+                const color = time > 16.67 ? 'var(--error)' : time > 8 ? 'var(--warning)' : 'var(--success)';
+                return `<div class="chart-bar" style="height: ${height}%; background: ${color};" title="${time.toFixed(2)}ms"></div>`;
+            }).join('');
+        }
+
+        // Actions
+        function updateProperty(entityId, componentType, propertyName, value) {
+            send({
+                type: 'update_component',
+                timestamp: Date.now(),
+                data: { entityId, componentType, propertyName, value }
+            });
+        }
+
+        function updateVectorProperty(entityId, componentType, propertyName, axis, value) {
+            // Get current entity to preserve other axis values
+            const entity = entities.find(e => e.id === entityId);
+            if (!entity) return;
+
+            const component = entity.components.find(c => c.type === componentType);
+            if (!component) return;
+
+            const prop = component.properties.find(p => p.name === propertyName);
+            if (!prop) return;
+
+            const newValue = { ...prop.value, [axis]: value };
+            updateProperty(entityId, componentType, propertyName, newValue);
+        }
+
+        function addTag(entityId, tag) {
+            if (!tag.trim()) return;
+            send({
+                type: 'add_tag',
+                timestamp: Date.now(),
+                data: { entityId, tag: tag.trim() }
+            });
+        }
+
+        function removeTag(entityId, tag) {
+            send({
+                type: 'remove_tag',
+                timestamp: Date.now(),
+                data: { entityId, tag }
+            });
+        }
+
+        function removeComponent(entityId, componentType) {
+            if (confirm(`Remove ${componentType} component?`)) {
+                send({
+                    type: 'remove_component',
+                    timestamp: Date.now(),
+                    data: { entityId, componentType }
+                });
+            }
+        }
+
+        function deleteEntity(entityId) {
+            if (confirm('Delete this entity?')) {
+                send({
+                    type: 'delete_entity',
+                    timestamp: Date.now(),
+                    data: { entityId }
+                });
+                selectedEntityId = null;
+                inspectorPanel.innerHTML = '<div class="empty-state"><span>Select an entity</span></div>';
+            }
+        }
+
+        function updatePauseButtons() {
+            document.getElementById('btn-pause').disabled = isPaused;
+            document.getElementById('btn-step').disabled = !isPaused;
+            document.getElementById('btn-resume').disabled = !isPaused;
+        }
+
+        // Event handlers
+        document.getElementById('btn-connect').addEventListener('click', connect);
+
+        document.getElementById('btn-pause').addEventListener('click', () => {
+            send({ type: 'pause', timestamp: Date.now() });
+            isPaused = true;
+            updatePauseButtons();
+        });
+
+        document.getElementById('btn-step').addEventListener('click', () => {
+            send({ type: 'step', timestamp: Date.now() });
+        });
+
+        document.getElementById('btn-resume').addEventListener('click', () => {
+            send({ type: 'resume', timestamp: Date.now() });
+            isPaused = false;
+            updatePauseButtons();
+        });
+
+        document.getElementById('btn-refresh').addEventListener('click', () => {
+            send({ type: 'get_entities', timestamp: Date.now() });
+            send({ type: 'get_systems', timestamp: Date.now() });
+            send({ type: 'get_stats', timestamp: Date.now() });
+        });
+
+        document.getElementById('btn-create-entity').addEventListener('click', () => {
+            const name = prompt('Entity name:');
+            if (name) {
+                send({
+                    type: 'create_entity',
+                    timestamp: Date.now(),
+                    data: { name }
+                });
+            }
+        });
+
+        document.getElementById('entity-search').addEventListener('input', (e) => {
+            const query = e.target.value.toLowerCase();
+            entityTree.querySelectorAll('.entity-item').forEach(item => {
+                const name = item.querySelector('.entity-name').textContent.toLowerCase();
+                item.style.display = name.includes(query) ? '' : 'none';
+            });
+        });
+
+        // Periodic profiling update
+        setInterval(() => {
+            if (connected) {
+                send({ type: 'get_profiling', timestamp: Date.now() });
+            }
+        }, 100);
+
+        // Show connect dialog on load
+        connectOverlay.classList.remove('hidden');
+        connectDialog.classList.remove('hidden');
+
+        // Auto-connect
+        setTimeout(() => {
+            if (!connected) {
+                connect();
+            }
+        }, 500);
+    </script>
+</body>
+</html>

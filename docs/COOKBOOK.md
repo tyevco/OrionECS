@@ -1351,6 +1351,54 @@ console.log('Systems:', debugInfo.systemCount);
 console.log('Components:', debugInfo.componentTypes);
 ```
 
+### Using the Engine Logger
+
+OrionECS provides a built-in logger with consistent formatting, sanitization, and tagging support.
+Always prefer `engine.logger` over direct `console` calls for ECS-related logging:
+
+```typescript
+const engine = new EngineBuilder()
+  .withDebugMode(true)
+  .build();
+
+// Use the engine's logger for consistent output
+engine.logger.debug('Starting game loop');        // Only shown when debug mode is enabled
+engine.logger.info('Game initialized');           // Informational messages
+engine.logger.warn('Low memory detected');        // Warnings
+engine.logger.error('System failed:', error);     // Errors
+
+// Create tagged loggers for different subsystems
+const renderLogger = engine.logger.withTag('Render');
+const physicsLogger = engine.logger.withTag('Physics');
+const aiLogger = engine.logger.withTag('AI');
+
+renderLogger.debug('Frame rendered');  // Output: [Render] Frame rendered
+physicsLogger.debug('Step complete');  // Output: [Physics] Step complete
+aiLogger.debug('Decision made');       // Output: [AI] Decision made
+```
+
+### Logging in Systems
+
+For system-specific logging, create a tagged logger:
+
+```typescript
+const combatLogger = engine.logger.withTag('Combat');
+
+engine.createSystem('CombatSystem', { all: [Health, Damage] }, {
+  act: (entity, health, damage) => {
+    if (damage.amount > 0) {
+      health.current -= damage.amount;
+      combatLogger.debug(`${entity.name} took ${damage.amount} damage`);
+
+      if (health.current <= 0) {
+        combatLogger.info(`${entity.name} was defeated`);
+        entity.queueFree();
+      }
+    }
+  }
+});
+```
+
 ### Profiling Systems
 
 ```typescript
@@ -1364,10 +1412,10 @@ profiles.forEach(profile => {
   console.log(`  Entity count: ${profile.entityCount}`);
 });
 
-// Find slow systems
+// Find slow systems and log warnings
 const slowSystems = profiles.filter(p => p.averageTime > 5);
 if (slowSystems.length > 0) {
-  console.warn('Slow systems detected:', slowSystems);
+  engine.logger.warn('Slow systems detected:', slowSystems.map(s => s.name));
 }
 ```
 
@@ -1385,6 +1433,17 @@ for (const [name, count] of Object.entries(memStats.componentArrays)) {
   console.log(`  ${name}: ${count}`);
 }
 ```
+
+### Logging Best Practices
+
+1. **Use tagged loggers** - Create tagged loggers for each subsystem for easier filtering
+2. **Use appropriate log levels**:
+   - `debug()` - Detailed information for debugging (only shown in debug mode)
+   - `info()` - General informational messages
+   - `warn()` - Warnings about potential issues
+   - `error()` - Errors that need attention
+3. **Disable debug mode in production** - Debug logging adds overhead
+4. **Avoid logging in hot paths** - Don't log inside systems that run every frame unless necessary
 
 ---
 

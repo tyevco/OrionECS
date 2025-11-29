@@ -329,8 +329,31 @@ game.messageBus.publish('enemy-killed', { score: 100 }, 'CombatSystem');
 
 // In another system
 game.messageBus.subscribe('enemy-killed', (message) => {
-  console.log(`Score: ${message.data.score} from ${message.sender}`);
+  game.logger.info(`Score: ${message.data.score} from ${message.sender}`);
 });
+```
+
+### Logging
+
+OrionECS provides a built-in logger with consistent formatting, sanitization, and tagging support:
+
+```typescript
+const game = new EngineBuilder()
+  .withDebugMode(true)  // Enable debug logging
+  .build();
+
+// Use the engine's logger
+game.logger.debug('Starting game');      // Only shown in debug mode
+game.logger.info('Player joined');       // Informational
+game.logger.warn('Low health');          // Warnings
+game.logger.error('Connection lost');    // Errors
+
+// Create tagged loggers for subsystems
+const aiLogger = game.logger.withTag('AI');
+aiLogger.debug('Enemy spotted player');  // Output: [AI] Enemy spotted player
+
+const renderLogger = game.logger.withTag('Render');
+renderLogger.debug('Frame complete');    // Output: [Render] Frame complete
 ```
 
 ### Performance Monitoring
@@ -469,6 +492,14 @@ See `plugins/physics/src/PhysicsPlugin.ts` for a complete working example.
 - `getSystemProfiles()`: Gets performance data for all systems
 - `getMemoryStats()`: Gets memory usage statistics
 - `getDebugInfo()`: Gets comprehensive debug information
+
+#### Logging
+- `logger`: Access the engine's Logger instance
+- `logger.debug(...args)`: Log debug messages (only when debug mode enabled)
+- `logger.info(...args)`: Log informational messages
+- `logger.warn(...args)`: Log warning messages
+- `logger.error(...args)`: Log error messages
+- `logger.withTag(tag: string)`: Create a tagged logger for a subsystem
 
 ### Entity
 

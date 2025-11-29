@@ -94,8 +94,8 @@ export class EngineBuilder<TExtensions extends object = object> {
     private queryManager = new QueryManager();
     private prefabManager = new PrefabManager();
     private snapshotManager?: SnapshotManager;
-    private messageManager = new MessageManager();
-    private eventEmitter = new EventEmitter();
+    private messageManager?: MessageManager;
+    private eventEmitter?: EventEmitter;
     private entityManager?: EntityManager;
     private performanceMonitor = new PerformanceMonitor();
     private changeTrackingManager?: ChangeTrackingManager;
@@ -429,11 +429,21 @@ export class EngineBuilder<TExtensions extends object = object> {
      * ```
      */
     build(): Engine & TExtensions {
+        // Create logger first so it can be passed to managers
+        const logger = new EngineLogger({ debugEnabled: this.debugMode });
+
+        // Create event emitter and message manager with logger
+        this.eventEmitter = new EventEmitter(undefined, logger);
+        this.messageManager = new MessageManager(undefined, logger);
+
+        // Set logger on component manager for archetype operations
+        this.componentManager.setLogger(logger);
+
         // Enable archetype system if requested
         if (this.enableArchetypeSystem) {
             this.componentManager.enableArchetypes();
             if (this.debugMode) {
-                console.log('[ECS Debug] Archetype system enabled for improved performance');
+                logger.debug('Archetype system enabled for improved performance');
             }
         }
 
@@ -466,7 +476,7 @@ export class EngineBuilder<TExtensions extends object = object> {
             this.systemManager.setErrorRecoveryManager(this.errorRecoveryManager);
 
             if (this.debugMode) {
-                console.log('[ECS Debug] Error recovery system enabled');
+                logger.debug('Error recovery system enabled');
             }
         }
 
@@ -593,6 +603,8 @@ export class Engine {
         this.errorRecoveryManager = errorRecoveryManager;
         // Initialize logger
         this._logger = new EngineLogger({ debugEnabled: debugMode });
+        // Set logger on component manager for archetype operations
+        this.componentManager.setLogger(this._logger);
         // Subscribe to entity changes to update queries
         // Store unsubscribers for proper cleanup on destroy
         // Event callbacks receive unknown args, so we need to cast the entity type
@@ -628,7 +640,7 @@ export class Engine {
         );
 
         // Initialize command buffer for deferred entity operations
-        this.commandBuffer = new CommandBuffer(this, debugMode);
+        this.commandBuffer = new CommandBuffer(this, debugMode, this._logger);
     }
 
     // ========== Entity Commands / Deferred Operations ==========
@@ -701,7 +713,7 @@ export class Engine {
     setAutoExecuteCommands(enabled: boolean): void {
         this.autoExecuteCommands = enabled;
         if (this.debugMode) {
-            console.log(`[ECS Debug] Auto-execute commands: ${enabled}`);
+            this._logger.debug(`Auto-execute commands: ${enabled}`);
         }
     }
 
@@ -945,8 +957,8 @@ export class Engine {
         this.queryManager.updateQueries(clone);
 
         if (this.debugMode) {
-            console.log(
-                `[ECS Debug] Cloned entity ${entity.name || entity.numericId} to ${clone.name || clone.numericId}`
+            this._logger.debug(
+                `Cloned entity ${entity.name || entity.numericId} to ${clone.name || clone.numericId}`
             );
         }
 
@@ -978,8 +990,8 @@ export class Engine {
         }
 
         if (this.debugMode) {
-            console.log(
-                `[ECS Debug] Created ${entities.length} entities${prefabName ? ` from prefab '${prefabName}'` : ''}`
+            this._logger.debug(
+                `Created ${entities.length} entities${prefabName ? ` from prefab '${prefabName}'` : ''}`
             );
         }
 
@@ -1012,7 +1024,7 @@ export class Engine {
     ): void {
         this.componentManager.registerComponentPool(type, options);
         if (this.debugMode) {
-            console.log(`[ECS Debug] Component pool registered for ${type.name}`);
+            this._logger.debug(`Component pool registered for ${type.name}`);
         }
     }
 
@@ -1074,7 +1086,7 @@ export class Engine {
         });
 
         if (this.debugMode) {
-            console.log(`[ECS Debug] Singleton component ${type.name} set`);
+            this._logger.debug(`Singleton component ${type.name} set`);
         }
 
         return component;
@@ -1148,7 +1160,7 @@ export class Engine {
             });
 
             if (this.debugMode) {
-                console.log(`[ECS Debug] Singleton component ${type.name} removed`);
+                this._logger.debug(`Singleton component ${type.name} removed`);
             }
         }
 
@@ -1376,7 +1388,7 @@ export class Engine {
         this.pendingQueryUpdates.clear();
 
         if (this.debugMode) {
-            console.log('[ECS Debug] Transaction started');
+            this._logger.debug('Transaction started');
         }
     }
 
@@ -1400,7 +1412,7 @@ export class Engine {
         this.pendingQueryUpdates.clear();
 
         if (this.debugMode) {
-            console.log('[ECS Debug] Transaction committed');
+            this._logger.debug('Transaction committed');
         }
     }
 
@@ -1420,7 +1432,7 @@ export class Engine {
         this.pendingQueryUpdates.clear();
 
         if (this.debugMode) {
-            console.log('[ECS Debug] Transaction rolled back');
+            this._logger.debug('Transaction rolled back');
         }
     }
 
@@ -1510,7 +1522,7 @@ export class Engine {
         const prefab = this.prefabManager.resolve(prefabName, ...factoryArgs);
         if (!prefab) {
             if (this.debugMode) {
-                console.warn(`[ECS Debug] Prefab ${prefabName} not found`);
+                this._logger.warn(`Prefab ${prefabName} not found`);
             }
             return null;
         }
@@ -1549,8 +1561,8 @@ export class Engine {
         const world = this.serialize();
         this.snapshotManager.createSnapshot(world);
         if (this.debugMode) {
-            console.log(
-                `[ECS Debug] Snapshot created (${this.snapshotManager.getSnapshotCount()} total)`
+            this._logger.debug(
+                `Snapshot created (${this.snapshotManager.getSnapshotCount()} total)`
             );
         }
     }
@@ -1559,7 +1571,7 @@ export class Engine {
         const snapshot = this.snapshotManager.getSnapshot(index);
         if (!snapshot) {
             if (this.debugMode) {
-                console.warn(`[ECS Debug] Snapshot at index ${index} not found`);
+                this._logger.warn(`Snapshot at index ${index} not found`);
             }
             return false;
         }
@@ -1573,8 +1585,8 @@ export class Engine {
             const singletonCount = snapshot.singletons
                 ? Object.keys(snapshot.singletons).length
                 : 0;
-            console.log(
-                `[ECS Debug] Snapshot restored (${entityMap.size} entities, ${singletonCount} singletons)`
+            this._logger.debug(
+                `Snapshot restored (${entityMap.size} entities, ${singletonCount} singletons)`
             );
         }
 
@@ -1661,8 +1673,8 @@ export class Engine {
                 entity.addComponent(componentType, ...values);
             } catch (error) {
                 if (this.debugMode) {
-                    console.warn(
-                        `[ECS Debug] Failed to create ${componentType.name} with constructor args, falling back to property assignment:`,
+                    this._logger.warn(
+                        `Failed to create ${componentType.name} with constructor args, falling back to property assignment:`,
                         error instanceof Error ? error.message : error
                     );
                 }
@@ -1881,7 +1893,7 @@ export class Engine {
     setBatchMode(enabled: boolean): void {
         this.changeTrackingManager.setBatchMode(enabled);
         if (this.debugMode) {
-            console.log(`[ECS Debug] Batch mode ${enabled ? 'enabled' : 'disabled'}`);
+            this._logger.debug(`Batch mode ${enabled ? 'enabled' : 'disabled'}`);
         }
     }
 
@@ -1951,7 +1963,7 @@ export class Engine {
     enableProxyTracking(): void {
         this.changeTrackingManager.enableProxyTracking();
         if (this.debugMode) {
-            console.log('[ECS Debug] Proxy-based change tracking enabled');
+            this._logger.debug('Proxy-based change tracking enabled');
         }
     }
 
@@ -1967,7 +1979,7 @@ export class Engine {
     disableProxyTracking(): void {
         this.changeTrackingManager.disableProxyTracking();
         if (this.debugMode) {
-            console.log('[ECS Debug] Proxy-based change tracking disabled');
+            this._logger.debug('Proxy-based change tracking disabled');
         }
     }
 
@@ -2042,7 +2054,7 @@ export class Engine {
         this.lastUpdateTime = performance.now();
         this.eventEmitter.emit('onStart');
         if (this.debugMode) {
-            console.log('[ECS Debug] Engine started');
+            this._logger.debug('Engine started');
         }
     }
 
@@ -2051,7 +2063,7 @@ export class Engine {
         this.running = false;
         this.eventEmitter.emit('onStop');
         if (this.debugMode) {
-            console.log('[ECS Debug] Engine stopped');
+            this._logger.debug('Engine stopped');
         }
     }
 
@@ -2123,7 +2135,7 @@ export class Engine {
         this.eventEmitter.emit('onDestroy');
 
         if (this.debugMode) {
-            console.log('[ECS Debug] Engine destroyed and cleaned up');
+            this._logger.debug('Engine destroyed and cleaned up');
         }
     }
 
@@ -2532,7 +2544,7 @@ export class Engine {
     installPlugin(plugin: EnginePlugin): void {
         if (this.installedPlugins.has(plugin.name)) {
             if (this.debugMode) {
-                console.warn(`[ECS Debug] Plugin '${plugin.name}' is already installed`);
+                this._logger.warn(`Plugin '${plugin.name}' is already installed`);
             }
             return;
         }
@@ -2550,11 +2562,11 @@ export class Engine {
                     });
                     this.eventEmitter.emit('onPluginInstalled', plugin);
                     if (this.debugMode) {
-                        console.log(`[ECS Debug] Plugin '${plugin.name}' installed successfully`);
+                        this._logger.debug(`Plugin '${plugin.name}' installed successfully`);
                     }
                 })
                 .catch((error) => {
-                    console.error(`[ECS] Failed to install plugin '${plugin.name}':`, error);
+                    this._logger.error(`Failed to install plugin '${plugin.name}':`, error);
                 });
         } else {
             this.installedPlugins.set(plugin.name, {
@@ -2563,7 +2575,7 @@ export class Engine {
             });
             this.eventEmitter.emit('onPluginInstalled', plugin);
             if (this.debugMode) {
-                console.log(`[ECS Debug] Plugin '${plugin.name}' installed successfully`);
+                this._logger.debug(`Plugin '${plugin.name}' installed successfully`);
             }
         }
     }
@@ -2575,7 +2587,7 @@ export class Engine {
         const installedPlugin = this.installedPlugins.get(pluginName);
         if (!installedPlugin) {
             if (this.debugMode) {
-                console.warn(`[ECS Debug] Plugin '${pluginName}' is not installed`);
+                this._logger.warn(`Plugin '${pluginName}' is not installed`);
             }
             return false;
         }
@@ -2590,7 +2602,7 @@ export class Engine {
                     await result;
                 }
             } catch (error) {
-                console.error(`[ECS] Error uninstalling plugin '${pluginName}':`, error);
+                this._logger.error(`Error uninstalling plugin '${pluginName}':`, error);
                 return false;
             }
         }
@@ -2598,7 +2610,7 @@ export class Engine {
         this.installedPlugins.delete(pluginName);
         this.eventEmitter.emit('onPluginUninstalled', plugin);
         if (this.debugMode) {
-            console.log(`[ECS Debug] Plugin '${pluginName}' uninstalled successfully`);
+            this._logger.debug(`Plugin '${pluginName}' uninstalled successfully`);
         }
 
         return true;

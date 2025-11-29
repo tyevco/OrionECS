@@ -709,7 +709,40 @@ engine.createSystem('CollisionSystem',
 4. **Automatic Cleanup** - Parent-child destruction is automatic
 5. **Message Bus** - Built-in inter-system communication
 6. **Plugin System** - Extensibility via plugins
-7. **Debug Mode** - Built-in comprehensive debugging
+7. **Debug Mode and Logging** - Built-in comprehensive debugging with structured logging
+
+### Logging in OrionECS
+
+OrionECS provides a built-in logger with consistent formatting and tagged output:
+
+```typescript
+const engine = new EngineBuilder()
+  .withDebugMode(true)  // Enable debug logging
+  .build();
+
+// Use the engine's logger
+engine.logger.debug('Starting game');         // Only shown in debug mode
+engine.logger.info('Player joined');          // Informational
+engine.logger.warn('Low health');             // Warnings
+engine.logger.error('Connection lost');       // Errors
+
+// Create tagged loggers for subsystems
+const physicsLogger = engine.logger.withTag('Physics');
+physicsLogger.debug('Collision detected');    // Output: [Physics] Collision detected
+
+const aiLogger = engine.logger.withTag('AI');
+aiLogger.debug('Enemy patrolling');           // Output: [AI] Enemy patrolling
+
+// Get debug info
+const debugInfo = engine.getDebugInfo();
+engine.logger.info('Entity count:', debugInfo.entityCount);
+
+// System profiling
+const profiles = engine.getSystemProfiles();
+for (const profile of profiles) {
+  engine.logger.debug(`${profile.name}: ${profile.averageTime}ms avg`);
+}
+```
 
 ---
 

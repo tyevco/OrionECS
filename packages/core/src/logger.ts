@@ -111,9 +111,11 @@ export class EngineLogger implements Logger {
      * Check if a log level should be output.
      */
     isEnabled(level: LogLevel): boolean {
-        if (level === 'debug' && !this.debugEnabled) {
-            return false;
+        // Debug messages are only shown when debugEnabled is true
+        if (level === 'debug') {
+            return this.debugEnabled;
         }
+        // Other levels are checked against minLevel
         return LOG_LEVEL_PRIORITY[level] >= LOG_LEVEL_PRIORITY[this.minLevel];
     }
 

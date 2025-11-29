@@ -5,7 +5,7 @@
  */
 
 import type { Entity } from './core';
-import type { ComponentIdentifier, QueryOptions } from './definitions';
+import type { ComponentIdentifier, Logger, QueryOptions } from './definitions';
 
 /**
  * Registry for assigning unique identifiers to component types.
@@ -223,13 +223,18 @@ export class Archetype {
     // Memory estimation configuration (instance-level to ensure isolation between engines)
     private memoryConfig: MemoryEstimationConfig;
 
+    // Optional logger for archetype operations
+    private logger?: Logger;
+
     constructor(
         componentTypes: ComponentIdentifier[],
         registry: ComponentTypeRegistry,
-        memoryConfig: MemoryEstimationConfig = DEFAULT_MEMORY_ESTIMATION_CONFIG
+        memoryConfig: MemoryEstimationConfig = DEFAULT_MEMORY_ESTIMATION_CONFIG,
+        logger?: Logger
     ) {
         this.registry = registry;
         this.memoryConfig = memoryConfig;
+        this.logger = logger;
 
         // Sort component types for consistent archetype IDs
         // Use the unique type key for sorting to ensure consistent ordering
@@ -348,9 +353,11 @@ export class Archetype {
                 const array = this.componentArrays.get(type);
                 // Additional validation for stale indices during iteration
                 if (!array || index >= array.length || index < 0) {
-                    console.warn(
-                        `[ECS] Stale index ${index} for component ${type.name} during iteration`
-                    );
+                    if (this.logger) {
+                        this.logger.warn(
+                            `Stale index ${index} for component ${type.name} during iteration`
+                        );
+                    }
                     continue;
                 }
                 components.set(type, array[index]);
@@ -587,9 +594,9 @@ export class Archetype {
     getComponentArrays(componentTypes: ComponentIdentifier[], debugMode = false): any[][] {
         return componentTypes.map((type) => {
             const array = this.componentArrays.get(type);
-            if (!array && debugMode) {
-                console.warn(
-                    `[ECS Debug] Archetype "${this.id}" does not contain component type "${type.name}". ` +
+            if (!array && debugMode && this.logger) {
+                this.logger.debug(
+                    `Archetype "${this.id}" does not contain component type "${type.name}". ` +
                         'This may indicate a query/archetype mismatch.'
                 );
             }
@@ -663,6 +670,9 @@ export class ArchetypeManager {
     // Instance-level memory estimation config (ensures isolation between engines)
     private memoryConfig: MemoryEstimationConfig;
 
+    // Optional logger for archetype operations
+    private logger?: Logger;
+
     /**
      * Create a new ArchetypeManager.
      *
@@ -670,16 +680,18 @@ export class ArchetypeManager {
      *                       Defaults to DEFAULT_MEMORY_ESTIMATION_CONFIG.
      *                       Use `detectMemoryEnvironment()` for auto-detection or
      *                       `createMemoryEstimationConfig()` for custom values.
+     * @param logger - Optional logger for archetype operations.
      */
-    constructor(memoryConfig?: MemoryEstimationConfig) {
+    constructor(memoryConfig?: MemoryEstimationConfig, logger?: Logger) {
         // Create engine-scoped registry for component type IDs
         this.registry = new ComponentTypeRegistry();
 
         // Use provided config or default (immutable, no global state mutation)
         this.memoryConfig = memoryConfig ?? DEFAULT_MEMORY_ESTIMATION_CONFIG;
+        this.logger = logger?.withTag('Archetype');
 
         // Create empty archetype for entities with no components
-        this.emptyArchetype = new Archetype([], this.registry, this.memoryConfig);
+        this.emptyArchetype = new Archetype([], this.registry, this.memoryConfig, this.logger);
         this.archetypes.set(this.emptyArchetype.id, this.emptyArchetype);
     }
 
@@ -718,7 +730,12 @@ export class ArchetypeManager {
         let archetype = this.archetypes.get(id);
 
         if (!archetype) {
-            archetype = new Archetype(componentTypes, this.registry, this.memoryConfig);
+            archetype = new Archetype(
+                componentTypes,
+                this.registry,
+                this.memoryConfig,
+                this.logger
+            );
             this.archetypes.set(id, archetype);
             this._archetypeCreationCount++;
         }
@@ -925,8 +942,8 @@ export class ArchetypeManager {
     clear(): void {
         this.archetypes.clear();
         this.entityToArchetype.clear();
-        // Recreate empty archetype with the same registry and memory config
-        this.emptyArchetype = new Archetype([], this.registry, this.memoryConfig);
+        // Recreate empty archetype with the same registry, memory config, and logger
+        this.emptyArchetype = new Archetype([], this.registry, this.memoryConfig, this.logger);
         this.archetypes.set(this.emptyArchetype.id, this.emptyArchetype);
         this._archetypeCreationCount = 0;
         this._entityMovementCount = 0;

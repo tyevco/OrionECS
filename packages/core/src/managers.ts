@@ -26,6 +26,7 @@ import type {
     ErrorRecoveryConfig,
     ErrorReport,
     ErrorSeverity,
+    Logger,
     PoolStats,
     QueryOptions,
     RecoveryStrategy,
@@ -62,6 +63,16 @@ export class ComponentManager {
     // Singleton storage - type safety enforced via generic accessor methods
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     private singletonComponents: Map<ComponentIdentifier, any> = new Map();
+    // Optional logger for component operations
+    private logger?: Logger;
+
+    /**
+     * Set the logger for this component manager.
+     * @internal
+     */
+    setLogger(logger: Logger): void {
+        this.logger = logger;
+    }
 
     /**
      * Get or create the component array for a specific component type.
@@ -383,7 +394,7 @@ export class ComponentManager {
      */
     enableArchetypes(): void {
         if (!this.archetypesEnabled) {
-            this.archetypeManager = new ArchetypeManager();
+            this.archetypeManager = new ArchetypeManager(undefined, this.logger);
             this.archetypesEnabled = true;
         }
     }
@@ -1732,9 +1743,10 @@ export class MessageManager {
      * Create a new MessageManager.
      *
      * @param maxHistory - Maximum number of messages to keep in history (default: 1000)
+     * @param logger - Optional logger for message bus operations
      */
-    constructor(maxHistory: number = MAX_MESSAGE_HISTORY) {
-        this.bus = new MessageBus(maxHistory);
+    constructor(maxHistory: number = MAX_MESSAGE_HISTORY, logger?: Logger) {
+        this.bus = new MessageBus(maxHistory, logger);
     }
 
     /**

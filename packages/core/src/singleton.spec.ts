@@ -362,13 +362,12 @@ describe('Singleton Components', () => {
             const engine = new EngineBuilder().withDebugMode(true).build();
 
             engine.setSingleton(GameTime, 10.5, 0.016);
-            expect(consoleSpy).toHaveBeenCalledWith(
-                expect.stringContaining('Singleton component GameTime set')
-            );
+            expect(consoleSpy).toHaveBeenCalledWith('[ECS]', 'Singleton component GameTime set');
 
             engine.removeSingleton(GameTime);
             expect(consoleSpy).toHaveBeenCalledWith(
-                expect.stringContaining('Singleton component GameTime removed')
+                '[ECS]',
+                'Singleton component GameTime removed'
             );
 
             consoleSpy.mockRestore();

@@ -25,6 +25,8 @@ import type {
     ComponentValidator,
     EnginePlugin,
     EntityPrefab,
+    ErrorRecoveryConfig,
+    ErrorReport,
     ExtractPluginExtensions,
     InstalledPlugin,
     Logger,
@@ -33,6 +35,8 @@ import type {
     PoolStats,
     QueryOptions,
     SerializedWorld,
+    SystemError,
+    SystemHealth,
     SystemProfile,
     SystemType,
 } from './definitions';
@@ -40,6 +44,7 @@ import { EngineLogger } from './logger';
 import {
     ChangeTrackingManager,
     ComponentManager,
+    ErrorRecoveryManager,
     MessageManager,
     PrefabManager,
     QueryManager,
@@ -93,6 +98,7 @@ export class EngineBuilder<TExtensions extends object = object> {
     private entityManager?: EntityManager;
     private performanceMonitor = new PerformanceMonitor();
     private changeTrackingManager?: ChangeTrackingManager;
+    private errorRecoveryManager?: ErrorRecoveryManager;
 
     private fixedUpdateFPS: number = 60;
     private maxFixedIterations: number = 10;
@@ -101,6 +107,8 @@ export class EngineBuilder<TExtensions extends object = object> {
     private plugins: EnginePlugin[] = [];
     private enableArchetypeSystem: boolean = true; // Enable archetypes by default
     private profilingEnabled: boolean = true; // Enable profiling by default for backward compatibility
+    private errorRecoveryEnabled: boolean = false; // Error recovery disabled by default
+    private errorRecoveryConfig?: Partial<ErrorRecoveryConfig>;
     private changeTrackingOptions: {
         enableProxyTracking: boolean;
         batchMode: boolean;
@@ -296,6 +304,49 @@ export class EngineBuilder<TExtensions extends object = object> {
     }
 
     /**
+     * Enable error recovery and resilience for system execution.
+     *
+     * When enabled, the engine will:
+     * - Isolate system errors to prevent engine crashes
+     * - Apply recovery strategies (skip, retry, disable, fallback)
+     * - Track system health with circuit breakers
+     * - Collect errors for production reporting
+     *
+     * @param config - Optional error recovery configuration
+     * @returns This builder instance for method chaining
+     *
+     * @example Basic usage
+     * ```typescript
+     * const engine = new EngineBuilder()
+     *   .withErrorRecovery()  // Enable with default settings
+     *   .build();
+     * ```
+     *
+     * @example Custom configuration
+     * ```typescript
+     * const engine = new EngineBuilder()
+     *   .withErrorRecovery({
+     *     defaultStrategy: 'retry',
+     *     maxRetries: 3,
+     *     circuitBreaker: {
+     *       failureThreshold: 3,
+     *       resetTimeout: 10000
+     *     },
+     *     onError: (error) => {
+     *       // Send to error tracking service (e.g., Sentry)
+     *       Sentry.captureException(error.error);
+     *     }
+     *   })
+     *   .build();
+     * ```
+     */
+    withErrorRecovery(config: Partial<ErrorRecoveryConfig> = {}): this {
+        this.errorRecoveryEnabled = true;
+        this.errorRecoveryConfig = config;
+        return this;
+    }
+
+    /**
      * Register a plugin to extend the engine with additional functionality.
      *
      * Plugins are installed during the build() phase and can register components,
@@ -404,6 +455,20 @@ export class EngineBuilder<TExtensions extends object = object> {
             this.changeTrackingOptions
         );
 
+        // Create error recovery manager if enabled
+        if (this.errorRecoveryEnabled) {
+            this.errorRecoveryManager = new ErrorRecoveryManager(
+                this.errorRecoveryConfig,
+                this.eventEmitter
+            );
+            this.errorRecoveryManager.setDebugMode(this.debugMode);
+            this.systemManager.setErrorRecoveryManager(this.errorRecoveryManager);
+
+            if (this.debugMode) {
+                console.log('[ECS Debug] Error recovery system enabled');
+            }
+        }
+
         const engine = new Engine(
             this.entityManager,
             this.componentManager,
@@ -416,7 +481,8 @@ export class EngineBuilder<TExtensions extends object = object> {
             this.eventEmitter,
             this.performanceMonitor,
             this.debugMode,
-            this.profilingEnabled
+            this.profilingEnabled,
+            this.errorRecoveryManager
         );
 
         // Install all registered plugins
@@ -505,6 +571,9 @@ export class Engine {
     // Logger instance for the engine
     private _logger: EngineLogger;
 
+    // Error recovery manager for system resilience
+    private errorRecoveryManager?: ErrorRecoveryManager;
+
     constructor(
         private entityManager: EntityManager,
         private componentManager: ComponentManager,
@@ -517,8 +586,10 @@ export class Engine {
         private eventEmitter: EventEmitter,
         private performanceMonitor: PerformanceMonitor,
         private debugMode: boolean,
-        private profilingEnabled: boolean = true
+        private profilingEnabled: boolean = true,
+        errorRecoveryManager?: ErrorRecoveryManager
     ) {
+        this.errorRecoveryManager = errorRecoveryManager;
         // Initialize logger
         this._logger = new EngineLogger({ debugEnabled: debugMode });
         // Subscribe to entity changes to update queries
@@ -1153,7 +1224,8 @@ export class Engine {
             query.match(entity);
         }
 
-        return this.systemManager.createSystem(system, isFixedUpdate);
+        // Pass errorConfig to SystemManager for per-system error handling
+        return this.systemManager.createSystem(system, isFixedUpdate, options.errorConfig);
     }
 
     getSystemProfiles(): SystemProfile[] {
@@ -1945,6 +2017,7 @@ export class Engine {
      * - Clearing all entities
      * - Disposing of entity manager event listeners
      * - Disposing of change tracking manager (clears debounce timers)
+     * - Disposing of error recovery manager
      * - Unsubscribing from all engine-level event listeners
      *
      * After calling destroy(), the engine should not be used anymore.
@@ -1970,6 +2043,9 @@ export class Engine {
 
         // Dispose of change tracking manager (clears debounce timers)
         this.changeTrackingManager.dispose();
+
+        // Dispose of error recovery manager
+        this.errorRecoveryManager?.dispose();
 
         // Unsubscribe from engine-level event listeners
         for (const unsubscribe of this.engineEventUnsubscribers) {
@@ -2167,6 +2243,127 @@ export class Engine {
      */
     isProfilingEnabled(): boolean {
         return this.profilingEnabled;
+    }
+
+    // ========== Error Recovery & Resilience ==========
+
+    /**
+     * Check if error recovery is enabled.
+     *
+     * @returns true if error recovery is enabled, false otherwise
+     */
+    isErrorRecoveryEnabled(): boolean {
+        return this.errorRecoveryManager !== undefined;
+    }
+
+    /**
+     * Get the health status of a specific system.
+     *
+     * @param systemName - Name of the system to check
+     * @returns Health status or undefined if system not found or error recovery disabled
+     *
+     * @example
+     * ```typescript
+     * const health = engine.getSystemHealth('MovementSystem');
+     * if (health?.status === 'unhealthy') {
+     *   console.log(`System has ${health.consecutiveFailures} consecutive failures`);
+     * }
+     * ```
+     */
+    getSystemHealth(systemName: string): SystemHealth | undefined {
+        return this.errorRecoveryManager?.getSystemHealth(systemName);
+    }
+
+    /**
+     * Get health status of all registered systems.
+     *
+     * @returns Array of system health statuses, or empty array if error recovery disabled
+     */
+    getAllSystemHealth(): SystemHealth[] {
+        return this.errorRecoveryManager?.getAllSystemHealth() ?? [];
+    }
+
+    /**
+     * Get overall engine health status based on system health.
+     *
+     * - `healthy`: All systems are operating normally
+     * - `degraded`: Some systems are experiencing issues
+     * - `unhealthy`: Multiple systems are failing or critical systems are down
+     *
+     * @returns Overall health status, or 'healthy' if error recovery disabled
+     */
+    getEngineHealth(): 'healthy' | 'degraded' | 'unhealthy' {
+        return this.errorRecoveryManager?.getEngineHealth() ?? 'healthy';
+    }
+
+    /**
+     * Get the history of errors that have occurred.
+     *
+     * @returns Array of system errors, or empty array if error recovery disabled
+     */
+    getErrorHistory(): SystemError[] {
+        return this.errorRecoveryManager?.getErrorHistory() ?? [];
+    }
+
+    /**
+     * Clear the error history.
+     */
+    clearErrorHistory(): void {
+        this.errorRecoveryManager?.clearErrorHistory();
+    }
+
+    /**
+     * Generate a comprehensive error report for production error services.
+     *
+     * This report can be sent to error tracking services like Sentry, Rollbar,
+     * or custom logging infrastructure.
+     *
+     * @returns Error report with all errors, system health, and engine stats
+     *
+     * @example
+     * ```typescript
+     * const report = engine.generateErrorReport();
+     * if (report.errors.length > 0) {
+     *   // Send to error tracking service
+     *   sendToSentry(report);
+     * }
+     * ```
+     */
+    generateErrorReport(): ErrorReport | undefined {
+        if (!this.errorRecoveryManager) return undefined;
+
+        return this.errorRecoveryManager.generateErrorReport(
+            this.entityManager.getAllEntities().length,
+            this.systemManager.getAllSystems().length
+        );
+    }
+
+    /**
+     * Reset a system to healthy state after it was disabled by errors.
+     *
+     * This clears the system's error count, resets its circuit breaker,
+     * and allows it to execute again.
+     *
+     * @param systemName - Name of the system to reset
+     *
+     * @example
+     * ```typescript
+     * // After fixing the issue that caused the system to fail
+     * engine.resetSystem('NetworkSystem');
+     * ```
+     */
+    resetSystem(systemName: string): void {
+        this.errorRecoveryManager?.resetSystem(systemName);
+    }
+
+    /**
+     * Reset all systems to healthy state.
+     *
+     * This is useful when recovering from a widespread failure
+     * or when restarting the game loop.
+     */
+    resetAllSystems(): void {
+        this.errorRecoveryManager?.resetAllSystems();
     }
 
     // ========== Plugin System ==========

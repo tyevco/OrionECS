@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>OrionECS Benchmark Report - 509731e</title>
+  <title>OrionECS Benchmark Report - c0f762a</title>
   <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <style>
     * { box-sizing: border-box; margin: 0; padding: 0; }
@@ -63,9 +63,9 @@
     <h1>OrionECS Performance Benchmark Report</h1>
 
     <div class="meta">
-      <span><strong>Commit:</strong> 509731e</span>
+      <span><strong>Commit:</strong> c0f762a</span>
       <span><strong>Branch:</strong> main</span>
-      <span><strong>Date:</strong> 11/29/2025, 12:32:28 AM</span>
+      <span><strong>Date:</strong> 11/29/2025, 1:14:52 AM</span>
       <span><strong>Node:</strong> v20.19.5</span>
     </div>
 
@@ -110,82 +110,82 @@
         
           <tr>
             <td>entity-creation</td>
-            <td>138</td>
-            <td>7.24ms</td>
-            <td>±0.73ms</td>
-            <td>±2.8%</td>
+            <td>143</td>
+            <td>7.00ms</td>
+            <td>±0.54ms</td>
+            <td>±2.1%</td>
           </tr>
         
           <tr>
             <td>bulk-entity-creation</td>
             <td>24</td>
-            <td>41.56ms</td>
-            <td>±0.87ms</td>
+            <td>40.89ms</td>
+            <td>±0.79ms</td>
             <td>±0.8%</td>
           </tr>
         
           <tr>
             <td>component-addition</td>
-            <td>231</td>
-            <td>4.32ms</td>
-            <td>±0.37ms</td>
-            <td>±2.4%</td>
+            <td>241</td>
+            <td>4.15ms</td>
+            <td>±0.24ms</td>
+            <td>±1.6%</td>
           </tr>
         
           <tr>
             <td>simple-iteration</td>
             <td>3.2K</td>
             <td>0.31ms</td>
-            <td>±0.20ms</td>
-            <td>±18.0%</td>
+            <td>±0.23ms</td>
+            <td>±20.2%</td>
           </tr>
         
           <tr>
             <td>large-iteration</td>
-            <td>499</td>
-            <td>2.00ms</td>
-            <td>±0.45ms</td>
-            <td>±8.8%</td>
+            <td>533</td>
+            <td>1.88ms</td>
+            <td>±0.41ms</td>
+            <td>±8.5%</td>
           </tr>
         
           <tr>
             <td>multi-system</td>
-            <td>2.6K</td>
-            <td>0.39ms</td>
-            <td>±0.28ms</td>
-            <td>±19.8%</td>
+            <td>3.2K</td>
+            <td>0.32ms</td>
+            <td>±0.16ms</td>
+            <td>±13.9%</td>
           </tr>
         
           <tr>
             <td>serialization</td>
-            <td>1.3K</td>
+            <td>1.4K</td>
             <td>0.74ms</td>
-            <td>±0.26ms</td>
-            <td>±9.8%</td>
+            <td>±0.18ms</td>
+            <td>±6.9%</td>
           </tr>
         
           <tr>
             <td>entity-lifecycle</td>
-            <td>1.2K</td>
-            <td>0.80ms</td>
-            <td>±0.22ms</td>
-            <td>±7.6%</td>
+            <td>1.3K</td>
+            <td>0.78ms</td>
+            <td>±0.16ms</td>
+            <td>±5.6%</td>
           </tr>
         
           <tr>
             <td>memory-usage</td>
             <td>20</td>
-            <td>50.49ms</td>
-            <td>±6.76ms</td>
-            <td>±3.7%</td>
+            <td>50.22ms</td>
+            <td>±6.57ms</td>
+            <td>±3.6%</td>
           </tr>
         
           <tr>
             <td>archetype-transition</td>
-            <td>226</td>
-            <td>4.43ms</td>
-            <td>±0.55ms</td>
-            <td>±3.5%</td>
+            <td>229</td>
+            <td>4.37ms</td>
+            <td>±0.72ms</td>
+            <td>±4.6%</td>
           </tr>
         
       </tbody>
@@ -202,7 +202,7 @@
   </div>
 
   <script>
-    const chartData = [{"scenario":"entity-creation","opsPerSecond":138.20538647201474,"meanTime":7.2356079999999885},{"scenario":"bulk-entity-creation","opsPerSecond":24.062916379591663,"meanTime":41.55772244},{"scenario":"component-addition","opsPerSecond":231.29852862864112,"meanTime":4.323417040000022},{"scenario":"simple-iteration","opsPerSecond":3206.0106801193388,"meanTime":0.3119141199999922},{"scenario":"large-iteration","opsPerSecond":499.15074492259237,"meanTime":2.0034027999999853},{"scenario":"multi-system","opsPerSecond":2576.484620680034,"meanTime":0.3881257399999777},{"scenario":"serialization","opsPerSecond":1345.6905766456557,"meanTime":0.7431128799999897},{"scenario":"entity-lifecycle","opsPerSecond":1248.4856805059385,"meanTime":0.8009703400000217},{"scenario":"memory-usage","opsPerSecond":19.806959447983505,"meanTime":50.48730485999997},{"scenario":"archetype-transition","opsPerSecond":225.75968178070272,"meanTime":4.4294888800001715}];
+    const chartData = [{"scenario":"entity-creation","opsPerSecond":142.7568121459365,"meanTime":7.004919660000018},{"scenario":"bulk-entity-creation","opsPerSecond":24.456255463674193,"meanTime":40.889334080000026},{"scenario":"component-addition","opsPerSecond":240.89296323470035,"meanTime":4.151221299999979},{"scenario":"simple-iteration","opsPerSecond":3188.6980297224095,"meanTime":0.3136076200000207},{"scenario":"large-iteration","opsPerSecond":533.2458525737438,"meanTime":1.87530759999996},{"scenario":"multi-system","opsPerSecond":3150.2800126389598,"meanTime":0.31743209999999633},{"scenario":"serialization","opsPerSecond":1356.2360738289453,"meanTime":0.7373347599999943},{"scenario":"entity-lifecycle","opsPerSecond":1275.9471508815373,"meanTime":0.7837315199999557},{"scenario":"memory-usage","opsPerSecond":19.911440848252983,"meanTime":50.22238257999995},{"scenario":"archetype-transition","opsPerSecond":228.80773073594972,"meanTime":4.370481700000019}];
 
     new Chart(document.getElementById('opsChart'), {
       type: 'bar',

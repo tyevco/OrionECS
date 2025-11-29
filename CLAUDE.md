@@ -93,6 +93,42 @@ class Position {
 
 This pattern allows flexible component instantiation via `entity.addComponent(ComponentClass, ...args)`.
 
+### Keep Documentation Up to Date
+
+**IMPORTANT: Documentation must be updated alongside code changes.**
+
+When making changes that affect the documented behavior, structure, or APIs:
+
+1. **Update relevant documentation files:**
+   - `README.md` - API changes, new features, usage examples
+   - `CONTRIBUTING.md` - Development workflow, project structure changes
+   - `RELEASE.md` - Package additions, publishing process changes
+   - `CLAUDE.md` - Architecture changes, new patterns, repository structure
+   - `docs/COOKBOOK.md` - New patterns, updated examples
+   - Plugin/package `README.md` files - Package-specific documentation
+
+2. **Documentation triggers:**
+   - Adding/removing/renaming packages or plugins → Update project structure in CONTRIBUTING.md and CLAUDE.md
+   - Adding new public APIs → Update README.md API reference
+   - Changing build/test commands → Update CLAUDE.md and CONTRIBUTING.md
+   - Adding new configuration options → Document in relevant files
+   - Deprecating features → Add migration notes in docs/migrations/
+
+3. **Verification checklist:**
+   - Do code examples still work with the changes?
+   - Are file paths and directory structures accurate?
+   - Are package/plugin lists complete and current?
+   - Do cross-references between documents remain valid?
+
+4. **Common documentation locations to check:**
+   | Change Type | Files to Update |
+   |-------------|-----------------|
+   | New package | CONTRIBUTING.md, CLAUDE.md, RELEASE.md |
+   | New plugin | CONTRIBUTING.md, CLAUDE.md, RELEASE.md, plugin README |
+   | API change | README.md, docs/COOKBOOK.md |
+   | New feature | README.md, relevant tutorial |
+   | Breaking change | docs/migrations/, CHANGELOG |
+
 ## Version Management
 
 This project uses [Changesets](https://github.com/changesets/changesets) for version management.

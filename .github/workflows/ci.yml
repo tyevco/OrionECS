@@ -7,9 +7,52 @@ on:
     branches: [ main, master ]
 
 jobs:
+  # Determine what files changed to run appropriate checks
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      code: ${{ steps.filter.outputs.code }}
+      tests: ${{ steps.filter.outputs.tests }}
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+      examples_only: ${{ steps.filter.outputs.examples_only }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v6
+
+      - name: Check for relevant changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'packages/**/*.ts'
+              - 'plugins/**/*.ts'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig*.json'
+              - 'tsup.config.ts'
+            tests:
+              - 'packages/**/*.ts'
+              - 'plugins/**/*.ts'
+              - '**/*.test.ts'
+              - '**/*.spec.ts'
+              - 'jest.config.*'
+            docs_only:
+              - added|modified: '**/*.md'
+              - added|modified: 'docs/**'
+            examples_only:
+              - added|modified: 'examples/**'
+              - added|modified: 'tutorials/**'
+
   test:
     name: Test
     runs-on: ubuntu-latest
+    needs: changes
+    # Run tests if code/tests changed, or on push to main, always skip for docs-only PRs
+    if: |
+      needs.changes.outputs.tests == 'true' ||
+      github.event_name == 'push'
 
     strategy:
       matrix:
@@ -51,6 +94,11 @@ jobs:
   benchmark:
     name: Benchmark
     runs-on: ubuntu-latest
+    needs: changes
+    # Only run benchmarks when code changes, skip for docs/examples/tutorials
+    if: |
+      needs.changes.outputs.code == 'true' ||
+      github.event_name == 'push'
 
     steps:
       - name: Checkout code
@@ -80,6 +128,12 @@ jobs:
   lint:
     name: Lint & Format
     runs-on: ubuntu-latest
+    needs: changes
+    # Run lint for code changes; skip for examples/tutorials-only changes
+    if: |
+      needs.changes.outputs.code == 'true' ||
+      needs.changes.outputs.tests == 'true' ||
+      github.event_name == 'push'
 
     steps:
       - name: Checkout code
@@ -114,6 +168,11 @@ jobs:
   security:
     name: Security Audit
     runs-on: ubuntu-latest
+    needs: changes
+    # Only run security audit when dependencies or code change, skip for docs/examples
+    if: |
+      needs.changes.outputs.code == 'true' ||
+      github.event_name == 'push'
 
     steps:
       - name: Checkout code

@@ -20,9 +20,52 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Determine what files changed to decide if we need to run benchmarks
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.filter.outputs.benchmark }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for relevant changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            benchmark:
+              - 'packages/**/*.ts'
+              - 'plugins/**/*.ts'
+              - 'benchmarks/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig*.json'
+              - 'tsup.config.ts'
+
+      - name: Skip notification
+        if: steps.filter.outputs.benchmark != 'true' && github.event_name == 'pull_request'
+        run: |
+          echo "### ⏭️ Benchmarks Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "No benchmark-relevant changes detected. Skipping benchmarks." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Benchmarks run when changes are made to:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`packages/**/*.ts\` - Core package source" >> $GITHUB_STEP_SUMMARY
+          echo "- \`plugins/**/*.ts\` - Plugin source" >> $GITHUB_STEP_SUMMARY
+          echo "- \`benchmarks/**\` - Benchmark code" >> $GITHUB_STEP_SUMMARY
+          echo "- Package config files" >> $GITHUB_STEP_SUMMARY
+
   benchmark:
     name: Run Benchmarks
     runs-on: ubuntu-latest
+    needs: changes
+    # Run if: benchmark-relevant changes detected, OR push to main, OR manual trigger
+    if: |
+      needs.changes.outputs.should_run == 'true' ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
     permissions:
       contents: write
       pull-requests: write
@@ -292,9 +335,13 @@ jobs:
   # Store benchmark history in a separate branch (optional)
   store-history:
     name: Store Benchmark History
-    needs: benchmark
+    needs: [changes, benchmark]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: |
+      always() &&
+      needs.benchmark.result == 'success' &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     permissions:
       contents: write
 
@@ -334,9 +381,13 @@ jobs:
   # Generate and deploy the visualization dashboard
   deploy-dashboard:
     name: Deploy Dashboard
-    needs: benchmark
+    needs: [changes, benchmark]
     runs-on: ubuntu-latest
-    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    if: |
+      always() &&
+      needs.benchmark.result == 'success' &&
+      github.event_name == 'push' &&
+      (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
     permissions:
       contents: write
       pages: write

@@ -1,12 +1,14 @@
 # Automatically label PRs based on file changes
 # Configuration for actions/labeler@v6
 
+# Documentation changes
 documentation:
   - changed-files:
     - any-glob-to-any-file:
       - '**/*.md'
       - 'docs/**/*'
 
+# Dependency updates
 dependencies:
   - changed-files:
     - any-glob-to-any-file:
@@ -14,6 +16,7 @@ dependencies:
       - 'package-lock.json'
       - 'npm-shrinkwrap.json'
 
+# Test file changes
 tests:
   - changed-files:
     - any-glob-to-any-file:
@@ -21,13 +24,17 @@ tests:
       - 'src/**/*.test.ts'
       - '**/*.spec.ts'
       - '**/*.test.ts'
+      - 'jest.config.*'
 
+# Benchmark changes
 benchmarks:
   - changed-files:
     - any-glob-to-any-file:
       - 'benchmarks/**/*'
       - '**/*.bench.ts'
+      - 'scripts/performance/**'
 
+# TypeScript source code
 typescript:
   - changed-files:
     - any-glob-to-any-file:
@@ -35,24 +42,99 @@ typescript:
       - 'tsconfig.json'
       - 'tsup.config.ts'
 
+# Build and CI configuration
 build:
   - changed-files:
     - any-glob-to-any-file:
       - 'tsup.config.ts'
       - '.github/workflows/**/*'
+      - 'biome.json'
 
+# CI/Workflow changes only
+ci:
+  - changed-files:
+    - any-glob-to-any-file:
+      - '.github/**/*'
+
+# Core ECS engine
 core:
   - changed-files:
     - any-glob-to-any-file:
-      - 'src/core.ts'
-      - 'src/engine.ts'
+      - 'packages/core/src/**/*.ts'
 
+# Managers implementation
 managers:
   - changed-files:
     - any-glob-to-any-file:
-      - 'src/managers.ts'
+      - 'packages/core/src/managers.ts'
 
+# Type definitions
 definitions:
   - changed-files:
     - any-glob-to-any-file:
-      - 'src/definitions.ts'
+      - 'packages/core/src/definitions.ts'
+
+# Plugin changes
+plugins:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'plugins/**/*'
+
+# Examples and tutorials
+examples:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'examples/**/*'
+      - 'tutorials/**/*'
+
+# Math package
+math:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'packages/math/**/*'
+
+# Graphics package
+graphics:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'packages/graphics/**/*'
+
+# Testing utilities
+testing:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'packages/testing/**/*'
+
+# VSCode extension
+vscode:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'packages/vscode-extension/**/*'
+
+# Performance-related (triggers full benchmarks)
+performance:
+  - changed-files:
+    - any-glob-to-any-file:
+      - 'packages/core/src/**/*.ts'
+      - 'benchmarks/**/*'
+      - 'scripts/performance/**/*'
+
+# Skip CI labels - used for lightweight PRs
+skip-benchmarks:
+  - changed-files:
+    - all-globs-to-all-files:
+      - '**/*.md'
+      - 'docs/**/*'
+      - '!packages/**/*.ts'
+      - '!plugins/**/*.ts'
+      - '!benchmarks/**/*'
+
+skip-tests:
+  - changed-files:
+    - all-globs-to-all-files:
+      - '**/*.md'
+      - 'docs/**/*'
+      - '!packages/**/*.ts'
+      - '!plugins/**/*.ts'
+      - '!**/*.test.ts'
+      - '!**/*.spec.ts'

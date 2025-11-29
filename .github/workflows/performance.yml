@@ -19,9 +19,62 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  # Determine what files changed to decide if we need to run benchmarks
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      should_run: ${{ steps.filter.outputs.performance }}
+      docs_only: ${{ steps.filter.outputs.docs_only }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Check for relevant changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            performance:
+              - 'packages/**/*.ts'
+              - 'plugins/**/*.ts'
+              - 'benchmarks/**'
+              - 'scripts/performance/**'
+              - 'package.json'
+              - 'package-lock.json'
+              - 'tsconfig*.json'
+              - 'tsup.config.ts'
+            docs_only:
+              - '**/*.md'
+              - 'docs/**'
+              - 'examples/**'
+              - 'tutorials/**'
+              - '.github/**'
+              - '!.github/workflows/performance.yml'
+
+      - name: Skip notification
+        if: steps.filter.outputs.performance != 'true' && github.event_name == 'pull_request'
+        run: |
+          echo "### ⏭️ Performance Tests Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "No performance-relevant changes detected. Skipping benchmarks." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Performance tests run when changes are made to:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`packages/**/*.ts\` - Core package source" >> $GITHUB_STEP_SUMMARY
+          echo "- \`plugins/**/*.ts\` - Plugin source" >> $GITHUB_STEP_SUMMARY
+          echo "- \`benchmarks/**\` - Benchmark code" >> $GITHUB_STEP_SUMMARY
+          echo "- \`scripts/performance/**\` - Performance scripts" >> $GITHUB_STEP_SUMMARY
+          echo "- Package config files" >> $GITHUB_STEP_SUMMARY
+
   benchmark:
     name: Run Benchmarks
     runs-on: ubuntu-latest
+    needs: changes
+    # Run if: performance-relevant changes detected, OR push to main, OR manual trigger
+    if: |
+      needs.changes.outputs.should_run == 'true' ||
+      github.event_name == 'push' ||
+      github.event_name == 'workflow_dispatch'
     outputs:
       regression_detected: ${{ steps.compare.outputs.regression_detected }}
 
@@ -265,10 +318,12 @@ jobs:
   update-baseline:
     name: Update Baseline
     runs-on: ubuntu-latest
-    needs: benchmark
+    needs: [changes, benchmark]
     if: |
-      (github.event_name == 'push' && github.ref == 'refs/heads/main') ||
-      (github.event_name == 'workflow_dispatch' && github.event.inputs.update_baseline == 'true')
+      always() &&
+      needs.benchmark.result == 'success' &&
+      ((github.event_name == 'push' && github.ref == 'refs/heads/main') ||
+       (github.event_name == 'workflow_dispatch' && github.event.inputs.update_baseline == 'true'))
 
     steps:
       - name: Checkout code

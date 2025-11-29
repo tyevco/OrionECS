@@ -77,7 +77,7 @@ export class StateMachine {
 
         // Update the exit time of the last entry
         if (this.history.length > 0) {
-            const last = this.history[this.history.length - 1];
+            const last = this.history[this.history.length - 1]!;
             last.exitedAt = now;
             last.duration = now - last.enteredAt;
         }

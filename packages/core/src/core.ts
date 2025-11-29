@@ -642,7 +642,7 @@ export class Query<C extends readonly unknown[] = unknown[]> {
 
                     // Iterate through entities
                     for (let i = 0; i < entities.length; i++) {
-                        const entity = entities[i];
+                        const entity = entities[i]!;
 
                         if (needsTagFiltering) {
                             // Filter by tags

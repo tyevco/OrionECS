@@ -118,4 +118,10 @@ export {
     SystemManager,
 } from './managers';
 // Export utility functions
-export { createTagComponent, deepCloneComponent } from './utils';
+export {
+    ComponentBuilder,
+    createComponentFactory,
+    createTagComponent,
+    deepCloneComponent,
+    defineComponent,
+} from './utils';

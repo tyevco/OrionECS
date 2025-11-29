@@ -28,10 +28,10 @@ export function sanitizeLogString(str: string): string {
         // Skip ANSI escape sequences (ESC [ ... letter)
         if (code === 0x1b && str[i + 1] === '[') {
             let j = i + 2;
-            while (j < str.length && ((str[j] >= '0' && str[j] <= '9') || str[j] === ';')) {
+            while (j < str.length && ((str[j]! >= '0' && str[j]! <= '9') || str[j] === ';')) {
                 j++;
             }
-            if (j < str.length && str[j] >= 'A' && str[j] <= 'z') {
+            if (j < str.length && str[j]! >= 'A' && str[j]! <= 'z') {
                 i = j;
                 continue;
             }

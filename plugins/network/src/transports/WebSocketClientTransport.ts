@@ -404,10 +404,10 @@ export class WebSocketClientTransport implements ClientTransport {
             // Skip ANSI escape sequences (ESC [ ... letter)
             if (code === 0x1b && str[i + 1] === '[') {
                 let j = i + 2;
-                while (j < str.length && ((str[j] >= '0' && str[j] <= '9') || str[j] === ';')) {
+                while (j < str.length && ((str[j]! >= '0' && str[j]! <= '9') || str[j] === ';')) {
                     j++;
                 }
-                if (j < str.length && str[j] >= 'A' && str[j] <= 'z') {
+                if (j < str.length && str[j]! >= 'A' && str[j]! <= 'z') {
                     i = j;
                     continue;
                 }
@@ -416,7 +416,7 @@ export class WebSocketClientTransport implements ClientTransport {
             if (code < 0x20 || code === 0x7f) {
                 continue;
             }
-            result += str[i];
+            result += str[i]!;
         }
         return result;
     }

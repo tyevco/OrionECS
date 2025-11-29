@@ -79,10 +79,10 @@ describe('Component Change Events', () => {
             engine.markComponentDirty(entity, Position);
 
             expect(events.length).toBe(1);
-            expect(events[0].componentType).toBe(Position);
-            expect(events[0].entity).toBe(entity);
-            expect(events[0].newValue).toBeDefined();
-            expect(events[0].timestamp).toBeDefined();
+            expect(events[0]!.componentType).toBe(Position);
+            expect(events[0]!.entity).toBe(entity);
+            expect(events[0]!.newValue).toBeDefined();
+            expect(events[0]!.timestamp).toBeDefined();
         });
     });
 
@@ -170,7 +170,7 @@ describe('Component Change Events', () => {
             reactivePosition.x = 30;
 
             expect(events.length).toBe(1);
-            expect(events[0].componentType).toBe(Position);
+            expect(events[0]!.componentType).toBe(Position);
         });
 
         test('should not create reactive component when proxy tracking is disabled', () => {

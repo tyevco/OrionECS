@@ -123,6 +123,22 @@ const ASTEROID_BASE_SPEED = 50;
 const MAX_ASTEROIDS = 10;
 
 // ============================================================================
+// Singleton for Game Configuration
+// ============================================================================
+
+/**
+ * Game configuration singleton - accessible from any system
+ */
+class GameConfig {
+    deltaTime: number = 1 / 60;
+    screenWidth: number = SCREEN_WIDTH;
+    screenHeight: number = SCREEN_HEIGHT;
+    bulletSpeed: number = BULLET_SPEED;
+    asteroidBaseSpeed: number = ASTEROID_BASE_SPEED;
+    maxAsteroids: number = MAX_ASTEROIDS;
+}
+
+// ============================================================================
 // Engine Setup
 // ============================================================================
 
@@ -130,7 +146,19 @@ const engine = new EngineBuilder()
     .withDebugMode(false)
     .withFixedUpdateFPS(60)
     .withMaxFixedIterations(10)
+    .withArchetypes(true) // Enable archetype system for better query performance
+    .withProfiling(true) // Enable system profiling for performance monitoring
+    .withErrorRecovery({
+        defaultStrategy: 'skip', // Skip failing systems to prevent game crashes
+        maxRetries: 2,
+        onError: (error) => {
+            console.error(`Game system ${error.systemName} error:`, error.error.message);
+        },
+    })
     .build();
+
+// Set up game configuration singleton
+engine.setSingleton(GameConfig);
 
 // ============================================================================
 // Component Pooling
@@ -755,6 +783,8 @@ export {
     Asteroid,
     Bullet,
     InputState,
+    // Singletons
+    GameConfig,
     // Functions
     initGame,
     gameLoop,

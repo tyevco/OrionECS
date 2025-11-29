@@ -57,8 +57,33 @@ class Joint {
     ) {}
 }
 
-// Initialize engine
-const game = new EngineBuilder().withDebugMode(true).withFixedUpdateFPS(60).build();
+// Singleton for scene-wide configuration
+class SceneConfig {
+    constructor(
+        public deltaTime: number = 0.016,
+        public sceneWidth: number = 800,
+        public sceneHeight: number = 600
+    ) {}
+}
+
+// Initialize engine with hierarchy-optimized configuration
+const game = new EngineBuilder()
+    .withDebugMode(true)
+    .withFixedUpdateFPS(60)
+    .withArchetypes(true)
+    .withProfiling(true)
+    .withChangeTracking({
+        enableProxyTracking: false,
+        batchMode: false,
+    })
+    .build();
+
+// Set up scene configuration singleton
+game.setSingleton(SceneConfig);
+
+// Register component pools for frequently modified transform components
+game.registerComponentPool(Transform, { initialSize: 50, maxSize: 200 });
+game.registerComponentPool(WorldTransform, { initialSize: 50, maxSize: 200 });
 
 // Transform Propagation System - updates world transforms based on hierarchy
 game.createSystem(
@@ -109,7 +134,7 @@ game.createSystem(
     }
 );
 
-// Movement System - moves entities with velocity
+// Movement System - moves entities with velocity using singleton for delta time
 game.createSystem(
     'MovementSystem',
     {
@@ -118,13 +143,17 @@ game.createSystem(
     {
         priority: 90,
         act: (_entity, transform, velocity) => {
+            const config = game.getSingleton(SceneConfig)!;
+
             if (velocity.linear !== 0) {
-                transform.localX += Math.cos(transform.localRotation) * velocity.linear * 0.016;
-                transform.localY += Math.sin(transform.localRotation) * velocity.linear * 0.016;
+                transform.localX +=
+                    Math.cos(transform.localRotation) * velocity.linear * config.deltaTime;
+                transform.localY +=
+                    Math.sin(transform.localRotation) * velocity.linear * config.deltaTime;
             }
 
             if (velocity.angular !== 0) {
-                transform.localRotation += velocity.angular * 0.016;
+                transform.localRotation += velocity.angular * config.deltaTime;
             }
         },
     }
@@ -139,7 +168,8 @@ game.createSystem(
     {
         priority: 85,
         act: (_entity, transform, orbit) => {
-            orbit.angle += orbit.speed * 0.016;
+            const config = game.getSingleton(SceneConfig)!;
+            orbit.angle += orbit.speed * config.deltaTime;
             transform.localX = Math.cos(orbit.angle) * orbit.radius;
             transform.localY = Math.sin(orbit.angle) * orbit.radius;
         },
@@ -155,6 +185,8 @@ game.createSystem(
     {
         priority: 80,
         act: (_entity, transform, joint) => {
+            const config = game.getSingleton(SceneConfig)!;
+
             if (joint.type === 'rotating') {
                 // Constrain rotation to limits
                 transform.localRotation = Math.max(
@@ -166,7 +198,7 @@ game.createSystem(
                 if (joint.springStrength > 0) {
                     const centerAngle = (joint.minAngle + joint.maxAngle) / 2;
                     const diff = centerAngle - transform.localRotation;
-                    transform.localRotation += diff * joint.springStrength * 0.016;
+                    transform.localRotation += diff * joint.springStrength * config.deltaTime;
                 }
             }
         },
@@ -427,7 +459,10 @@ console.log('- Solar system with orbiting bodies');
 console.log('- Robotic arm with joint constraints');
 console.log('- Dynamic hierarchy modification');
 console.log('- Character with animated limbs');
-console.log('- Efficient transform calculations\n');
+console.log('- Efficient transform calculations');
+console.log('- Singleton configuration for scene settings');
+console.log('- Component pooling for transforms');
+console.log('- Change tracking configuration\n');
 
 game.run();
 

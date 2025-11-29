@@ -223,6 +223,15 @@ const stateMachinePlugin = new StateMachinePlugin()
 export const engine = new EngineBuilder()
     .withDebugMode(false)
     .withFixedUpdateFPS(60)
+    .withArchetypes(true) // Enable archetype system for better query performance
+    .withProfiling(true) // Enable system profiling
+    .withErrorRecovery({
+        defaultStrategy: 'skip',
+        maxRetries: 2,
+        onError: (error) => {
+            console.error(`Game system ${error.systemName} error:`, error.error.message);
+        },
+    })
     .use(stateMachinePlugin)
     .build();
 

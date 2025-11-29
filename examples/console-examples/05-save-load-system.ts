@@ -121,12 +121,37 @@ function deserializeQuestProgress(data: SerializedQuestProgress): QuestProgress 
     return progress;
 }
 
-// Initialize engine
-const game = new EngineBuilder().withDebugMode(true).withFixedUpdateFPS(60).build();
+// Singleton for save system configuration
+class SaveConfig {
+    constructor(
+        public autoSaveEnabled: boolean = true,
+        public autoSaveInterval: number = 10,
+        public maxSnapshots: number = 5,
+        public saveVersion: number = 1
+    ) {}
+}
 
-// Auto-save system
+// Initialize engine with snapshot and serialization support
+const game = new EngineBuilder()
+    .withDebugMode(true)
+    .withFixedUpdateFPS(60)
+    .withArchetypes(true)
+    .withMaxSnapshots(10) // Keep up to 10 snapshots for undo/redo
+    .withProfiling(true)
+    .withErrorRecovery({
+        defaultStrategy: 'skip',
+        maxRetries: 2,
+        onError: (error) => {
+            console.error(`Save system error in ${error.systemName}:`, error.error.message);
+        },
+    })
+    .build();
+
+// Set up save configuration singleton
+game.setSingleton(SaveConfig);
+
+// Auto-save system using singleton configuration
 let autoSaveTimer = 0;
-const AUTO_SAVE_INTERVAL = 10; // seconds
 
 game.createSystem(
     'AutoSaveSystem',
@@ -136,14 +161,19 @@ game.createSystem(
     {
         priority: 10,
         before: () => {
+            const saveConfig = game.getSingleton(SaveConfig)!;
+
+            if (!saveConfig.autoSaveEnabled) return;
+
             autoSaveTimer += 0.016;
 
-            if (autoSaveTimer >= AUTO_SAVE_INTERVAL) {
+            if (autoSaveTimer >= saveConfig.autoSaveInterval) {
                 autoSaveTimer = 0;
 
                 // Create auto-save snapshot
                 game.createSnapshot();
                 console.log('⏰ Auto-save created');
+                console.log(`   Snapshots available: ${game.getSnapshotCount()}`);
 
                 // Also save to "file" (simulated)
                 saveToFile('autosave.json');
@@ -357,8 +387,8 @@ chest
     .addTag('saveable');
 
 const chestInv = chest.getComponent(Inventory);
-chestInv.addItem('Gold Coin', 100);
-chestInv.addItem('Magic Ring', 1);
+addInventoryItem(chestInv, 'Gold Coin', 100);
+addInventoryItem(chestInv, 'Magic Ring', 1);
 
 // Save/Load command system (simulated input)
 let commandTimer = 0;
@@ -497,10 +527,12 @@ console.log('Features demonstrated:');
 console.log('- World state serialization');
 console.log('- Custom component serialization');
 console.log('- Save file management');
-console.log('- Snapshot creation and restoration');
-console.log('- Auto-save functionality');
+console.log('- Snapshot creation and restoration (withMaxSnapshots)');
+console.log('- Auto-save functionality using singleton config');
 console.log('- Complex data structure persistence');
-console.log('- Save metadata and versioning\n');
+console.log('- Save metadata and versioning');
+console.log('- Singleton for save system configuration');
+console.log('- Error recovery for system resilience\n');
 console.log('Scheduled commands:');
 console.log('- 3s: Save to save1.json');
 console.log('- 8s: Save to save2.json');

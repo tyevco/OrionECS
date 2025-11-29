@@ -59,10 +59,38 @@ class Health {
     ) {}
 }
 
-// Initialize engine
-const game = new EngineBuilder().withDebugMode(true).withFixedUpdateFPS(60).build();
+// Singleton component for global game configuration
+class GameConfig {
+    constructor(
+        public screenWidth: number = 800,
+        public screenHeight: number = 600,
+        public deltaTime: number = 0.016
+    ) {}
+}
 
-// Movement System - Highest priority
+// Initialize engine with enhanced configuration
+const game = new EngineBuilder()
+    .withDebugMode(true)
+    .withFixedUpdateFPS(60)
+    .withArchetypes(true) // Enable archetype system for better performance
+    .withProfiling(true) // Enable system profiling
+    .withErrorRecovery({
+        defaultStrategy: 'skip', // Skip failing systems instead of crashing
+        maxRetries: 3,
+        onError: (error) => {
+            console.error(`System ${error.systemName} failed:`, error.error.message);
+        },
+    })
+    .build();
+
+// Set up global game configuration as a singleton
+game.setSingleton(GameConfig, 800, 600, 0.016);
+
+// Register component pools for frequently created/destroyed components
+game.registerComponentPool(Position, { initialSize: 100, maxSize: 500 });
+game.registerComponentPool(Velocity, { initialSize: 100, maxSize: 500 });
+
+// Movement System - Highest priority, uses singleton for delta time
 game.createSystem(
     'MovementSystem',
     {
@@ -71,9 +99,11 @@ game.createSystem(
     {
         priority: 100,
         act: (_entity, position, velocity) => {
-            // Simple movement with delta time (assuming 16ms per frame)
-            position.x += velocity.x * 0.016;
-            position.y += velocity.y * 0.016;
+            // Use singleton for consistent delta time across systems
+            const config = game.getSingleton(GameConfig)!;
+
+            position.x += velocity.x * config.deltaTime;
+            position.y += velocity.y * config.deltaTime;
 
             // Apply friction
             velocity.x *= 0.98;
@@ -312,6 +342,24 @@ setInterval(() => {
     const memStats = game.getMemoryStats();
     console.log(`Active Entities: ${memStats.activeEntities}`);
     console.log(`Memory Estimate: ${(memStats.totalMemoryEstimate / 1024).toFixed(2)} KB`);
+
+    // Show component pool statistics
+    const posPoolStats = game.getComponentPoolStats(Position);
+    const velPoolStats = game.getComponentPoolStats(Velocity);
+    if (posPoolStats && velPoolStats) {
+        console.log(
+            `Position Pool: ${posPoolStats.available} available, ${(posPoolStats.reuseRate * 100).toFixed(1)}% reuse rate`
+        );
+        console.log(
+            `Velocity Pool: ${velPoolStats.available} available, ${(velPoolStats.reuseRate * 100).toFixed(1)}% reuse rate`
+        );
+    }
+
+    // Show archetype stats if enabled
+    if (game.areArchetypesEnabled()) {
+        const archetypeStats = game.getArchetypeStats();
+        console.log(`Archetypes: ${archetypeStats.archetypeCount} groups`);
+    }
 }, 5000);
 
 // Run the game
@@ -322,7 +370,11 @@ console.log('- Movement and collision systems');
 console.log('- Enemy AI following player');
 console.log('- Health and damage system');
 console.log('- Message bus for collision events');
-console.log('- Performance monitoring\n');
+console.log('- Performance monitoring');
+console.log('- Singleton components for global config');
+console.log('- Component pooling for performance');
+console.log('- Error recovery configuration');
+console.log('- Archetype system for faster queries\n');
 
 game.run();
 

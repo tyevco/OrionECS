@@ -1,0 +1,240 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>OrionECS Benchmark Report - 9c8c4f3</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <style>
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0d1117;
+      color: #c9d1d9;
+      line-height: 1.6;
+      padding: 2rem;
+    }
+    .container { max-width: 1200px; margin: 0 auto; }
+    h1 { color: #58a6ff; margin-bottom: 1rem; }
+    h2 { color: #8b949e; margin: 2rem 0 1rem; border-bottom: 1px solid #30363d; padding-bottom: 0.5rem; }
+    .summary-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 1rem;
+      margin: 1rem 0;
+    }
+    .summary-card {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 1rem;
+      text-align: center;
+    }
+    .summary-card .value { font-size: 2rem; font-weight: bold; }
+    .summary-card .label { color: #8b949e; font-size: 0.875rem; }
+    .healthy { color: #3fb950; }
+    .warning { color: #d29922; }
+    .critical { color: #f85149; }
+    table { width: 100%; border-collapse: collapse; margin: 1rem 0; }
+    th, td { padding: 0.75rem; text-align: left; border-bottom: 1px solid #30363d; }
+    th { background: #161b22; color: #8b949e; }
+    tr:hover { background: #161b22; }
+    .chart-container {
+      background: #161b22;
+      border: 1px solid #30363d;
+      border-radius: 6px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    .meta { color: #8b949e; font-size: 0.875rem; margin-bottom: 2rem; }
+    .meta span { margin-right: 1rem; }
+    .regression-alert {
+      background: #f8514926;
+      border: 1px solid #f85149;
+      border-radius: 6px;
+      padding: 1rem;
+      margin: 1rem 0;
+    }
+    .regression-alert h3 { color: #f85149; margin-bottom: 0.5rem; }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h1>OrionECS Performance Benchmark Report</h1>
+
+    <div class="meta">
+      <span><strong>Commit:</strong> 9c8c4f3</span>
+      <span><strong>Branch:</strong> main</span>
+      <span><strong>Date:</strong> 11/29/2025, 1:04:02 AM</span>
+      <span><strong>Node:</strong> v20.19.5</span>
+    </div>
+
+    <div class="summary-grid">
+      <div class="summary-card">
+        <div class="value healthy">HEALTHY</div>
+        <div class="label">Overall Health</div>
+      </div>
+      <div class="summary-card">
+        <div class="value">10/10</div>
+        <div class="label">Scenarios Passed</div>
+      </div>
+      <div class="summary-card">
+        <div class="value healthy">0</div>
+        <div class="label">Regressions</div>
+      </div>
+      <div class="summary-card">
+        <div class="value">4</div>
+        <div class="label">CPU Cores</div>
+      </div>
+    </div>
+
+    
+
+    <h2>Performance Overview</h2>
+    <div class="chart-container">
+      <canvas id="opsChart"></canvas>
+    </div>
+
+    <h2>Detailed Results</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>Scenario</th>
+          <th>Ops/sec</th>
+          <th>Mean Time</th>
+          <th>Std Dev</th>
+          <th>Margin of Error</th>
+        </tr>
+      </thead>
+      <tbody>
+        
+          <tr>
+            <td>entity-creation</td>
+            <td>141</td>
+            <td>7.07ms</td>
+            <td>±0.76ms</td>
+            <td>±3.0%</td>
+          </tr>
+        
+          <tr>
+            <td>bulk-entity-creation</td>
+            <td>24</td>
+            <td>41.99ms</td>
+            <td>±0.79ms</td>
+            <td>±0.7%</td>
+          </tr>
+        
+          <tr>
+            <td>component-addition</td>
+            <td>223</td>
+            <td>4.48ms</td>
+            <td>±0.51ms</td>
+            <td>±3.1%</td>
+          </tr>
+        
+          <tr>
+            <td>simple-iteration</td>
+            <td>3.6K</td>
+            <td>0.28ms</td>
+            <td>±0.24ms</td>
+            <td>±24.0%</td>
+          </tr>
+        
+          <tr>
+            <td>large-iteration</td>
+            <td>457</td>
+            <td>2.19ms</td>
+            <td>±0.52ms</td>
+            <td>±9.4%</td>
+          </tr>
+        
+          <tr>
+            <td>multi-system</td>
+            <td>2.8K</td>
+            <td>0.35ms</td>
+            <td>±0.26ms</td>
+            <td>±20.2%</td>
+          </tr>
+        
+          <tr>
+            <td>serialization</td>
+            <td>1.3K</td>
+            <td>0.77ms</td>
+            <td>±0.27ms</td>
+            <td>±9.6%</td>
+          </tr>
+        
+          <tr>
+            <td>entity-lifecycle</td>
+            <td>1.2K</td>
+            <td>0.81ms</td>
+            <td>±0.25ms</td>
+            <td>±8.6%</td>
+          </tr>
+        
+          <tr>
+            <td>memory-usage</td>
+            <td>19</td>
+            <td>52.11ms</td>
+            <td>±6.97ms</td>
+            <td>±3.7%</td>
+          </tr>
+        
+          <tr>
+            <td>archetype-transition</td>
+            <td>231</td>
+            <td>4.33ms</td>
+            <td>±0.51ms</td>
+            <td>±3.3%</td>
+          </tr>
+        
+      </tbody>
+    </table>
+
+    <h2>Platform Information</h2>
+    <table>
+      <tr><td>Operating System</td><td>linux 6.11.0-1018-azure</td></tr>
+      <tr><td>Architecture</td><td>x64</td></tr>
+      <tr><td>CPU Cores</td><td>4</td></tr>
+      <tr><td>Total Memory</td><td>15.6 GB</td></tr>
+      <tr><td>Node.js Version</td><td>v20.19.5</td></tr>
+    </table>
+  </div>
+
+  <script>
+    const chartData = [{"scenario":"entity-creation","opsPerSecond":141.43437207243275,"meanTime":7.070417079999975},{"scenario":"bulk-entity-creation","opsPerSecond":23.81593916576151,"meanTime":41.988686359999996},{"scenario":"component-addition","opsPerSecond":223.0710432330885,"meanTime":4.482876780000051},{"scenario":"simple-iteration","opsPerSecond":3577.01254350976,"meanTime":0.2795629000000099},{"scenario":"large-iteration","opsPerSecond":456.6493877235738,"meanTime":2.1898638800000665},{"scenario":"multi-system","opsPerSecond":2829.2282363316644,"meanTime":0.35345327999998516},{"scenario":"serialization","opsPerSecond":1301.167907495124,"meanTime":0.7685403199999746},{"scenario":"entity-lifecycle","opsPerSecond":1228.1949040179263,"meanTime":0.8142030199999953},{"scenario":"memory-usage","opsPerSecond":19.19087179949665,"meanTime":52.10810693999991},{"scenario":"archetype-transition","opsPerSecond":231.01137653871493,"meanTime":4.32879114000003}];
+
+    new Chart(document.getElementById('opsChart'), {
+      type: 'bar',
+      data: {
+        labels: chartData.map(d => d.scenario),
+        datasets: [{
+          label: 'Operations per Second',
+          data: chartData.map(d => d.opsPerSecond),
+          backgroundColor: 'rgba(88, 166, 255, 0.5)',
+          borderColor: 'rgba(88, 166, 255, 1)',
+          borderWidth: 1
+        }]
+      },
+      options: {
+        responsive: true,
+        plugins: {
+          legend: { display: false },
+          title: { display: true, text: 'Benchmark Performance (ops/sec)', color: '#c9d1d9' }
+        },
+        scales: {
+          y: {
+            beginAtZero: true,
+            grid: { color: '#30363d' },
+            ticks: { color: '#8b949e' }
+          },
+          x: {
+            grid: { color: '#30363d' },
+            ticks: { color: '#8b949e' }
+          }
+        }
+      }
+    });
+  </script>
+</body>
+</html>

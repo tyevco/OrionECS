@@ -1,0 +1,11 @@
+library,scenario,opsPerSecond,meanTime,stdDev,marginOfError,success
+OrionECS,entity-creation,141.43,7.0704,0.7642,3.00,true
+OrionECS,bulk-entity-creation,23.82,41.9887,0.7874,0.74,true
+OrionECS,component-addition,223.07,4.4829,0.5052,3.12,true
+OrionECS,simple-iteration,3577.01,0.2796,0.2422,24.02,true
+OrionECS,large-iteration,456.65,2.1899,0.5227,9.36,true
+OrionECS,multi-system,2829.23,0.3535,0.2572,20.17,true
+OrionECS,serialization,1301.17,0.7685,0.2656,9.58,true
+OrionECS,entity-lifecycle,1228.19,0.8142,0.2539,8.64,true
+OrionECS,memory-usage,19.19,52.1081,6.9740,3.71,true
+OrionECS,archetype-transition,231.01,4.3288,0.5142,3.29,true

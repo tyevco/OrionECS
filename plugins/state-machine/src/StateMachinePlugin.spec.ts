@@ -328,7 +328,7 @@ describe('StateMachinePlugin', () => {
             sm.recordTransition(IdleState, PatrolState, 2.5);
 
             expect(sm.history).toHaveLength(1);
-            expect(sm.history[0].stateType).toBe(PatrolState);
+            expect(sm.history[0]!.stateType).toBe(PatrolState);
         });
 
         test('should limit history depth', () => {
@@ -340,7 +340,7 @@ describe('StateMachinePlugin', () => {
             sm.recordTransition(AttackState, FleeState, 1);
 
             expect(sm.history).toHaveLength(3);
-            expect(sm.history[0].stateType).toBe(ChaseState);
+            expect(sm.history[0]!.stateType).toBe(ChaseState);
         });
 
         test('should not record history when depth is 0', () => {

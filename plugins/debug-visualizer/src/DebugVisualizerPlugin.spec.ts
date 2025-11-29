@@ -182,7 +182,7 @@ describe('DebugVisualizerPlugin', () => {
             }
 
             for (let i = 0; i < 3; i++) {
-                const entity = engine.getAllEntities()[i];
+                const entity = engine.getAllEntities()[i]!;
                 entity.addComponent(Velocity, 1, 1);
             }
 

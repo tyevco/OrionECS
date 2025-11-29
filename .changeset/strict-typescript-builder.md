@@ -7,6 +7,9 @@
 "@orion-ecs/canvas2d-renderer": patch
 "@orion-ecs/profiling": patch
 "@orion-ecs/budgets": patch
+"@orion-ecs/timeline": patch
+"@orion-ecs/input-manager": patch
+"@orion-ecs/debug-visualizer": patch
 ---
 
 Add strict TypeScript configuration and defineComponent utility

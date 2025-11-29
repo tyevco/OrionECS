@@ -200,7 +200,7 @@ describe('TimelineBuilder', () => {
             .build();
 
         expect(timeline.actions).toHaveLength(1);
-        expect(timeline.actions[0].type).toBe('tween');
+        expect(timeline.actions[0]!.type).toBe('tween');
 
         const tween = timeline.actions[0] as { type: 'tween'; from: number; to: number };
         expect(tween.from).toBe(0);
@@ -211,7 +211,7 @@ describe('TimelineBuilder', () => {
         const timeline = createTimeline('instant').set(Position, 'x', 100, 50).build();
 
         expect(timeline.actions).toHaveLength(1);
-        expect(timeline.actions[0].type).toBe('set');
+        expect(timeline.actions[0]!.type).toBe('set');
     });
 
     test('creates timeline with addDelta action', () => {
@@ -230,8 +230,8 @@ describe('TimelineBuilder', () => {
             .build();
 
         expect(timeline.actions).toHaveLength(2);
-        expect(timeline.actions[0].type).toBe('add');
-        expect(timeline.actions[1].type).toBe('remove');
+        expect(timeline.actions[0]!.type).toBe('add');
+        expect(timeline.actions[1]!.type).toBe('remove');
     });
 
     test('creates timeline with emit action', () => {
@@ -241,8 +241,8 @@ describe('TimelineBuilder', () => {
             .build();
 
         expect(timeline.actions).toHaveLength(2);
-        expect(timeline.actions[0].type).toBe('emit');
-        expect(timeline.actions[1].type).toBe('emit');
+        expect(timeline.actions[0]!.type).toBe('emit');
+        expect(timeline.actions[1]!.type).toBe('emit');
     });
 
     test('creates composite timeline', () => {
@@ -253,9 +253,9 @@ describe('TimelineBuilder', () => {
             .build();
 
         expect(timeline.actions).toHaveLength(3);
-        expect(timeline.actions[0].type).toBe('timeline');
-        expect(timeline.actions[1].type).toBe('timeline');
-        expect(timeline.actions[2].type).toBe('timeline');
+        expect(timeline.actions[0]!.type).toBe('timeline');
+        expect(timeline.actions[1]!.type).toBe('timeline');
+        expect(timeline.actions[2]!.type).toBe('timeline');
     });
 
     test('calculates duration automatically', () => {
@@ -687,7 +687,7 @@ describe('Timeline Integration', () => {
         const composite = engine.timeline.get('meleeAttack');
         expect(composite).toBeDefined();
         expect(composite?.actions).toHaveLength(3);
-        expect(composite?.actions[0].type).toBe('timeline');
+        expect(composite?.actions[0]!.type).toBe('timeline');
     });
 });
 

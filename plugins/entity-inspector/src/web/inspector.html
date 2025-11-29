@@ -685,7 +685,8 @@
         // Security: Sanitize log messages to prevent log injection
         function sanitizeLogMessage(message) {
             if (message === null || message === undefined) return '';
-            return String(message).replace(/[\r\n]/g, ' ');
+            // Remove all ASCII control characters except for space (0x20)
+            return String(message).replace(/[\x00-\x1F\x7F]/g, '');
         }
 
         // Security: Validate numeric value
@@ -802,7 +803,7 @@
 
                 case 'update_result':
                     if (!message.data.success) {
-                        console.error('Update failed:', sanitizeLogMessage(message.data.error));
+                        console.error('Update failed: [user error]', `"${sanitizeLogMessage(message.data.error)}"`);
                     }
                     break;
             }

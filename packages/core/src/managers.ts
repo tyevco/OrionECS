@@ -5,6 +5,7 @@
 
 import { ArchetypeManager } from './archetype';
 import {
+    type AnySystemTuple,
     ComponentArray,
     type Entity,
     type EventEmitter,
@@ -267,15 +268,14 @@ export class ComponentManager {
 /**
  * Manages system registration, execution, and profiling
  *
- * Note: Internal arrays use 'any' for heterogeneous system storage.
+ * Note: Internal arrays use AnySystemTuple for heterogeneous system storage,
+ * providing better type safety than 'any' while allowing systems with different
+ * component requirements.
  */
 export class SystemManager {
-    // System arrays store heterogeneous component type tuples.
-    // Using 'any' for internal storage due to TypeScript's variance rules with readonly types.
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private systems: System<any>[] = [];
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private fixedUpdateSystems: System<any>[] = [];
+    // System arrays store heterogeneous component type tuples using the AnySystemTuple constraint.
+    private systems: System<AnySystemTuple>[] = [];
+    private fixedUpdateSystems: System<AnySystemTuple>[] = [];
     private systemsSorted: boolean = true;
     private fixedSystemsSorted: boolean = true;
     private fixedUpdateAccumulator: number = 0;
@@ -286,8 +286,8 @@ export class SystemManager {
     private sortedGroupsCache: SystemGroup[] | null = null;
     private groupsCacheValid: boolean = false;
     // Cache for sorted group systems to reduce GC pressure in hot path
-    private groupVariableSystemsCache: Map<string, System<any>[]> = new Map();
-    private groupFixedSystemsCache: Map<string, System<any>[]> = new Map();
+    private groupVariableSystemsCache: Map<string, System<AnySystemTuple>[]> = new Map();
+    private groupFixedSystemsCache: Map<string, System<AnySystemTuple>[]> = new Map();
     private groupSystemsCacheValid: boolean = false;
     // Error recovery manager for system error isolation
     private errorRecoveryManager?: ErrorRecoveryManager;
@@ -331,8 +331,7 @@ export class SystemManager {
         return group;
     }
 
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    createSystem<C extends readonly any[] = any[]>(
+    createSystem<C extends readonly unknown[] = unknown[]>(
         system: System<C>,
         isFixedUpdate: boolean = false,
         errorConfig?: SystemErrorConfig
@@ -345,14 +344,18 @@ export class SystemManager {
                     `System group '${system.group}' not found. Create it first with createSystemGroup().`
                 );
             }
-            group.systems.push(system);
+            // Type assertion required due to TypeScript variance rules with function parameters.
+            // The System's act callback is contravariant, preventing direct assignment.
+            group.systems.push(system as System<AnySystemTuple>);
         }
 
+        // Type assertions below are required due to TypeScript variance rules.
+        // Systems with specific component tuples are safely stored in heterogeneous arrays.
         if (isFixedUpdate) {
-            this.fixedUpdateSystems.push(system);
+            this.fixedUpdateSystems.push(system as System<AnySystemTuple>);
             this.fixedSystemsSorted = false;
         } else {
-            this.systems.push(system);
+            this.systems.push(system as System<AnySystemTuple>);
             this.systemsSorted = false;
         }
 
@@ -367,10 +370,10 @@ export class SystemManager {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private topologicalSort(systems: System<any>[]): System<any>[] {
+    private topologicalSort(systems: System<AnySystemTuple>[]): System<AnySystemTuple>[] {
         // Build system name to system map
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const systemMap = new Map<string, System<any>>();
+        const systemMap = new Map<string, System<AnySystemTuple>>();
         for (const system of systems) {
             systemMap.set(system.name, system);
         }
@@ -412,7 +415,7 @@ export class SystemManager {
         // Kahn's algorithm for topological sort
         const queue: string[] = [];
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        const result: System<any>[] = [];
+        const result: System<AnySystemTuple>[] = [];
 
         // Find all nodes with in-degree 0
         for (const [name, degree] of inDegree) {
@@ -463,7 +466,7 @@ export class SystemManager {
         if (result.length > 1) {
             // Extract systems with no explicit dependencies
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            const noDeps: System<any>[] = [];
+            const noDeps: System<AnySystemTuple>[] = [];
             for (const system of result) {
                 if (system.runAfter.length === 0 && system.runBefore.length === 0) {
                     noDeps.push(system);
@@ -544,15 +547,18 @@ export class SystemManager {
             // Execute systems in this group that are variable update systems (sorted by system priority)
             // Use cached sorted arrays to reduce GC pressure in hot path
             // eslint-disable-next-line @typescript-eslint/no-explicit-any
-            let groupSystems: System<any>[];
+            let groupSystems: System<AnySystemTuple>[];
             if (this.groupSystemsCacheValid && this.groupVariableSystemsCache.has(group.name)) {
                 groupSystems = this.groupVariableSystemsCache.get(group.name)!;
             } else {
                 groupSystems = group.systems
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    .filter((s: System<any>) => this.systems.includes(s))
+                    .filter((s: System<AnySystemTuple>) => this.systems.includes(s))
                     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                    .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
+                    .sort(
+                        (a: System<AnySystemTuple>, b: System<AnySystemTuple>) =>
+                            b.priority - a.priority
+                    );
                 this.groupVariableSystemsCache.set(group.name, groupSystems);
             }
 
@@ -578,7 +584,7 @@ export class SystemManager {
      * Execute a single system with error recovery if enabled.
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    private executeSystemWithRecovery(system: System<any>, deltaTime: number): void {
+    private executeSystemWithRecovery(system: System<AnySystemTuple>, deltaTime: number): void {
         if (this.errorRecoveryEnabled && this.errorRecoveryManager) {
             // Check if the system is healthy enough to execute
             if (!this.errorRecoveryManager.isSystemHealthy(system.name)) {
@@ -615,15 +621,18 @@ export class SystemManager {
                 // Execute systems in this group that are fixed update systems (sorted by system priority)
                 // Use cached sorted arrays to reduce GC pressure in hot path
                 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                let groupSystems: System<any>[];
+                let groupSystems: System<AnySystemTuple>[];
                 if (this.groupSystemsCacheValid && this.groupFixedSystemsCache.has(group.name)) {
                     groupSystems = this.groupFixedSystemsCache.get(group.name)!;
                 } else {
                     groupSystems = group.systems
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        .filter((s: System<any>) => this.fixedUpdateSystems.includes(s))
+                        .filter((s: System<AnySystemTuple>) => this.fixedUpdateSystems.includes(s))
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        .sort((a: System<any>, b: System<any>) => b.priority - a.priority);
+                        .sort(
+                            (a: System<AnySystemTuple>, b: System<AnySystemTuple>) =>
+                                b.priority - a.priority
+                        );
                     this.groupFixedSystemsCache.set(group.name, groupSystems);
                 }
 
@@ -677,7 +686,7 @@ export class SystemManager {
     }
 
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getAllSystems(): System<any>[] {
+    getAllSystems(): System<AnySystemTuple>[] {
         return [...this.systems, ...this.fixedUpdateSystems];
     }
 
@@ -691,7 +700,7 @@ export class SystemManager {
      * @returns The system if found, undefined otherwise
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getSystem(name: string): System<any> | undefined {
+    getSystem(name: string): System<AnySystemTuple> | undefined {
         return (
             this.systems.find((s) => s.name === name) ||
             this.fixedUpdateSystems.find((s) => s.name === name)
@@ -717,7 +726,7 @@ export class SystemManager {
                 if (group) {
                     const groupIndex = group.systems.findIndex(
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (s: System<any>) => s.name === name
+                        (s: System<AnySystemTuple>) => s.name === name
                     );
                     if (groupIndex !== -1) {
                         group.systems.splice(groupIndex, 1);
@@ -750,7 +759,7 @@ export class SystemManager {
                 if (group) {
                     const groupIndex = group.systems.findIndex(
                         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-                        (s: System<any>) => s.name === name
+                        (s: System<AnySystemTuple>) => s.name === name
                     );
                     if (groupIndex !== -1) {
                         group.systems.splice(groupIndex, 1);

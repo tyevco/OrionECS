@@ -1785,8 +1785,14 @@ export class Entity implements EntityDef {
 /**
  * SystemGroup for organizing systems into execution phases
  */
+/**
+ * Type constraint for heterogeneous system component tuples.
+ * Used for internal storage of systems with different component requirements.
+ */
+export type AnySystemTuple = readonly unknown[];
+
 export class SystemGroup {
-    systems: System<any>[] = [];
+    systems: System<AnySystemTuple>[] = [];
 
     constructor(
         public name: string,

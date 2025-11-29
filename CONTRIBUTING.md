@@ -91,24 +91,40 @@ OrionECS uses a monorepo structure managed with npm workspaces and Turbo:
 
 ```
 OrionECS/
-├── core/               # Core ECS engine package
-│   ├── src/
-│   │   ├── engine.ts      # Engine facade and builder
-│   │   ├── core.ts        # Core ECS components
-│   │   ├── managers.ts    # Specialized managers
-│   │   ├── archetype.ts   # Archetype system
-│   │   └── definitions.ts # TypeScript interfaces
-│   └── package.json
-├── plugins/            # Official plugins
-│   ├── physics/
-│   ├── spatial-partition/
-│   ├── debug-visualizer/
-│   └── ...
-├── examples/           # Example applications
-│   ├── games/
-│   └── integrations/
-├── benchmarks/         # Performance benchmarks
-└── utils/              # Shared utilities
+├── packages/              # Core packages (npm workspaces)
+│   ├── core/              # Main ECS engine (@orion-ecs/core)
+│   ├── graphics/          # Graphics utilities (@orion-ecs/graphics)
+│   ├── math/              # Math utilities (@orion-ecs/math)
+│   ├── plugin-api/        # Plugin API types (@orion-ecs/plugin-api)
+│   ├── testing/           # Testing utilities (@orion-ecs/testing)
+│   ├── eslint-plugin-ecs/ # ESLint rules for ECS patterns
+│   ├── vscode-extension/  # VS Code extension
+│   └── create/            # Project scaffolding CLI
+├── plugins/               # Official plugins
+│   ├── budgets/           # Performance budgets & monitoring
+│   ├── canvas2d-renderer/ # Canvas2D rendering
+│   ├── debug-visualizer/  # Debug visualization
+│   ├── decision-tree/     # AI decision trees
+│   ├── entity-inspector/  # Entity inspection tools
+│   ├── input-manager/     # Input handling
+│   ├── interaction-system/# Interaction system
+│   ├── network/           # Networking support
+│   ├── physics/           # Physics simulation
+│   ├── profiling/         # Performance profiling
+│   ├── resource-manager/  # Resource management
+│   ├── spatial-partition/ # Spatial partitioning
+│   ├── state-machine/     # State machine support
+│   └── timeline/          # Timeline/animation system
+├── examples/              # Example applications
+│   ├── games/             # Game examples
+│   ├── integrations/      # Integration examples
+│   └── console-examples/  # Console-based examples
+├── tutorials/             # Runnable tutorial code
+├── benchmarks/            # Performance benchmarks
+├── docs/                  # Documentation
+│   ├── tutorials/         # Tutorial guides
+│   └── migrations/        # Migration guides
+└── scripts/               # Build and utility scripts
 ```
 
 ### Development Commands

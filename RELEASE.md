@@ -21,15 +21,25 @@ The following packages can be published to npm:
   - `@orion-ecs/graphics` - Graphics primitives (Color, Mesh, Vertex)
   - `@orion-ecs/testing` - Testing utilities for ECS systems
   - `@orion-ecs/plugin-api` - Plugin API types for plugin authors
+- **Tooling Packages**:
+  - `@orion-ecs/eslint-plugin-ecs` - ESLint rules for ECS patterns
+  - `@orion-ecs/create` - Project scaffolding CLI
+  - `@orion-ecs/vscode-extension` - VS Code extension
 - **Plugin Packages**:
+  - `@orion-ecs/budgets` - Performance budgets and monitoring
   - `@orion-ecs/canvas2d-renderer` - Canvas2D rendering
+  - `@orion-ecs/debug-visualizer` - Debug visualization
+  - `@orion-ecs/decision-tree` - AI decision trees
+  - `@orion-ecs/entity-inspector` - Entity inspection tools
   - `@orion-ecs/input-manager` - Input handling
   - `@orion-ecs/interaction-system` - Interaction system
+  - `@orion-ecs/network` - Networking support
   - `@orion-ecs/physics` - Physics simulation
-  - `@orion-ecs/spatial-partition` - Spatial partitioning
-  - `@orion-ecs/debug-visualizer` - Debug visualization
   - `@orion-ecs/profiling` - Performance profiling
   - `@orion-ecs/resource-manager` - Resource management
+  - `@orion-ecs/spatial-partition` - Spatial partitioning
+  - `@orion-ecs/state-machine` - State machine support
+  - `@orion-ecs/timeline` - Timeline/animation system
 
 ## Authentication
 

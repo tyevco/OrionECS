@@ -49,6 +49,7 @@
     "plugins/physics",
     "plugins/spatial-partition",
     "plugins/profiling",
+    "plugins/budgets",
     "plugins/resource-manager",
     "plugins/state-machine",
     "plugins/timeline",

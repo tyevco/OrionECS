@@ -1,0 +1,50 @@
+{
+  "name": "@orion-ecs/budgets",
+  "version": "0.4.0",
+  "description": "Performance budgeting and monitoring plugin for OrionECS with time, memory, and entity count budgets",
+  "main": "./dist/index.js",
+  "module": "./dist/index.mjs",
+  "types": "./dist/index.d.ts",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "import": "./dist/index.mjs",
+      "require": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist",
+    "src"
+  ],
+  "scripts": {
+    "build": "tsup",
+    "test": "jest"
+  },
+  "keywords": [
+    "ecs",
+    "orion-ecs",
+    "plugin",
+    "budgets",
+    "performance",
+    "monitoring",
+    "metrics"
+  ],
+  "author": "",
+  "license": "MIT",
+  "peerDependencies": {
+    "@orion-ecs/core": "*"
+  },
+  "devDependencies": {
+    "@orion-ecs/core": "*",
+    "@orion-ecs/plugin-api": "*",
+    "@orion-ecs/testing": "*",
+    "@types/jest": "^30.0.0",
+    "jest": "^30.0.0",
+    "ts-jest": "^29.0.0",
+    "tsup": "^8.0.0",
+    "typescript": "^5.3.0"
+  },
+  "publishConfig": {
+    "access": "public"
+  }
+}

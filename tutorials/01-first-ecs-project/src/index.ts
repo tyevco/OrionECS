@@ -10,7 +10,7 @@
  * - Running a basic update loop
  */
 
-import { EngineBuilder, EntityDef } from '@orion-ecs/core';
+import { EngineBuilder } from '@orion-ecs/core';
 import { Position, Velocity, Renderable } from './components';
 
 // Build the engine with debug mode enabled for helpful error messages
@@ -66,14 +66,14 @@ engine.createSystem(
     all: [Position, Velocity]  // Query: entities with both components
   },
   {
-    act: (_entity: EntityDef, ...components: any[]) => {
-      const [position, velocity] = components as [Position, Velocity];
+    act: (_entity, position, velocity) => {
       // Update position based on velocity
+      // Components are passed in the same order as specified in the query
       position.x += velocity.x;
       position.y += velocity.y;
     }
-  },
-  false  // false = variable update (runs every frame)
+  }
+  // Note: omitting the 4th parameter defaults to variable update (runs every frame)
 );
 
 console.log('✓ MovementSystem created');
@@ -95,8 +95,7 @@ engine.createSystem(
       console.log('║' + ' OrionECS Tutorial 1: Your First ECS Project '.padEnd(48) + '║');
       console.log('╠' + '═'.repeat(48) + '╣');
     },
-    act: (entity: EntityDef, ...components: any[]) => {
-      const [position, renderable] = components as [Position, Renderable];
+    act: (entity, position, renderable) => {
       // Simple console rendering
       const x = Math.round(position.x).toString().padStart(3);
       const y = Math.round(position.y).toString().padStart(3);
@@ -108,8 +107,7 @@ engine.createSystem(
       console.log(`║ Frame: ${frameCount.toString().padStart(3)}  |  Entities: ${engine.getAllEntities().length}                    ║`);
       console.log('╚' + '═'.repeat(48) + '╝');
     }
-  },
-  false
+  }
 );
 
 console.log('✓ RenderSystem created');
@@ -140,15 +138,16 @@ function update() {
     console.log('╠' + '═'.repeat(48) + '╣');
     console.log('║ Final positions:'.padEnd(49) + '║');
 
-    // Display final state using a manual query
-    const entities = engine.query().withAll(Position).build().getEntitiesArray();
-    entities.forEach((entity: EntityDef) => {
+    // Display final state using a query
+    // createQuery is the preferred API for one-off queries
+    const query = engine.createQuery({ all: [Position] });
+    for (const entity of query.getEntities()) {
       const pos = entity.getComponent(Position)!;
       const x = Math.round(pos.x).toString().padStart(3);
       const y = Math.round(pos.y).toString().padStart(3);
       const name = entity.name || 'Unknown';
       console.log(`║   ${name.padEnd(12)}: (${x}, ${y})              ║`);
-    });
+    }
 
     console.log('╚' + '═'.repeat(48) + '╝');
     console.log('\nTry the challenges in the tutorial to learn more!');

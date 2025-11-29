@@ -184,7 +184,7 @@ function createEntities() {
   entity3.addComponent(Velocity, 0, -1);
   entity3.addComponent(Renderable, '↑', 'yellow');
 
-  console.log(`Created ${engine.entityCount} entities`);
+  console.log(`Created ${engine.getAllEntities().length} entities`);
 }
 
 createEntities();
@@ -214,13 +214,13 @@ engine.createSystem(
     all: [Position, Velocity]  // Only process entities with BOTH components
   },
   {
-    act: (entity, position, velocity) => {
+    act: (_entity, position, velocity) => {
       // Update position based on velocity
+      // Components are passed in the same order as specified in the query
       position.x += velocity.x;
       position.y += velocity.y;
     }
-  },
-  false  // false = variable update (runs every frame)
+  }
 );
 
 console.log('MovementSystem created');
@@ -229,8 +229,8 @@ console.log('MovementSystem created');
 **Explanation:**
 - **System name**: 'MovementSystem' for identification
 - **Query**: `{ all: [Position, Velocity] }` - only entities with both components
-- **act function**: Receives entity and its components, updates position
-- **Variable update**: Runs every frame (we'll see fixed updates in later tutorials)
+- **act function**: Receives entity and its components (in query order), updates position
+- **Variable update**: Runs every frame (the default; we'll see fixed updates in later tutorials)
 - The system automatically finds matching entities each frame
 
 ### Step 6: Create a Render System
@@ -262,10 +262,9 @@ engine.createSystem(
     },
     after: () => {
       console.log('='.repeat(50));
-      console.log(`Frame complete. Entities: ${engine.entityCount}`);
+      console.log(`Frame complete. Entities: ${engine.getAllEntities().length}`);
     }
-  },
-  false
+  }
 );
 
 console.log('RenderSystem created');
@@ -305,11 +304,12 @@ function update() {
     console.log(`Total frames: ${frameCount}`);
     console.log('Final positions:');
 
-    // Display final state
-    engine.query({ all: [Position] }).forEach(entity => {
+    // Display final state using a query
+    const query = engine.createQuery({ all: [Position] });
+    for (const entity of query.getEntities()) {
       const pos = entity.getComponent(Position);
       console.log(`  ${entity.name}: (${Math.round(pos.x)}, ${Math.round(pos.y)})`);
-    });
+    }
   }
 }
 
@@ -399,7 +399,7 @@ function createEntities() {
   entity3.addComponent(Velocity, 0, -1);
   entity3.addComponent(Renderable, '↑', 'yellow');
 
-  console.log(`Created ${engine.entityCount} entities`);
+  console.log(`Created ${engine.getAllEntities().length} entities`);
 }
 
 createEntities();
@@ -411,12 +411,11 @@ engine.createSystem(
     all: [Position, Velocity]
   },
   {
-    act: (entity, position, velocity) => {
+    act: (_entity, position, velocity) => {
       position.x += velocity.x;
       position.y += velocity.y;
     }
-  },
-  false
+  }
 );
 
 // Render System
@@ -437,10 +436,9 @@ engine.createSystem(
     },
     after: () => {
       console.log('='.repeat(50));
-      console.log(`Frame complete. Entities: ${engine.entityCount}`);
+      console.log(`Frame complete. Entities: ${engine.getAllEntities().length}`);
     }
-  },
-  false
+  }
 );
 
 // Main loop
@@ -579,7 +577,7 @@ engine.createSystem(
   { all: [Position] },
   {
     priority: 5,  // Run after MovementSystem (default priority 10)
-    act: (entity, position) => {
+    act: (_entity, position) => {
       // Wrap x coordinate
       if (position.x < 0) position.x = 80;
       if (position.x > 80) position.x = 0;
@@ -588,8 +586,7 @@ engine.createSystem(
       if (position.y < 0) position.y = 24;
       if (position.y > 24) position.y = 0;
     }
-  },
-  false
+  }
 );
 ```
 </details>
@@ -623,12 +620,11 @@ engine.createSystem(
   { all: [Velocity, Acceleration] },
   {
     priority: 15,  // Run before MovementSystem
-    act: (entity, velocity, acceleration) => {
+    act: (_entity, velocity, acceleration) => {
       velocity.x += acceleration.x;
       velocity.y += acceleration.y;
     }
-  },
-  false
+  }
 );
 
 // Create an entity with acceleration

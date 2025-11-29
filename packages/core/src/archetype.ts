@@ -279,9 +279,14 @@ export class Archetype {
             const components = new Map<ComponentIdentifier, any>();
             for (const type of this.componentTypes) {
                 const array = this.componentArrays.get(type);
-                if (array && index < array.length) {
-                    components.set(type, array[index]);
+                // Additional validation for stale indices during iteration
+                if (!array || index >= array.length || index < 0) {
+                    console.warn(
+                        `[ECS] Stale index ${index} for component ${type.name} during iteration`
+                    );
+                    continue;
                 }
+                components.set(type, array[index]);
             }
             return components;
         }

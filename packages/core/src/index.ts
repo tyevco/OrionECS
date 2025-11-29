@@ -77,6 +77,8 @@ export type {
     EventCallback,
     EventTypes,
     ExtractPluginExtensions,
+    // Strict component typing utilities
+    InferStrictComponentClass,
     InstalledPlugin,
     Logger,
     LogLevel,
@@ -90,6 +92,7 @@ export type {
     RecoveryStrategy,
     SerializedEntity,
     SerializedWorld,
+    StrictComponentClass,
     SystemError,
     SystemErrorConfig,
     SystemHealth,

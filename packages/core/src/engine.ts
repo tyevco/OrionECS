@@ -2398,13 +2398,13 @@ export class Engine {
                 name: string,
                 queryOptions: QueryOptions<All>,
                 options: SystemType<ComponentTypes<All>>,
-                isFixedUpdate: boolean = false
-            ): any => {
-                return this.createSystem(name, queryOptions, options, isFixedUpdate);
+                isFixedUpdate?: boolean
+            ): System<ComponentTypes<All>> => {
+                return this.createSystem(name, queryOptions, options, isFixedUpdate ?? false);
             },
             createQuery: <All extends readonly ComponentIdentifier[]>(
                 options: QueryOptions<All>
-            ): any => {
+            ): Query<ComponentTypes<All>> => {
                 return this.createQuery(options);
             },
             registerPrefab: (name: string, prefab: EntityPrefab): void => {
@@ -2460,7 +2460,7 @@ export class Engine {
                 (this as any)[extensionName] = api;
             },
             logger: this._logger,
-            getEngine: (): any => {
+            getEngine: (): Engine => {
                 return this;
             },
         };

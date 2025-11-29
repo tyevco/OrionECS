@@ -776,6 +776,22 @@ export class Engine {
     }
 
     /**
+     * Get the count of active entities in the world.
+     *
+     * More efficient than `getAllEntities().length` as it doesn't create an array.
+     *
+     * @returns The number of active entities
+     *
+     * @example
+     * ```typescript
+     * console.log(`Entities in world: ${engine.entityCount}`);
+     * ```
+     */
+    get entityCount(): number {
+        return this.entityManager.getEntityCount();
+    }
+
+    /**
      * Find all entities with a specific tag.
      *
      * @param tag - The tag to search for

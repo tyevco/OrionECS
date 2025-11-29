@@ -2637,6 +2637,15 @@ export class EntityManager {
         return Array.from(this.activeEntities.values());
     }
 
+    /**
+     * Get the count of active entities.
+     * More efficient than getAllEntities().length as it doesn't create an array.
+     * @returns The number of active entities
+     */
+    getEntityCount(): number {
+        return this.activeEntities.size;
+    }
+
     getEntitiesByTag(tag: string): Entity[] {
         const tagged = this.entitiesByTag.get(tag);
         return tagged ? Array.from(tagged) : [];

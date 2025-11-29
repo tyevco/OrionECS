@@ -184,7 +184,7 @@ function createEntities() {
   entity3.addComponent(Velocity, 0, -1);
   entity3.addComponent(Renderable, '↑', 'yellow');
 
-  console.log(`Created ${engine.getAllEntities().length} entities`);
+  console.log(`Created ${engine.entityCount} entities`);
 }
 
 createEntities();
@@ -262,7 +262,7 @@ engine.createSystem(
     },
     after: () => {
       console.log('='.repeat(50));
-      console.log(`Frame complete. Entities: ${engine.getAllEntities().length}`);
+      console.log(`Frame complete. Entities: ${engine.entityCount}`);
     }
   }
 );
@@ -399,7 +399,7 @@ function createEntities() {
   entity3.addComponent(Velocity, 0, -1);
   entity3.addComponent(Renderable, '↑', 'yellow');
 
-  console.log(`Created ${engine.getAllEntities().length} entities`);
+  console.log(`Created ${engine.entityCount} entities`);
 }
 
 createEntities();
@@ -436,7 +436,7 @@ engine.createSystem(
     },
     after: () => {
       console.log('='.repeat(50));
-      console.log(`Frame complete. Entities: ${engine.getAllEntities().length}`);
+      console.log(`Frame complete. Entities: ${engine.entityCount}`);
     }
   }
 );

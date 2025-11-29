@@ -50,7 +50,7 @@ function createEntities() {
   entity3.addComponent(Renderable, '↑', 'yellow');
   console.log(`✓ Created ${entity3.name} (moving up)`);
 
-  console.log(`\n✓ Total entities created: ${engine.getAllEntities().length}\n`);
+  console.log(`\n✓ Total entities created: ${engine.entityCount}\n`);
 }
 
 // Create our entities
@@ -104,7 +104,7 @@ engine.createSystem(
     },
     after: () => {
       console.log('╠' + '═'.repeat(48) + '╣');
-      console.log(`║ Frame: ${frameCount.toString().padStart(3)}  |  Entities: ${engine.getAllEntities().length}                    ║`);
+      console.log(`║ Frame: ${frameCount.toString().padStart(3)}  |  Entities: ${engine.entityCount}                    ║`);
       console.log('╚' + '═'.repeat(48) + '╝');
     }
   }

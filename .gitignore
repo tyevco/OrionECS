@@ -145,6 +145,7 @@ publish/
 
 # Allow our monorepo packages
 !/packages/core/
+!/packages/create/
 !/packages/math/
 !/packages/graphics/
 !/packages/plugin-api/

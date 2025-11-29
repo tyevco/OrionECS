@@ -161,19 +161,24 @@ Do NOT create changesets for:
 
 ```
 OrionECS/
-├── packages/           # Core packages (npm workspaces)
-│   ├── core/          # Main ECS engine (@orion-ecs/core)
-│   ├── graphics/      # Graphics utilities (@orion-ecs/graphics)
-│   ├── math/          # Math utilities (@orion-ecs/math)
-│   ├── plugin-api/    # Plugin API types (@orion-ecs/plugin-api)
-│   └── testing/       # Testing utilities (@orion-ecs/testing)
-├── plugins/           # Official plugins (physics, input, spatial, etc.)
-├── examples/          # Sample applications (games, integrations)
-├── benchmarks/        # Performance benchmarks
-└── docs/              # Tutorials, migrations, cookbook
+├── packages/              # Core packages (npm workspaces)
+│   ├── core/              # Main ECS engine (@orion-ecs/core)
+│   ├── graphics/          # Graphics utilities (@orion-ecs/graphics)
+│   ├── math/              # Math utilities (@orion-ecs/math)
+│   ├── plugin-api/        # Plugin API types (@orion-ecs/plugin-api)
+│   ├── testing/           # Testing utilities (@orion-ecs/testing)
+│   ├── eslint-plugin-ecs/ # ESLint rules for ECS patterns
+│   ├── vscode-extension/  # VS Code extension
+│   └── create/            # Project scaffolding CLI
+├── plugins/               # Official plugins (14 plugins)
+├── examples/              # Sample applications (games, integrations)
+├── tutorials/             # Runnable tutorial code
+├── benchmarks/            # Performance benchmarks
+├── docs/                  # Tutorials, migrations, cookbook
+└── scripts/               # Build and utility scripts
 ```
 
-**For detailed package breakdown, see [CONTRIBUTING.md](./CONTRIBUTING.md#project-structure).**
+**For detailed package and plugin breakdown, see [CONTRIBUTING.md](./CONTRIBUTING.md#project-structure).**
 
 ## Code Patterns
 
@@ -279,3 +284,5 @@ WebFetch('https://github.com/tyevco/OrionECS/issues/88', 'Extract issue details'
 | [PERFORMANCE.md](./PERFORMANCE.md) | Benchmarks, optimization tips |
 | [docs/COOKBOOK.md](./docs/COOKBOOK.md) | Recipes and patterns |
 | [docs/tutorials/](./docs/tutorials/) | Step-by-step tutorials |
+| [docs/PERFORMANCE-REGRESSION-TESTING.md](./docs/PERFORMANCE-REGRESSION-TESTING.md) | Performance regression testing system |
+| [docs/migrations/](./docs/migrations/) | Migration guides from other ECS frameworks |

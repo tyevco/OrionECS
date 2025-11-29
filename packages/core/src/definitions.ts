@@ -32,20 +32,118 @@ type Logger = PluginApiLogger;
 /**
  * Type representing a component class constructor.
  *
- * Using `any[]` for constructor args is necessary because TypeScript cannot express
- * "any tuple of arguments" in a covariant way with `unknown[]`. Type safety at the
- * call site is ensured via `ConstructorParameters<T>` when adding components.
+ * This type uses `any[]` for constructor parameters due to TypeScript's variance rules.
+ * Using `unknown[]` would prevent assigning specific component classes (like `class Position { constructor(x: number, y: number) {} }`)
+ * to this type, because TypeScript uses contravariance for function parameters.
+ *
+ * **Type Safety Model:**
+ * - `ComponentIdentifier` is used as a **runtime reference** to component classes (storage, queries, maps)
+ * - Full compile-time type safety is provided at **call sites** via `ConstructorParameters`:
+ *   ```typescript
+ *   addComponent<T>(type: ComponentIdentifier<T>, ...args: ConstructorParameters<typeof type>): this
+ *   ```
+ * - For stricter typing at definition time, use {@link StrictComponentClass}
  *
  * @typeParam T - The instance type of the component
+ * @see StrictComponentClass - Stricter alternative that captures constructor args
+ * @see ComponentArgs - Utility to extract constructor parameters from a component type
  * @public
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
 export type ComponentIdentifier<T = unknown> = new (...args: any[]) => T;
 
 /**
+ * A stricter component class type that captures both instance type and constructor arguments.
+ *
+ * Use this type when you need compile-time validation of constructor arguments
+ * at the definition site rather than the call site. This is particularly useful
+ * for:
+ * - Type-safe component factories
+ * - Plugin APIs that need to validate component constructors
+ * - Generic utilities that work with component types
+ *
+ * @typeParam T - The instance type of the component
+ * @typeParam Args - Tuple type of constructor arguments (defaults to unknown[] for flexibility)
+ *
+ * @example
+ * ```typescript
+ * // Define a position component
+ * class Position {
+ *   constructor(public x: number, public y: number) {}
+ * }
+ *
+ * // StrictComponentClass captures both the instance type and constructor args
+ * type PositionClass = StrictComponentClass<Position, [number, number]>;
+ *
+ * // This enables type-safe component instantiation:
+ * function createComponent<T, Args extends unknown[]>(
+ *   ComponentClass: StrictComponentClass<T, Args>,
+ *   ...args: Args
+ * ): T {
+ *   return new ComponentClass(...args);
+ * }
+ *
+ * const pos = createComponent(Position, 10, 20); // TypeScript validates args!
+ * ```
+ *
+ * @see ComponentIdentifier - More permissive type for general component references
+ * @public
+ */
+export type StrictComponentClass<T, Args extends unknown[] = unknown[]> = new (...args: Args) => T;
+
+/**
+ * Infer the strict component class type from a component constructor.
+ *
+ * This utility type extracts both the instance type and constructor argument types
+ * from a component class, creating a {@link StrictComponentClass} type.
+ *
+ * @typeParam C - The component constructor type to infer from
+ *
+ * @example
+ * ```typescript
+ * class Position {
+ *   constructor(public x: number, public y: number) {}
+ * }
+ *
+ * // InferStrictComponentClass<typeof Position> = StrictComponentClass<Position, [number, number]>
+ * type PositionType = InferStrictComponentClass<typeof Position>;
+ * ```
+ *
+ * @public
+ */
+export type InferStrictComponentClass<C> = C extends new (
+    ...args: infer Args
+) => infer T
+    ? StrictComponentClass<T, Args>
+    : never;
+
+/**
  * Extract constructor parameter types from a component identifier.
  *
+ * This is a convenience alias for TypeScript's built-in `ConstructorParameters`,
+ * specialized for component types. Use this to get type-safe constructor arguments.
+ *
  * @typeParam T - The component identifier type
+ *
+ * @example
+ * ```typescript
+ * class Health {
+ *   constructor(public current: number, public max: number) {}
+ * }
+ *
+ * // ComponentArgs<typeof Health> = [number, number]
+ * type HealthArgs = ComponentArgs<typeof Health>;
+ *
+ * // Use in generic functions:
+ * function addComponent<C extends ComponentIdentifier>(
+ *   entity: Entity,
+ *   component: C,
+ *   ...args: ComponentArgs<C>
+ * ): void {
+ *   entity.addComponent(component, ...args);
+ * }
+ * ```
+ *
  * @public
  */
 export type ComponentArgs<T> = T extends new (...args: infer A) => unknown ? A : never;

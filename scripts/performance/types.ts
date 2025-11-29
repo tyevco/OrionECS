@@ -141,6 +141,8 @@ export interface RegressionConfig {
     budgetsPath: string;
     baselinePath: string;
     resultsPath: string;
+    /** Path to baseline results file for direct comparison (same-runner mode) */
+    baselineResultsPath?: string;
     outputPath?: string;
     failOnRegression?: boolean;
     failOnBudgetExceeded?: boolean;

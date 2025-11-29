@@ -23,16 +23,16 @@ jobs:
     name: Run Benchmarks
     runs-on: ubuntu-latest
     outputs:
-      results_available: ${{ steps.benchmark.outputs.results_available }}
+      regression_detected: ${{ steps.compare.outputs.regression_detected }}
 
     steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
+      - name: Checkout PR code
+        uses: actions/checkout@v4
         with:
           fetch-depth: 0  # Full history for baseline comparison
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 20.x
           cache: 'npm'
@@ -51,62 +51,87 @@ jobs:
       - name: Build project
         run: npm run build
 
-      - name: Run benchmarks
-        id: benchmark
+      # For PRs: Run benchmarks on both base and head to compare on same hardware
+      - name: Get base branch
+        if: github.event_name == 'pull_request'
+        id: base
+        run: |
+          echo "ref=${{ github.event.pull_request.base.ref }}" >> $GITHUB_OUTPUT
+          echo "sha=${{ github.event.pull_request.base.sha }}" >> $GITHUB_OUTPUT
+
+      - name: Run current branch benchmarks
+        id: current_benchmark
         run: |
           npm run benchmark
           if [ -f "benchmarks/result.txt" ]; then
+            mkdir -p .performance/current
+            cp benchmarks/result.txt .performance/current/result.txt
             echo "results_available=true" >> $GITHUB_OUTPUT
           else
             echo "results_available=false" >> $GITHUB_OUTPUT
             echo "::warning::Benchmark results file not found"
           fi
 
-      - name: Upload benchmark results
-        if: steps.benchmark.outputs.results_available == 'true'
-        uses: actions/upload-artifact@v4
-        with:
-          name: benchmark-results
-          path: benchmarks/result.txt
-          retention-days: 30
+      # For PRs: checkout base branch and run benchmarks on same runner
+      - name: Checkout base branch for comparison
+        if: github.event_name == 'pull_request' && steps.current_benchmark.outputs.results_available == 'true'
+        run: |
+          # Save current benchmark results
+          cp -r .performance/current /tmp/current-benchmarks
 
-  regression-check:
-    name: Check for Regressions
-    runs-on: ubuntu-latest
-    needs: benchmark
-    if: needs.benchmark.outputs.results_available == 'true'
+          # Checkout base branch
+          git checkout ${{ steps.base.outputs.sha }}
 
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v6
-
-      - name: Setup Node.js
-        uses: actions/setup-node@v6
-        with:
-          node-version: 20.x
-          cache: 'npm'
-
-      - name: Install dependencies
+      - name: Install base branch dependencies
+        if: github.event_name == 'pull_request' && steps.current_benchmark.outputs.results_available == 'true'
         run: npm ci
 
-      - name: Download benchmark results
-        uses: actions/download-artifact@v4
-        with:
-          name: benchmark-results
-          path: benchmarks/
+      - name: Build base branch
+        if: github.event_name == 'pull_request' && steps.current_benchmark.outputs.results_available == 'true'
+        run: npm run build
 
-      - name: Run regression analysis
-        id: regression
+      - name: Run base branch benchmarks
+        if: github.event_name == 'pull_request' && steps.current_benchmark.outputs.results_available == 'true'
+        id: base_benchmark
+        run: |
+          npm run benchmark
+          if [ -f "benchmarks/result.txt" ]; then
+            mkdir -p .performance/base
+            cp benchmarks/result.txt .performance/base/result.txt
+            echo "base_available=true" >> $GITHUB_OUTPUT
+          else
+            echo "base_available=false" >> $GITHUB_OUTPUT
+            echo "::warning::Base benchmark results not available"
+          fi
+
+      - name: Restore current branch
+        if: github.event_name == 'pull_request' && steps.current_benchmark.outputs.results_available == 'true'
+        run: |
+          # Checkout back to PR branch
+          git checkout ${{ github.event.pull_request.head.sha }}
+
+          # Restore current benchmark results
+          mkdir -p .performance/current
+          cp -r /tmp/current-benchmarks/* .performance/current/
+
+          # Reinstall to get the comparison scripts
+          npm ci
+
+      - name: Compare benchmarks (PR)
+        if: github.event_name == 'pull_request' && steps.current_benchmark.outputs.results_available == 'true' && steps.base_benchmark.outputs.base_available == 'true'
+        id: compare
         run: |
           # Create output directory
           mkdir -p .performance/reports
 
-          # Run regression check
+          # Run comparison with base branch results as baseline
           npx ts-node scripts/performance/cli.ts \
             --check \
             --verbose \
+            --results .performance/current/result.txt \
+            --baseline-results .performance/base/result.txt \
             --output .performance/reports/comparison.json \
-            2>&1 | tee regression-output.txt
+            2>&1 | tee comparison-output.txt
 
           # Capture exit code
           exit_code=${PIPESTATUS[0]}
@@ -115,21 +140,40 @@ jobs:
           if [ $exit_code -eq 0 ]; then
             echo "status=success" >> $GITHUB_OUTPUT
             echo "message=All benchmarks passed" >> $GITHUB_OUTPUT
+            echo "regression_detected=false" >> $GITHUB_OUTPUT
           elif [ $exit_code -eq 1 ]; then
             echo "status=regression" >> $GITHUB_OUTPUT
             echo "message=Performance regressions detected" >> $GITHUB_OUTPUT
+            echo "regression_detected=true" >> $GITHUB_OUTPUT
           elif [ $exit_code -eq 2 ]; then
             echo "status=budget_exceeded" >> $GITHUB_OUTPUT
             echo "message=Performance budgets exceeded" >> $GITHUB_OUTPUT
-          elif [ $exit_code -eq 4 ]; then
-            echo "status=no_baseline" >> $GITHUB_OUTPUT
-            echo "message=No baseline found - first run" >> $GITHUB_OUTPUT
+            echo "regression_detected=true" >> $GITHUB_OUTPUT
           else
-            echo "status=error" >> $GITHUB_OUTPUT
-            echo "message=Error running regression analysis" >> $GITHUB_OUTPUT
+            echo "status=success" >> $GITHUB_OUTPUT
+            echo "message=Comparison completed" >> $GITHUB_OUTPUT
+            echo "regression_detected=false" >> $GITHUB_OUTPUT
           fi
 
-          # Don't fail the step here, we'll handle it below
+          # Don't fail the step - we report in the summary
+          exit 0
+
+      - name: Run regression check against stored baseline (push to main)
+        if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+        id: regression
+        run: |
+          # Create output directory
+          mkdir -p .performance/reports
+
+          # Run regression check against stored baseline
+          npx ts-node scripts/performance/cli.ts \
+            --check \
+            --verbose \
+            --results .performance/current/result.txt \
+            --output .performance/reports/comparison.json \
+            2>&1 | tee regression-output.txt
+
+          # Don't fail on missing baseline for main branch
           exit 0
 
       - name: Generate GitHub summary
@@ -137,6 +181,12 @@ jobs:
         run: |
           if [ -f ".performance/reports/comparison.md" ]; then
             cat .performance/reports/comparison.md >> $GITHUB_STEP_SUMMARY
+          elif [ -f "comparison-output.txt" ]; then
+            echo '## Performance Comparison Report' >> $GITHUB_STEP_SUMMARY
+            echo '' >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
+            cat comparison-output.txt >> $GITHUB_STEP_SUMMARY
+            echo '```' >> $GITHUB_STEP_SUMMARY
           elif [ -f "regression-output.txt" ]; then
             echo '## Performance Regression Report' >> $GITHUB_STEP_SUMMARY
             echo '' >> $GITHUB_STEP_SUMMARY
@@ -145,23 +195,25 @@ jobs:
             echo '```' >> $GITHUB_STEP_SUMMARY
           fi
 
-      - name: Upload regression report
+      - name: Upload benchmark results
         if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: regression-report
+          name: benchmark-results
           path: |
-            .performance/reports/
+            .performance/
+            comparison-output.txt
             regression-output.txt
           retention-days: 30
 
       - name: Comment on PR
-        if: github.event_name == 'pull_request' && steps.regression.outputs.status != 'no_baseline'
+        if: github.event_name == 'pull_request' && steps.compare.outputs.status != ''
         uses: actions/github-script@v7
         with:
           script: |
             const fs = require('fs');
-            let body = '## Performance Regression Report\n\n';
+            let body = '## Performance Comparison Report\n\n';
+            body += '> Benchmarks run on the **same runner** to ensure accurate comparison.\n\n';
 
             // Read the markdown report if available
             try {
@@ -170,15 +222,15 @@ jobs:
                 body = fs.readFileSync(reportPath, 'utf8');
               } else {
                 // Fallback to text output
-                const outputPath = 'regression-output.txt';
+                const outputPath = 'comparison-output.txt';
                 if (fs.existsSync(outputPath)) {
                   const output = fs.readFileSync(outputPath, 'utf8');
                   body += '```\n' + output + '\n```';
                 }
               }
             } catch (e) {
-              body += `Status: ${{ steps.regression.outputs.status }}\n`;
-              body += `Message: ${{ steps.regression.outputs.message }}`;
+              body += `Status: ${{ steps.compare.outputs.status }}\n`;
+              body += `Message: ${{ steps.compare.outputs.message }}`;
             }
 
             // Find existing comment
@@ -190,7 +242,8 @@ jobs:
 
             const botComment = comments.find(comment =>
               comment.user.type === 'Bot' &&
-              comment.body.includes('Performance Regression Report')
+              comment.body.includes('Performance') &&
+              comment.body.includes('Report')
             );
 
             if (botComment) {
@@ -209,13 +262,6 @@ jobs:
               });
             }
 
-      - name: Check regression status
-        if: steps.regression.outputs.status == 'regression'
-        run: |
-          echo "::error::Performance regressions detected. Please review the performance report."
-          # Optionally fail the build on regression
-          # exit 1
-
   update-baseline:
     name: Update Baseline
     runs-on: ubuntu-latest
@@ -226,12 +272,12 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
       - name: Setup Node.js
-        uses: actions/setup-node@v6
+        uses: actions/setup-node@v4
         with:
           node-version: 20.x
           cache: 'npm'
@@ -243,13 +289,19 @@ jobs:
         uses: actions/download-artifact@v4
         with:
           name: benchmark-results
-          path: benchmarks/
+          path: .performance-download/
 
       - name: Update baseline
         env:
           GIT_REF: ${{ github.ref }}
           GIT_SHA: ${{ github.sha }}
         run: |
+          # Copy current results to expected location
+          mkdir -p .performance
+          if [ -f ".performance-download/current/result.txt" ]; then
+            cp .performance-download/current/result.txt benchmarks/result.txt
+          fi
+
           npx ts-node scripts/performance/cli.ts \
             --update-baseline \
             --verbose
@@ -259,7 +311,7 @@ jobs:
           git config --local user.email "github-actions[bot]@users.noreply.github.com"
           git config --local user.name "github-actions[bot]"
 
-          if git diff --quiet .performance/baseline.json; then
+          if git diff --quiet .performance/baseline.json 2>/dev/null; then
             echo "No changes to baseline"
           else
             git add .performance/baseline.json

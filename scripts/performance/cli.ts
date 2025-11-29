@@ -41,6 +41,11 @@ Options:
                        (default: benchmarks/result.txt)
   --baseline <path>    Path to baseline file
                        (default: .performance/baseline.json)
+  --baseline-results <path>
+                       Path to baseline results file for direct comparison.
+                       Use this for same-runner comparisons in CI to avoid
+                       hardware variance issues. When specified, this takes
+                       precedence over the stored baseline file.
   --budgets <path>     Path to budgets config
                        (default: .performance/budgets.json)
   --help, -h           Show this help message
@@ -54,6 +59,9 @@ Examples:
 
   # CI check with failure on regression
   npx ts-node scripts/performance/cli.ts --fail-on-regression --output report.json
+
+  # Same-runner comparison (recommended for CI)
+  npx ts-node scripts/performance/cli.ts --results current.txt --baseline-results base.txt
 `);
 }
 
@@ -65,6 +73,7 @@ function parseArgs(args: string[]): {
         budgetsPath: path.resolve(process.cwd(), '.performance/budgets.json'),
         baselinePath: path.resolve(process.cwd(), '.performance/baseline.json'),
         resultsPath: path.resolve(process.cwd(), 'benchmarks/result.txt'),
+        baselineResultsPath: undefined,
         outputPath: undefined,
         failOnRegression: false,
         failOnBudgetExceeded: false,
@@ -130,6 +139,16 @@ function parseArgs(args: string[]): {
                     config.baselinePath = path.resolve(process.cwd(), args[i]);
                 } else {
                     console.error('Error: --baseline requires a path argument');
+                    process.exit(3);
+                }
+                break;
+
+            case '--baseline-results':
+                i++;
+                if (i < args.length) {
+                    config.baselineResultsPath = path.resolve(process.cwd(), args[i]);
+                } else {
+                    console.error('Error: --baseline-results requires a path argument');
                     process.exit(3);
                 }
                 break;

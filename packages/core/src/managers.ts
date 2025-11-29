@@ -64,15 +64,25 @@ export class ComponentManager {
     private singletonComponents: Map<ComponentIdentifier, any> = new Map();
 
     /**
-     * Get the component array for a specific component type.
-     * Creates a new array if one doesn't exist.
+     * Get or create the component array for a specific component type.
+     *
+     * Component arrays provide sparse storage for component instances, allowing
+     * efficient lookup by entity storage index. If no array exists for the type,
+     * one will be created automatically.
      *
      * Type safety is enforced via the generic parameter constraint - the type
      * parameter T is bound to the ComponentIdentifier<T>, ensuring the returned
      * ComponentArray<T> matches the requested component type.
      *
-     * @param type - The component class/constructor
-     * @returns The ComponentArray for storing instances of this component type
+     * @typeParam T - The component type
+     * @param type - The component class/constructor to get the array for
+     * @returns The component array for the specified type
+     *
+     * @example
+     * ```typescript
+     * const positionArray = componentManager.getComponentArray<Position>(Position);
+     * const component = positionArray.get(entity.getComponentStorageIndex(Position));
+     * ```
      */
     getComponentArray<T>(type: ComponentIdentifier<T>): ComponentArray<T> {
         if (!this.componentArrays.has(type)) {
@@ -85,29 +95,114 @@ export class ComponentManager {
         return this.componentArrays.get(type) as ComponentArray<T>;
     }
 
+    /**
+     * Register a validation function for a component type.
+     *
+     * Validators are called when components are added or modified to ensure
+     * data integrity. They should throw an error if validation fails.
+     *
+     * @typeParam T - The component type
+     * @param type - The component class/constructor
+     * @param validator - Function that validates component instances
+     *
+     * @example
+     * ```typescript
+     * componentManager.registerValidator(Position, (pos) => {
+     *   if (typeof pos.x !== 'number' || typeof pos.y !== 'number') {
+     *     throw new Error('Position must have numeric x and y');
+     *   }
+     * });
+     * ```
+     */
     registerValidator<T>(type: ComponentIdentifier<T>, validator: ComponentValidator<T>): void {
         this.validators.set(type, validator);
     }
 
+    /**
+     * Get the registered validator for a component type.
+     *
+     * @typeParam T - The component type
+     * @param type - The component class/constructor
+     * @returns The validator function if registered, undefined otherwise
+     */
     getValidator<T>(type: ComponentIdentifier<T>): ComponentValidator<T> | undefined {
         return this.validators.get(type) as ComponentValidator<T>;
     }
 
+    /**
+     * Manually register a component type in the registry.
+     *
+     * This enables component lookup by name during deserialization.
+     * Components are also auto-registered when accessed via getComponentArray.
+     *
+     * @typeParam T - The component type
+     * @param type - The component class/constructor to register
+     *
+     * @example
+     * ```typescript
+     * componentManager.registerComponent(Position);
+     * componentManager.registerComponent(Velocity);
+     * ```
+     */
     registerComponent<T>(type: ComponentIdentifier<T>): void {
         this.registry.set(type.name, type);
     }
 
+    /**
+     * Look up a component type by its class name.
+     *
+     * Useful during deserialization when you have the component name
+     * as a string and need to get the actual class constructor.
+     *
+     * @param name - The component class name
+     * @returns The component class/constructor if found, undefined otherwise
+     *
+     * @example
+     * ```typescript
+     * const PositionClass = componentManager.getComponentByName('Position');
+     * if (PositionClass) {
+     *   entity.addComponent(PositionClass, 0, 0);
+     * }
+     * ```
+     */
     getComponentByName(name: string): ComponentIdentifier | undefined {
         return this.registry.get(name);
     }
 
+    /**
+     * Get all component arrays managed by this manager.
+     *
+     * Returns the internal map of component type to component array.
+     * Primarily used for serialization and debugging.
+     *
+     * @returns Map of all component arrays keyed by component type
+     */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getAllComponentArrays(): Map<ComponentIdentifier, ComponentArray<any>> {
         return this.componentArrays;
     }
 
     /**
-     * Register a component pool for object reuse
+     * Register a component pool for object reuse.
+     *
+     * Component pooling reduces garbage collection pressure by recycling
+     * component instances instead of creating new ones. Pooled components
+     * are reset to default state when released.
+     *
+     * @typeParam T - The component type (must be an object)
+     * @param type - The component class/constructor to pool
+     * @param options - Pool configuration options
+     * @param options.initialSize - Number of instances to pre-allocate (default: 10)
+     * @param options.maxSize - Maximum pool size (default: 1000)
+     *
+     * @example
+     * ```typescript
+     * // Register a pool for frequently created/destroyed components
+     * componentManager.registerComponentPool(Bullet, {
+     *   initialSize: 100,
+     *   maxSize: 500
+     * });
+     * ```
      */
     registerComponentPool<T extends object>(
         type: ComponentIdentifier<T>,
@@ -141,7 +236,23 @@ export class ComponentManager {
     }
 
     /**
-     * Get a component instance from the pool if available, otherwise create new
+     * Get a component instance from the pool if available, otherwise create new.
+     *
+     * If a pool is registered for this component type, an instance will be
+     * acquired from the pool and initialized with the provided arguments.
+     * Otherwise, a new instance is created directly.
+     *
+     * @typeParam T - The component type (must be an object)
+     * @param type - The component class/constructor
+     * @param args - Constructor arguments to initialize the component
+     * @returns A component instance (either from pool or newly created)
+     *
+     * @example
+     * ```typescript
+     * // Acquire a pooled bullet component
+     * const bullet = componentManager.acquireComponent(Bullet, 100, 200, 45);
+     * entity.addComponentInstance(bullet);
+     * ```
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     acquireComponent<T extends object>(type: ComponentIdentifier<T>, ...args: any[]): T {
@@ -160,7 +271,23 @@ export class ComponentManager {
     }
 
     /**
-     * Release a component back to the pool
+     * Release a component back to the pool for reuse.
+     *
+     * The component will be reset to its default state and made available
+     * for future acquire calls. If no pool is registered for this type,
+     * the component will be left for garbage collection.
+     *
+     * @typeParam T - The component type (must be an object)
+     * @param type - The component class/constructor
+     * @param component - The component instance to release
+     *
+     * @example
+     * ```typescript
+     * // Release a bullet back to the pool when it's destroyed
+     * const bullet = entity.getComponent(Bullet);
+     * componentManager.releaseComponent(Bullet, bullet);
+     * entity.removeComponent(Bullet);
+     * ```
      */
     releaseComponent<T extends object>(type: ComponentIdentifier<T>, component: T): void {
         const pool = this.componentPools.get(type);
@@ -171,7 +298,22 @@ export class ComponentManager {
     }
 
     /**
-     * Get pool statistics for a component type
+     * Get pool statistics for a component type.
+     *
+     * Returns usage statistics for monitoring pool efficiency, including
+     * current size, items in use, and allocation metrics.
+     *
+     * @typeParam T - The component type (must be an object)
+     * @param type - The component class/constructor
+     * @returns Pool statistics if a pool exists, undefined otherwise
+     *
+     * @example
+     * ```typescript
+     * const stats = componentManager.getComponentPoolStats(Bullet);
+     * if (stats) {
+     *   console.log(`Pool size: ${stats.size}, In use: ${stats.inUse}`);
+     * }
+     * ```
      */
     getComponentPoolStats<T extends object>(type: ComponentIdentifier<T>): PoolStats | undefined {
         const pool = this.componentPools.get(type);
@@ -179,7 +321,19 @@ export class ComponentManager {
     }
 
     /**
-     * Check if a component type has a pool registered
+     * Check if a component type has a pool registered.
+     *
+     * @typeParam T - The component type (must be an object)
+     * @param type - The component class/constructor
+     * @returns true if a pool exists for this type, false otherwise
+     *
+     * @example
+     * ```typescript
+     * if (componentManager.hasComponentPool(Bullet)) {
+     *   // Use pooled allocation
+     *   const bullet = componentManager.acquireComponent(Bullet);
+     * }
+     * ```
      */
     hasComponentPool<T extends object>(type: ComponentIdentifier<T>): boolean {
         return this.componentPools.has(type);
@@ -192,16 +346,40 @@ export class ComponentManager {
      * parameter T is bound to the ComponentIdentifier<T>, ensuring the returned
      * Pool<T> matches the requested component type.
      *
+     * @typeParam T - The component type (must extend object)
      * @param type - The component class/constructor
      * @returns The Pool for this component type, or undefined if not registered
+     *
+     * @example
+     * ```typescript
+     * const pool = componentManager.getPool(Position);
+     * if (pool) {
+     *   const pos = pool.acquire();
+     *   // Use pos, then release when done
+     *   pool.release(pos);
+     * }
+     * ```
      */
     getPool<T extends object>(type: ComponentIdentifier<T>): Pool<T> | undefined {
         return this.componentPools.get(type) as Pool<T> | undefined;
     }
 
     /**
-     * Enable archetype-based storage for improved performance
-     * When enabled, entities are grouped by component composition for better cache locality
+     * Enable archetype-based storage for improved performance.
+     *
+     * When enabled, entities are grouped by their component composition (archetype)
+     * for better cache locality during iteration. This can provide 2-5x performance
+     * improvements for systems that iterate over many entities.
+     *
+     * @remarks
+     * This should be called before creating entities. Once enabled, archetypes
+     * cannot be disabled without recreating the engine.
+     *
+     * @example
+     * ```typescript
+     * componentManager.enableArchetypes();
+     * // Now entities with the same component composition share storage
+     * ```
      */
     enableArchetypes(): void {
         if (!this.archetypesEnabled) {
@@ -211,14 +389,21 @@ export class ComponentManager {
     }
 
     /**
-     * Check if archetypes are enabled
+     * Check if archetypes are enabled.
+     *
+     * @returns true if archetype-based storage is active
      */
     areArchetypesEnabled(): boolean {
         return this.archetypesEnabled;
     }
 
     /**
-     * Get the archetype manager (if archetypes are enabled)
+     * Get the archetype manager (if archetypes are enabled).
+     *
+     * The archetype manager handles entity grouping by component composition
+     * and provides efficient iteration over matching entities.
+     *
+     * @returns The archetype manager instance, or undefined if not enabled
      */
     getArchetypeManager(): ArchetypeManager | undefined {
         return this.archetypeManager;
@@ -227,10 +412,21 @@ export class ComponentManager {
     // ========== Singleton Component Management ==========
 
     /**
-     * Set a singleton component (global state that exists once per engine)
-     * @param type - Component type
-     * @param component - Component instance
-     * @returns The previous singleton instance if it existed
+     * Set a singleton component (global state that exists once per engine).
+     *
+     * Singletons are engine-wide components that don't belong to any specific entity.
+     * They're useful for global state like game time, configuration, or shared resources.
+     *
+     * @typeParam T - The component type
+     * @param type - The component class/constructor
+     * @param component - The component instance to set
+     * @returns The previous singleton instance if one existed, undefined otherwise
+     *
+     * @example
+     * ```typescript
+     * class GameTime { constructor(public elapsed = 0, public delta = 0) {} }
+     * componentManager.setSingleton(GameTime, new GameTime(0, 16));
+     * ```
      */
     setSingleton<T>(type: ComponentIdentifier<T>, component: T): T | undefined {
         const oldValue = this.singletonComponents.get(type);
@@ -245,27 +441,41 @@ export class ComponentManager {
     }
 
     /**
-     * Get a singleton component
-     * @param type - Component type
-     * @returns The singleton instance or undefined if not set
+     * Get a singleton component.
+     *
+     * @typeParam T - The component type
+     * @param type - The component class/constructor
+     * @returns The singleton instance, or undefined if not set
+     *
+     * @example
+     * ```typescript
+     * const time = componentManager.getSingleton(GameTime);
+     * if (time) {
+     *   console.log(`Game time: ${time.elapsed}ms`);
+     * }
+     * ```
      */
     getSingleton<T>(type: ComponentIdentifier<T>): T | undefined {
         return this.singletonComponents.get(type);
     }
 
     /**
-     * Check if a singleton component exists
-     * @param type - Component type
-     * @returns True if the singleton exists
+     * Check if a singleton component exists.
+     *
+     * @typeParam T - The component type
+     * @param type - The component class/constructor
+     * @returns true if the singleton is set, false otherwise
      */
     hasSingleton<T>(type: ComponentIdentifier<T>): boolean {
         return this.singletonComponents.has(type);
     }
 
     /**
-     * Remove a singleton component
-     * @param type - Component type
-     * @returns The removed singleton instance or undefined if it didn't exist
+     * Remove a singleton component.
+     *
+     * @typeParam T - The component type
+     * @param type - The component class/constructor
+     * @returns The removed singleton instance, or undefined if it didn't exist
      */
     removeSingleton<T>(type: ComponentIdentifier<T>): T | undefined {
         const component = this.singletonComponents.get(type);
@@ -274,8 +484,11 @@ export class ComponentManager {
     }
 
     /**
-     * Get all singleton components
-     * @returns Map of all singleton components
+     * Get all singleton components.
+     *
+     * Returns a copy of the singleton map for iteration or debugging.
+     *
+     * @returns A new Map containing all singleton components
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getAllSingletons(): Map<ComponentIdentifier, any> {
@@ -283,7 +496,9 @@ export class ComponentManager {
     }
 
     /**
-     * Clear all singleton components
+     * Clear all singleton components.
+     *
+     * Removes all registered singletons from the manager.
      */
     clearAllSingletons(): void {
         this.singletonComponents.clear();
@@ -291,11 +506,28 @@ export class ComponentManager {
 }
 
 /**
- * Manages system registration, execution, and profiling
+ * Manages system registration, execution, and profiling.
  *
- * Note: Internal arrays use AnySystemTuple for heterogeneous system storage,
+ * The SystemManager handles the lifecycle of systems including registration,
+ * priority-based ordering, dependency resolution, and execution. It supports
+ * both variable timestep and fixed timestep systems for different use cases.
+ *
+ * @remarks
+ * Internal arrays use AnySystemTuple for heterogeneous system storage,
  * providing better type safety than 'any' while allowing systems with different
  * component requirements.
+ *
+ * @example
+ * ```typescript
+ * const systemManager = new SystemManager(60, 10); // 60 FPS fixed, max 10 iterations
+ *
+ * // Create a group for physics systems
+ * const physicsGroup = systemManager.createGroup('Physics', 100);
+ *
+ * // Register systems
+ * systemManager.createSystem(movementSystem);
+ * systemManager.createSystem(physicsSystem, true); // Fixed update
+ * ```
  */
 export class SystemManager {
     // System arrays store heterogeneous component type tuples using the AnySystemTuple constraint.
@@ -326,6 +558,11 @@ export class SystemManager {
 
     /**
      * Set the error recovery manager for system error isolation.
+     *
+     * When set, system errors will be caught and handled according to the
+     * configured recovery strategy instead of crashing the engine.
+     *
+     * @param manager - The error recovery manager instance
      */
     setErrorRecoveryManager(manager: ErrorRecoveryManager): void {
         this.errorRecoveryManager = manager;
@@ -334,6 +571,8 @@ export class SystemManager {
 
     /**
      * Enable or disable error recovery for system execution.
+     *
+     * @param enabled - Whether to enable error recovery
      */
     setErrorRecoveryEnabled(enabled: boolean): void {
         this.errorRecoveryEnabled = enabled;
@@ -341,11 +580,35 @@ export class SystemManager {
 
     /**
      * Check if error recovery is enabled.
+     *
+     * @returns true if error recovery is active
      */
     isErrorRecoveryEnabled(): boolean {
         return this.errorRecoveryEnabled && this.errorRecoveryManager !== undefined;
     }
 
+    /**
+     * Create a system group for organizing systems into execution phases.
+     *
+     * Groups allow you to organize related systems and control their execution
+     * order via priority. All systems in a group execute together before or after
+     * other groups based on the group's priority. Higher priority groups execute first.
+     *
+     * @param name - Unique identifier for the group
+     * @param priority - Execution priority (higher = earlier execution)
+     * @returns The created system group
+     * @throws Error if a group with this name already exists
+     *
+     * @example
+     * ```typescript
+     * // Create groups for different game phases
+     * const inputGroup = systemManager.createGroup('Input', 1000);
+     * const physicsGroup = systemManager.createGroup('Physics', 100);
+     * const renderGroup = systemManager.createGroup('Render', 10);
+     *
+     * // Systems in 'Input' group run first, then 'Physics', then 'Render'
+     * ```
+     */
     createGroup(name: string, priority: number): SystemGroup {
         if (this.groups.has(name)) {
             throw new Error(`[ECS] System group '${name}' already exists`);
@@ -356,6 +619,35 @@ export class SystemManager {
         return group;
     }
 
+    /**
+     * Register a system for execution.
+     *
+     * Systems are automatically sorted by priority and dependency constraints.
+     * If the system specifies a group, it will be added to that group.
+     *
+     * @typeParam C - Tuple type of component types the system queries
+     * @param system - The system instance to register
+     * @param isFixedUpdate - If true, system runs on fixed timestep (default: false)
+     * @param errorConfig - Optional error handling configuration for this system
+     * @returns The registered system
+     * @throws Error if the system references a group that doesn't exist
+     *
+     * @example
+     * ```typescript
+     * // Create and register a movement system
+     * const movementSystem = new System('Movement', { all: [Position, Velocity] }, {
+     *   priority: 50,
+     *   act: (entity, pos, vel) => {
+     *     pos.x += vel.x;
+     *     pos.y += vel.y;
+     *   }
+     * });
+     * systemManager.createSystem(movementSystem);
+     *
+     * // Register a physics system for fixed timestep
+     * systemManager.createSystem(physicsSystem, true);
+     * ```
+     */
     createSystem<C extends readonly unknown[] = unknown[]>(
         system: System<C>,
         isFixedUpdate: boolean = false,
@@ -560,6 +852,21 @@ export class SystemManager {
         return this.sortedGroupsCache;
     }
 
+    /**
+     * Execute all variable timestep systems.
+     *
+     * Systems are executed in order: first by group priority, then by
+     * individual system priority within groups. Ungrouped systems run last.
+     *
+     * @param deltaTime - Time elapsed since last frame in milliseconds (default: 16)
+     *
+     * @example
+     * ```typescript
+     * // In game loop
+     * const deltaTime = performance.now() - lastFrameTime;
+     * systemManager.executeVariableSystems(deltaTime);
+     * ```
+     */
     executeVariableSystems(deltaTime: number = 16): void {
         this.ensureSorted();
 
@@ -627,6 +934,24 @@ export class SystemManager {
         }
     }
 
+    /**
+     * Execute all fixed timestep systems.
+     *
+     * Fixed systems run at a consistent interval regardless of frame rate,
+     * making them ideal for physics simulations. The accumulator pattern ensures
+     * deterministic behavior. Includes "spiral of death" protection to prevent
+     * runaway iterations when the game falls too far behind.
+     *
+     * @param deltaTime - Time elapsed since last frame in milliseconds
+     * @param debugMode - If true, logs warnings about spiral of death (default: false)
+     *
+     * @example
+     * ```typescript
+     * // In game loop
+     * const deltaTime = performance.now() - lastFrameTime;
+     * systemManager.executeFixedSystems(deltaTime, engine.debugMode);
+     * ```
+     */
     executeFixedSystems(deltaTime: number, debugMode: boolean = false): void {
         this.ensureSorted();
 
@@ -686,6 +1011,21 @@ export class SystemManager {
         }
     }
 
+    /**
+     * Enable a system group for execution.
+     *
+     * When a group is enabled, all systems in that group will be executed
+     * during the update loop.
+     *
+     * @param name - The name of the group to enable
+     * @throws Error if the group doesn't exist
+     *
+     * @example
+     * ```typescript
+     * // Re-enable physics after a pause
+     * systemManager.enableGroup('Physics');
+     * ```
+     */
     enableGroup(name: string): void {
         const group = this.groups.get(name);
         if (!group) {
@@ -694,6 +1034,21 @@ export class SystemManager {
         group.enabled = true;
     }
 
+    /**
+     * Disable a system group from execution.
+     *
+     * When a group is disabled, none of its systems will execute during
+     * the update loop. Useful for pausing game features.
+     *
+     * @param name - The name of the group to disable
+     * @throws Error if the group doesn't exist
+     *
+     * @example
+     * ```typescript
+     * // Disable physics during pause menu
+     * systemManager.disableGroup('Physics');
+     * ```
+     */
     disableGroup(name: string): void {
         const group = this.groups.get(name);
         if (!group) {
@@ -702,27 +1057,70 @@ export class SystemManager {
         group.enabled = false;
     }
 
+    /**
+     * Get a system group by name.
+     *
+     * @param name - The name of the group to retrieve
+     * @returns The system group if found, undefined otherwise
+     */
     getGroup(name: string): SystemGroup | undefined {
         return this.groups.get(name);
     }
 
+    /**
+     * Get all registered system groups.
+     *
+     * @returns Array of all system groups
+     */
     getAllGroups(): SystemGroup[] {
         return Array.from(this.groups.values());
     }
 
+    /**
+     * Get all registered systems (both variable and fixed timestep).
+     *
+     * @returns Array containing all systems
+     */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getAllSystems(): System<AnySystemTuple>[] {
         return [...this.systems, ...this.fixedUpdateSystems];
     }
 
+    /**
+     * Get performance profiles for all systems.
+     *
+     * Profiles contain timing information useful for debugging
+     * and optimizing system performance.
+     *
+     * @returns Array of system profiles with timing data
+     *
+     * @example
+     * ```typescript
+     * const profiles = systemManager.getProfiles();
+     * for (const profile of profiles) {
+     *   console.log(`${profile.name}: ${profile.avgTime.toFixed(2)}ms avg`);
+     * }
+     * ```
+     */
     getProfiles(): SystemProfile[] {
         return this.getAllSystems().map((system) => system.profile);
     }
 
     /**
-     * Get a system by name
+     * Get a system by name.
+     *
+     * Searches both variable and fixed timestep systems.
+     *
      * @param name - The name of the system to find
      * @returns The system if found, undefined otherwise
+     *
+     * @example
+     * ```typescript
+     * const movementSystem = systemManager.getSystem('Movement');
+     * if (movementSystem) {
+     *   console.log(`Movement system priority: ${movementSystem.priority}`);
+     * }
+     * ```
      */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getSystem(name: string): System<AnySystemTuple> | undefined {
@@ -734,10 +1132,20 @@ export class SystemManager {
 
     /**
      * Remove a system from the manager and clean up its resources.
-     * This will call the system's destroy() method to unsubscribe from events.
+     *
+     * This will call the system's destroy() method to unsubscribe from events
+     * and remove it from any assigned group.
      *
      * @param name - The name of the system to remove
      * @returns true if the system was found and removed, false otherwise
+     *
+     * @example
+     * ```typescript
+     * // Remove a system when no longer needed
+     * if (systemManager.removeSystem('DebugOverlay')) {
+     *   console.log('Debug overlay removed');
+     * }
+     * ```
      */
     removeSystem(name: string): boolean {
         // Find and remove from variable update systems
@@ -811,6 +1219,10 @@ export class SystemManager {
 
     /**
      * Remove all systems and clean up their resources.
+     *
+     * Destroys all systems (calling their destroy() method), clears all groups,
+     * and invalidates system caches. Use when shutting down the engine or
+     * completely resetting the game state.
      */
     removeAllSystems(): void {
         // Destroy all variable update systems
@@ -840,9 +1252,29 @@ export class SystemManager {
 }
 
 /**
- * Manages query creation and tracking
+ * Manages query creation and tracking.
  *
- * Note: Internal arrays use 'any' for heterogeneous query storage.
+ * The QueryManager creates and maintains queries that efficiently find entities
+ * matching specific component requirements. Queries are cached and automatically
+ * updated when entity components change.
+ *
+ * @remarks
+ * Internal arrays use 'any' for heterogeneous query storage due to TypeScript's
+ * variance rules with readonly component type tuples.
+ *
+ * @example
+ * ```typescript
+ * const query = queryManager.createQuery({
+ *   all: [Position, Velocity],
+ *   any: [Player, Enemy],
+ *   not: [Dead]
+ * });
+ *
+ * // Later, iterate matching entities
+ * for (const entity of query.entities) {
+ *   // Process entity
+ * }
+ * ```
  */
 export class QueryManager {
     // Using 'any' for internal storage due to TypeScript's variance rules with readonly types.
@@ -851,12 +1283,38 @@ export class QueryManager {
     private componentManager?: ComponentManager;
 
     /**
-     * Set component manager reference (for archetype support)
+     * Set the component manager reference for archetype support.
+     *
+     * When a component manager with archetypes is set, queries will use
+     * archetype-based matching for improved performance.
+     *
+     * @param componentManager - The component manager instance
      */
     setComponentManager(componentManager: ComponentManager): void {
         this.componentManager = componentManager;
     }
 
+    /**
+     * Create a new query for finding entities with specific components.
+     *
+     * Queries support three component filters:
+     * - `all`: Entity must have ALL of these components
+     * - `any`: Entity must have AT LEAST ONE of these components
+     * - `not`: Entity must NOT have any of these components
+     *
+     * @typeParam C - Tuple type of component types from the 'all' filter
+     * @param options - Query options specifying component requirements
+     * @returns A new Query instance that tracks matching entities
+     *
+     * @example
+     * ```typescript
+     * // Find all entities with Position AND Velocity, but not Dead
+     * const query = queryManager.createQuery({
+     *   all: [Position, Velocity],
+     *   not: [Dead]
+     * });
+     * ```
+     */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     createQuery<C extends readonly any[] = any[]>(options: QueryOptions<any>): Query<C> {
         const archetypeManager = this.componentManager?.getArchetypeManager();
@@ -865,6 +1323,14 @@ export class QueryManager {
         return query;
     }
 
+    /**
+     * Update all queries to re-evaluate a specific entity.
+     *
+     * Called automatically when an entity's components change to ensure
+     * all queries reflect the current state.
+     *
+     * @param entity - The entity to re-evaluate against all queries
+     */
     updateQueries(entity: Entity): void {
         for (const query of this.queries) {
             query.match(entity);
@@ -872,14 +1338,21 @@ export class QueryManager {
     }
 
     /**
-     * Update all queries with all entities
-     * Used primarily for transaction commits to batch query updates
+     * Signal that all queries should be updated.
+     *
+     * Used primarily for transaction commits to batch query updates.
+     * The actual update logic is handled per-entity via updateQueries.
      */
     updateAllQueries(): void {
         // This method is intentionally empty as updateQueries is called per entity
         // It's here for semantic clarity in transaction commits
     }
 
+    /**
+     * Get all registered queries.
+     *
+     * @returns Array of all Query instances managed by this manager
+     */
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     getAllQueries(): Query<any>[] {
         return this.queries;
@@ -887,32 +1360,104 @@ export class QueryManager {
 }
 
 /**
- * Manages prefab registration and instantiation
+ * Manages prefab registration and instantiation.
+ *
+ * Prefabs are reusable entity templates that define a set of components and tags.
+ * They can be extended, customized with variants, and instantiated multiple times.
+ *
+ * @example
+ * ```typescript
+ * // Register a prefab
+ * prefabManager.register('Enemy', {
+ *   name: 'Enemy',
+ *   components: [
+ *     { type: Position, args: [0, 0] },
+ *     { type: Health, args: [100] }
+ *   ],
+ *   tags: ['enemy', 'hostile']
+ * });
+ *
+ * // Create a stronger variant
+ * const boss = prefabManager.extend('Enemy', {
+ *   components: [{ type: Health, args: [500] }],
+ *   tags: ['boss']
+ * });
+ * ```
  */
 export class PrefabManager {
     private prefabs: Map<string, EntityPrefab> = new Map();
 
+    /**
+     * Register a prefab for later instantiation.
+     *
+     * @param name - Unique identifier for the prefab
+     * @param prefab - The prefab definition containing components and tags
+     *
+     * @example
+     * ```typescript
+     * prefabManager.register('Player', {
+     *   name: 'Player',
+     *   components: [
+     *     { type: Position, args: [0, 0] },
+     *     { type: Velocity, args: [0, 0] }
+     *   ],
+     *   tags: ['player']
+     * });
+     * ```
+     */
     register(name: string, prefab: EntityPrefab): void {
         this.prefabs.set(name, prefab);
     }
 
+    /**
+     * Get a prefab by name.
+     *
+     * @param name - The prefab name to look up
+     * @returns The prefab definition if found, undefined otherwise
+     */
     get(name: string): EntityPrefab | undefined {
         return this.prefabs.get(name);
     }
 
+    /**
+     * Check if a prefab exists.
+     *
+     * @param name - The prefab name to check
+     * @returns true if the prefab is registered
+     */
     has(name: string): boolean {
         return this.prefabs.has(name);
     }
 
+    /**
+     * Get all registered prefabs.
+     *
+     * @returns A new Map containing all prefab definitions
+     */
     getAllPrefabs(): Map<string, EntityPrefab> {
         return new Map(this.prefabs);
     }
 
     /**
-     * Extend a base prefab with additional components and tags
+     * Extend a base prefab with additional components and tags.
+     *
+     * Creates a new prefab definition that inherits from the base and adds
+     * the specified overrides. The original prefab is not modified.
+     *
      * @param baseName - Name of the base prefab to extend
      * @param overrides - Additional components, tags, or children to add
      * @returns Extended prefab definition
+     * @throws Error if the base prefab doesn't exist
+     *
+     * @example
+     * ```typescript
+     * // Create a boss enemy by extending the base enemy
+     * const bossPrefab = prefabManager.extend('Enemy', {
+     *   name: 'Boss',
+     *   components: [{ type: BossAI, args: [] }],
+     *   tags: ['boss']
+     * });
+     * ```
      */
     extend(baseName: string, overrides: Partial<EntityPrefab>): EntityPrefab {
         const base = this.prefabs.get(baseName);
@@ -951,10 +1496,28 @@ export class PrefabManager {
     }
 
     /**
-     * Create a variant of a prefab with component value overrides
+     * Create a variant of a prefab with component value overrides.
+     *
+     * Unlike extend(), which adds new components, createVariant() modifies
+     * the arguments of existing components. This is useful for creating
+     * variations like "fast enemy" or "armored enemy" with different stats.
+     *
      * @param baseName - Name of the base prefab
      * @param overrides - Component values to override, tags to add, or children
+     * @param overrides.components - Map of component name to new arguments
+     * @param overrides.tags - Additional tags to add
+     * @param overrides.children - Additional child prefabs to add
      * @returns Variant prefab definition
+     * @throws Error if the base prefab doesn't exist
+     *
+     * @example
+     * ```typescript
+     * // Create a fast enemy variant with higher speed
+     * const fastEnemy = prefabManager.createVariant('Enemy', {
+     *   components: { Velocity: [5, 0] },
+     *   tags: ['fast']
+     * });
+     * ```
      */
     createVariant(
         baseName: string,
@@ -997,10 +1560,36 @@ export class PrefabManager {
     }
 
     /**
-     * Resolve a prefab, applying factory function if present
+     * Resolve a prefab, applying factory function if present.
+     *
+     * If the prefab has a factory function, it will be called with the provided
+     * arguments to generate the prefab dynamically. This allows for prefabs
+     * with runtime-computed values.
+     *
      * @param name - Prefab name
      * @param args - Arguments to pass to factory function (if applicable)
-     * @returns Resolved prefab instance
+     * @returns Resolved prefab instance, or undefined if not found
+     *
+     * @example
+     * ```typescript
+     * // Register a factory prefab
+     * prefabManager.register('Bullet', {
+     *   name: 'Bullet',
+     *   components: [],
+     *   tags: ['bullet'],
+     *   factory: (x: number, y: number, angle: number) => ({
+     *     name: 'Bullet',
+     *     components: [
+     *       { type: Position, args: [x, y] },
+     *       { type: Velocity, args: [Math.cos(angle) * 10, Math.sin(angle) * 10] }
+     *     ],
+     *     tags: ['bullet']
+     *   })
+     * });
+     *
+     * // Resolve with arguments
+     * const bulletPrefab = prefabManager.resolve('Bullet', 100, 200, Math.PI / 4);
+     * ```
      */
     resolve(name: string, ...args: unknown[]): EntityPrefab | undefined {
         const prefab = this.prefabs.get(name);
@@ -1024,16 +1613,48 @@ export class PrefabManager {
 }
 
 /**
- * Manages world snapshots and restoration
+ * Manages world snapshots and restoration.
+ *
+ * The SnapshotManager stores serialized world states that can be used for
+ * save/load functionality, undo/redo, or debugging. It maintains a fixed-size
+ * history with automatic cleanup of old snapshots.
+ *
+ * @example
+ * ```typescript
+ * const snapshotManager = new SnapshotManager(5); // Keep last 5 snapshots
+ *
+ * // Save current state
+ * const worldState = engine.serialize();
+ * snapshotManager.createSnapshot(worldState);
+ *
+ * // Restore last state
+ * const lastSnapshot = snapshotManager.getSnapshot();
+ * if (lastSnapshot) {
+ *   engine.deserialize(lastSnapshot);
+ * }
+ * ```
  */
 export class SnapshotManager {
     private snapshots: SerializedWorld[] = [];
     private maxSnapshots: number;
 
+    /**
+     * Create a new SnapshotManager.
+     *
+     * @param maxSnapshots - Maximum number of snapshots to keep (default: 10)
+     */
     constructor(maxSnapshots: number = MAX_SNAPSHOTS) {
         this.maxSnapshots = maxSnapshots;
     }
 
+    /**
+     * Store a world snapshot.
+     *
+     * If the maximum number of snapshots is exceeded, the oldest snapshot
+     * will be removed automatically.
+     *
+     * @param world - The serialized world state to store
+     */
     createSnapshot(world: SerializedWorld): void {
         this.snapshots.push(world);
         while (this.snapshots.length > this.maxSnapshots) {
@@ -1041,6 +1662,21 @@ export class SnapshotManager {
         }
     }
 
+    /**
+     * Get a snapshot by index.
+     *
+     * @param index - Snapshot index (0 = oldest, -1 = most recent, default: -1)
+     * @returns The snapshot if found, undefined otherwise
+     *
+     * @example
+     * ```typescript
+     * // Get most recent snapshot
+     * const latest = snapshotManager.getSnapshot();
+     *
+     * // Get second-to-last snapshot
+     * const previous = snapshotManager.getSnapshot(snapshotManager.getSnapshotCount() - 2);
+     * ```
+     */
     getSnapshot(index: number = -1): SerializedWorld | undefined {
         if (index === -1) {
             return this.snapshots[this.snapshots.length - 1];
@@ -1048,40 +1684,115 @@ export class SnapshotManager {
         return this.snapshots[index];
     }
 
+    /**
+     * Get the number of stored snapshots.
+     *
+     * @returns The current snapshot count
+     */
     getSnapshotCount(): number {
         return this.snapshots.length;
     }
 
+    /**
+     * Clear all stored snapshots.
+     */
     clearSnapshots(): void {
         this.snapshots = [];
     }
 }
 
 /**
- * Manages inter-system messaging
+ * Manages inter-system messaging.
+ *
+ * The MessageManager provides a pub/sub mechanism for systems to communicate
+ * without direct dependencies. Messages are typed by string keys and can carry
+ * arbitrary data payloads. The manager also maintains a message history for
+ * debugging and late subscribers.
+ *
+ * @example
+ * ```typescript
+ * const messageManager = new MessageManager(100); // Keep 100 messages in history
+ *
+ * // Subscribe to damage events
+ * const unsubscribe = messageManager.subscribe('damage', (msg) => {
+ *   console.log(`${msg.sender} dealt ${msg.data.amount} damage`);
+ * });
+ *
+ * // Publish a damage event
+ * messageManager.publish('damage', { amount: 50, target: enemyId }, 'CombatSystem');
+ *
+ * // Later, unsubscribe
+ * unsubscribe();
+ * ```
  */
 export class MessageManager {
     private bus: MessageBus;
 
+    /**
+     * Create a new MessageManager.
+     *
+     * @param maxHistory - Maximum number of messages to keep in history (default: 1000)
+     */
     constructor(maxHistory: number = MAX_MESSAGE_HISTORY) {
         this.bus = new MessageBus(maxHistory);
     }
 
+    /**
+     * Subscribe to a message type.
+     *
+     * The callback will be called whenever a message of this type is published.
+     *
+     * @param messageType - The message type to subscribe to
+     * @param callback - Function called when a matching message is published
+     * @returns Unsubscribe function - call to stop receiving messages
+     *
+     * @example
+     * ```typescript
+     * const unsubscribe = messageManager.subscribe('playerDied', (msg) => {
+     *   showGameOverScreen();
+     * });
+     * ```
+     */
     subscribe(messageType: string, callback: (message: SystemMessage) => void): () => void {
         return this.bus.subscribe(messageType, callback);
     }
 
+    /**
+     * Publish a message to all subscribers.
+     *
+     * @param messageType - The message type identifier
+     * @param data - The message payload (any data)
+     * @param sender - Optional sender identifier for debugging
+     *
+     * @example
+     * ```typescript
+     * // Notify systems of a collision
+     * messageManager.publish('collision', {
+     *   entityA: player.id,
+     *   entityB: enemy.id,
+     *   point: { x: 100, y: 200 }
+     * }, 'PhysicsSystem');
+     * ```
+     */
     publish(messageType: string, data: unknown, sender?: string): void {
         this.bus.publish(messageType, data, sender);
     }
 
+    /**
+     * Get message history for debugging or late subscribers.
+     *
+     * @param messageType - Optional filter by message type
+     * @returns Array of messages (all messages if no type specified)
+     */
     getHistory(messageType?: string): SystemMessage[] {
         return this.bus.getMessageHistory(messageType);
     }
 
     /**
      * Clear all subscriptions and message history.
-     * Called when the MessageManager is being disposed.
+     *
+     * Called when the MessageManager is being disposed. After calling clear(),
+     * no more messages will be delivered to existing subscribers.
      */
     clear(): void {
         this.bus.clear();

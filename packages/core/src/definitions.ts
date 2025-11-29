@@ -71,8 +71,29 @@ export type ComponentTypes<T extends readonly ComponentIdentifier[]> = {
 /** @public */
 export type EventTypes<T = any> = string | symbol | keyof T;
 
-/** @public */
-export type EventCallback<T = void> = (...args: any[]) => T;
+/**
+ * Type-safe callback for event handlers.
+ *
+ * @typeParam TArgs - Tuple type representing the callback arguments (e.g., `[deltaTime: number]`)
+ * @typeParam TReturn - Return type of the callback
+ *
+ * @example
+ * ```typescript
+ * // Callback with no arguments
+ * type OnStart = EventCallback;
+ *
+ * // Callback with typed arguments
+ * type OnUpdate = EventCallback<[deltaTime: number]>;
+ *
+ * // Callback with multiple arguments and return value
+ * type OnValidate = EventCallback<[entity: Entity, component: Component], boolean>;
+ * ```
+ *
+ * @public
+ */
+export type EventCallback<TArgs extends unknown[] = unknown[], TReturn = void> = (
+    ...args: TArgs
+) => TReturn;
 
 /**
  * Optional lifecycle hooks that components can implement.

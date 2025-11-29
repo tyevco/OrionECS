@@ -244,6 +244,9 @@ Add a simple rendering system to visualize our entities:
 ```typescript
 // Add after MovementSystem in src/index.ts
 
+// Create a render logger for the render system output
+const renderLog = engine.logger.withTag('Render');
+
 /**
  * RenderSystem displays entities in the console
  */
@@ -254,19 +257,16 @@ engine.createSystem(
   },
   {
     before: () => {
-      // Clear console before rendering (simple approach)
-      console.clear();
-      console.log('='.repeat(50));
+      renderLog.info('--- Frame ' + frameCount + ' ---');
     },
     act: (entity, position: Position, renderable: Renderable) => {
       // Simple console rendering
       const x = Math.round(position.x);
       const y = Math.round(position.y);
-      console.log(`${renderable.symbol} ${entity.name} at (${x}, ${y})`);
+      renderLog.info(`${renderable.symbol} ${entity.name} at (${x}, ${y})`);
     },
     after: () => {
-      console.log('='.repeat(50));
-      console.log(`Frame complete. Entities: ${engine.entityCount}`);
+      renderLog.info(`Entities: ${engine.entityCount}`);
     }
   }
 );
@@ -275,7 +275,8 @@ log.info('RenderSystem created');
 ```
 
 **Explanation:**
-- **before hook**: Runs before processing entities (clear screen)
+- **Tagged logger**: Using `withTag('Render')` creates a logger with a distinct prefix
+- **before hook**: Runs before processing entities (log frame number)
 - **act function**: Displays each entity's position
 - **after hook**: Runs after processing all entities (show stats)
 - System hooks are great for setup/teardown operations
@@ -304,21 +305,21 @@ function update() {
   if (frameCount < maxFrames) {
     setTimeout(update, 100); // Slow down for visibility
   } else {
-    console.log('\nSimulation complete!');
-    console.log(`Total frames: ${frameCount}`);
-    console.log('Final positions:');
+    log.info('=== Simulation Complete! ===');
+    log.info(`Total frames: ${frameCount}`);
+    log.info('Final positions:');
 
     // Display final state using a query
     const query = engine.createQuery({ all: [Position] });
     for (const entity of query.getEntities()) {
       const pos = entity.getComponent(Position);
-      console.log(`  ${entity.name}: (${Math.round(pos.x)}, ${Math.round(pos.y)})`);
+      log.info(`  ${entity.name}: (${Math.round(pos.x)}, ${Math.round(pos.y)})`);
     }
   }
 }
 
 // Start the simulation
-console.log('\nStarting simulation...\n');
+log.info('--- Starting Simulation ---');
 update();
 ```
 
@@ -326,7 +327,7 @@ update();
 - **deltaTime**: Time since last frame (16ms ≈ 60 FPS)
 - **engine.update()**: Executes all systems in order
 - **setTimeout**: Creates a simple game loop (we slow it down to watch)
-- **engine.query()**: Manual query to inspect entity state
+- **engine.createQuery()**: Manual query to inspect entity state
 - Real games would use `requestAnimationFrame` instead of setTimeout
 
 ### Step 8: Add Run Script to package.json
@@ -425,6 +426,9 @@ engine.createSystem(
   }
 );
 
+// Create a render logger for the render system output
+const renderLog = engine.logger.withTag('Render');
+
 // Render System
 engine.createSystem(
   'RenderSystem',
@@ -433,17 +437,15 @@ engine.createSystem(
   },
   {
     before: () => {
-      console.clear();
-      console.log('='.repeat(50));
+      renderLog.info('--- Frame ' + frameCount + ' ---');
     },
     act: (entity, position: Position, renderable: Renderable) => {
       const x = Math.round(position.x);
       const y = Math.round(position.y);
-      console.log(`${renderable.symbol} ${entity.name} at (${x}, ${y})`);
+      renderLog.info(`${renderable.symbol} ${entity.name} at (${x}, ${y})`);
     },
     after: () => {
-      console.log('='.repeat(50));
-      console.log(`Frame complete. Entities: ${engine.entityCount}`);
+      renderLog.info(`Entities: ${engine.entityCount}`);
     }
   }
 );
@@ -459,12 +461,12 @@ function update() {
   if (frameCount < maxFrames) {
     setTimeout(update, 100);
   } else {
-    console.log('\nSimulation complete!');
-    console.log(`Total frames: ${frameCount}`);
+    log.info('=== Simulation Complete! ===');
+    log.info(`Total frames: ${frameCount}`);
   }
 }
 
-console.log('\nStarting simulation...\n');
+log.info('--- Starting Simulation ---');
 update();
 ```
 
@@ -494,30 +496,29 @@ npm start
 
 **Expected output:**
 ```
-Created 3 entities
-MovementSystem created
-RenderSystem created
-
-Starting simulation...
-
-==================================================
-→ Particle1 at (1, 10)
-↗ Particle2 at (1, 12)
-↑ Particle3 at (0, 13)
-==================================================
-Frame complete. Entities: 3
-
-==================================================
-→ Particle1 at (2, 10)
-↗ Particle2 at (1, 13)
-↑ Particle3 at (0, 12)
-==================================================
-Frame complete. Entities: 3
+[Tutorial] --- Creating Entities ---
+[Tutorial] Created Particle1 (moving right)
+[Tutorial] Created Particle2 (moving diagonally)
+[Tutorial] Created Particle3 (moving up)
+[Tutorial] Total entities created: 3
+[Tutorial] MovementSystem created
+[Tutorial] RenderSystem created
+[Tutorial] --- Starting Simulation ---
+[Render] --- Frame 1 ---
+[Render] → Particle1 at (  1,  10)
+[Render] ↗ Particle2 at (  1,  12)
+[Render] ↑ Particle3 at (  0,  13)
+[Render] Entities: 3
+[Render] --- Frame 2 ---
+[Render] → Particle1 at (  2,  10)
+[Render] ↗ Particle2 at (  1,  13)
+[Render] ↑ Particle3 at (  0,  12)
+[Render] Entities: 3
 
 ... (continues for 50 frames)
 
-Simulation complete!
-Total frames: 50
+[Tutorial] === Simulation Complete! ===
+[Tutorial] Total frames: 50
 ```
 
 You should see the entities moving across the screen:

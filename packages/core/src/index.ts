@@ -3,12 +3,15 @@
  * Main entry point
  */
 
+export type { MemoryEstimationConfig } from './archetype';
 // Export archetype system
 export {
     Archetype,
     ArchetypeManager,
     ComponentTypeRegistry,
-    MemoryEstimationConfig,
+    createMemoryEstimationConfig,
+    DEFAULT_MEMORY_ESTIMATION_CONFIG,
+    detectMemoryEnvironment,
 } from './archetype';
 export type {
     CommandExecutionResult,

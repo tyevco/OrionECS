@@ -48,27 +48,18 @@ export class ComponentTypeRegistry {
 }
 
 /**
- * Configuration for memory estimation values.
- * These can be adjusted for different JavaScript engines and platforms.
- *
- * @example Customizing for a specific environment
- * ```typescript
- * import { MemoryEstimationConfig } from '@orion-ecs/core';
- *
- * // Adjust for 32-bit environment
- * MemoryEstimationConfig.POINTER_SIZE = 4;
- * MemoryEstimationConfig.MAP_ENTRY_OVERHEAD = 12;
- * ```
+ * Configuration interface for memory estimation values.
+ * These values are used to estimate memory usage of archetypes.
  *
  * @public
  */
-export const MemoryEstimationConfig = {
+export interface MemoryEstimationConfig {
     /**
      * Size of a reference/pointer in bytes.
      * - 64-bit: 8 bytes (default)
      * - 32-bit: 4 bytes
      */
-    POINTER_SIZE: 8,
+    readonly POINTER_SIZE: number;
 
     /**
      * Estimated average size of a component instance in bytes.
@@ -77,7 +68,7 @@ export const MemoryEstimationConfig = {
      * - Medium (4-6 properties): ~32 bytes (default)
      * - Complex (7+ properties): ~48+ bytes
      */
-    COMPONENT_SIZE_ESTIMATE: 32,
+    readonly COMPONENT_SIZE_ESTIMATE: number;
 
     /**
      * Overhead per entry in Map/Set data structures.
@@ -86,48 +77,116 @@ export const MemoryEstimationConfig = {
      * - SpiderMonkey (Firefox): ~24 bytes
      * - JavaScriptCore (Safari): ~16 bytes
      */
+    readonly MAP_ENTRY_OVERHEAD: number;
+}
+
+/**
+ * Default memory estimation configuration values.
+ * Based on typical JavaScript object sizes in V8 (64-bit).
+ *
+ * @public
+ */
+export const DEFAULT_MEMORY_ESTIMATION_CONFIG: MemoryEstimationConfig = Object.freeze({
+    POINTER_SIZE: 8,
+    COMPONENT_SIZE_ESTIMATE: 32,
     MAP_ENTRY_OVERHEAD: 16,
+});
 
-    /**
-     * Get estimated values based on detected environment.
-     * Call this once at startup to auto-configure for the current platform.
-     *
-     * @returns Object with detected configuration values
-     */
-    detectEnvironment(): { engine: string; is64Bit: boolean } {
-        let engine = 'unknown';
-        let is64Bit = true;
+/**
+ * Detect environment and return appropriate memory estimation configuration.
+ * This function returns a new frozen configuration object based on the detected platform.
+ *
+ * @returns A frozen MemoryEstimationConfig with environment-appropriate values
+ *
+ * @example
+ * ```typescript
+ * import { detectMemoryEnvironment, EngineBuilder } from '@orion-ecs/core';
+ *
+ * // Auto-detect environment for memory estimation
+ * const memoryConfig = detectMemoryEnvironment();
+ *
+ * // Use with ArchetypeManager via engine builder (if supported)
+ * // or access the config values directly
+ * console.log(memoryConfig.info); // { engine: 'V8', is64Bit: true }
+ * ```
+ *
+ * @public
+ */
+export function detectMemoryEnvironment(): MemoryEstimationConfig & {
+    info: { engine: string; is64Bit: boolean };
+} {
+    let pointerSize = 8;
+    let mapEntryOverhead = 16;
+    let engine = 'unknown';
+    let is64Bit = true;
 
-        // Detect JavaScript engine
-        if (typeof process !== 'undefined' && process.versions?.v8) {
+    // Detect JavaScript engine
+    if (typeof process !== 'undefined' && process.versions?.v8) {
+        engine = 'V8';
+    } else if (typeof globalThis !== 'undefined' && 'navigator' in globalThis) {
+        const nav = (globalThis as unknown as { navigator?: { userAgent?: string } }).navigator;
+        const ua = nav?.userAgent || '';
+        if (ua.includes('Firefox')) {
+            engine = 'SpiderMonkey';
+            // SpiderMonkey has higher Map overhead
+            mapEntryOverhead = 24;
+        } else if (ua.includes('Safari') && !ua.includes('Chrome')) {
+            engine = 'JavaScriptCore';
+        } else if (ua.includes('Chrome')) {
             engine = 'V8';
-        } else if (typeof globalThis !== 'undefined' && 'navigator' in globalThis) {
-            const nav = (globalThis as unknown as { navigator?: { userAgent?: string } }).navigator;
-            const ua = nav?.userAgent || '';
-            if (ua.includes('Firefox')) {
-                engine = 'SpiderMonkey';
-                // SpiderMonkey has higher Map overhead
-                this.MAP_ENTRY_OVERHEAD = 24;
-            } else if (ua.includes('Safari') && !ua.includes('Chrome')) {
-                engine = 'JavaScriptCore';
-            } else if (ua.includes('Chrome')) {
-                engine = 'V8';
-            }
         }
+    }
 
-        // Detect architecture (heuristic - not always accurate)
-        // In Node.js we can check process.arch
-        if (typeof process !== 'undefined' && process.arch) {
-            is64Bit = !process.arch.includes('32');
-            if (!is64Bit) {
-                this.POINTER_SIZE = 4;
-                this.MAP_ENTRY_OVERHEAD = Math.round(this.MAP_ENTRY_OVERHEAD * 0.75);
-            }
+    // Detect architecture (heuristic - not always accurate)
+    // In Node.js we can check process.arch
+    if (typeof process !== 'undefined' && process.arch) {
+        is64Bit = !process.arch.includes('32');
+        if (!is64Bit) {
+            pointerSize = 4;
+            mapEntryOverhead = Math.round(mapEntryOverhead * 0.75);
         }
+    }
 
-        return { engine, is64Bit };
-    },
-};
+    return Object.freeze({
+        POINTER_SIZE: pointerSize,
+        COMPONENT_SIZE_ESTIMATE: 32,
+        MAP_ENTRY_OVERHEAD: mapEntryOverhead,
+        info: Object.freeze({ engine, is64Bit }),
+    });
+}
+
+/**
+ * Create a custom memory estimation configuration.
+ * Returns a frozen configuration object to ensure immutability.
+ *
+ * @param config - Partial configuration to override defaults
+ * @returns A frozen MemoryEstimationConfig
+ *
+ * @example
+ * ```typescript
+ * import { createMemoryEstimationConfig } from '@orion-ecs/core';
+ *
+ * // Create custom config for 32-bit environment
+ * const config = createMemoryEstimationConfig({
+ *   POINTER_SIZE: 4,
+ *   MAP_ENTRY_OVERHEAD: 12,
+ * });
+ * ```
+ *
+ * @public
+ */
+export function createMemoryEstimationConfig(
+    config: Partial<MemoryEstimationConfig> = {}
+): MemoryEstimationConfig {
+    return Object.freeze({
+        POINTER_SIZE: config.POINTER_SIZE ?? DEFAULT_MEMORY_ESTIMATION_CONFIG.POINTER_SIZE,
+        COMPONENT_SIZE_ESTIMATE:
+            config.COMPONENT_SIZE_ESTIMATE ??
+            DEFAULT_MEMORY_ESTIMATION_CONFIG.COMPONENT_SIZE_ESTIMATE,
+        MAP_ENTRY_OVERHEAD:
+            config.MAP_ENTRY_OVERHEAD ?? DEFAULT_MEMORY_ESTIMATION_CONFIG.MAP_ENTRY_OVERHEAD,
+    });
+}
 
 /**
  * Represents a unique combination of component types
@@ -161,8 +220,16 @@ export class Archetype {
     // Reference to the registry for generating type keys
     private registry: ComponentTypeRegistry;
 
-    constructor(componentTypes: ComponentIdentifier[], registry: ComponentTypeRegistry) {
+    // Memory estimation configuration (instance-level to ensure isolation between engines)
+    private memoryConfig: MemoryEstimationConfig;
+
+    constructor(
+        componentTypes: ComponentIdentifier[],
+        registry: ComponentTypeRegistry,
+        memoryConfig: MemoryEstimationConfig = DEFAULT_MEMORY_ESTIMATION_CONFIG
+    ) {
         this.registry = registry;
+        this.memoryConfig = memoryConfig;
 
         // Sort component types for consistent archetype IDs
         // Use the unique type key for sorting to ensure consistent ordering
@@ -532,15 +599,16 @@ export class Archetype {
      * Get memory usage statistics.
      *
      * Note: Memory estimates are **approximate** and platform-dependent.
-     * The estimatedBytes value uses configurable heuristics from MemoryEstimationConfig.
+     * The estimatedBytes value uses configurable heuristics from the MemoryEstimationConfig
+     * provided to this archetype's manager.
      * By default, values are based on typical JavaScript object sizes in V8 (64-bit)
      * and may vary significantly across:
      * - Different JavaScript engines (V8, SpiderMonkey, JavaScriptCore)
      * - 32-bit vs 64-bit environments
      * - Component complexity and property count
      *
-     * To improve accuracy, call `MemoryEstimationConfig.detectEnvironment()` at startup
-     * or manually configure the estimation values for your target platform.
+     * To customize memory estimation, pass a custom MemoryEstimationConfig when
+     * creating the ArchetypeManager, or use `detectMemoryEnvironment()` for auto-detection.
      *
      * For accurate memory profiling, use browser DevTools or Node.js --inspect.
      */
@@ -550,14 +618,14 @@ export class Archetype {
         /** Approximate memory usage in bytes (see method docs for accuracy notes) */
         estimatedBytes: number;
     } {
-        // Use configurable values from MemoryEstimationConfig
-        // These can be adjusted for different JS engines and platforms
+        // Use instance-level config for memory estimation
+        // This ensures isolation between engine instances
         const entityCount = this.entities.length;
         const componentTypeCount = this.componentTypes.length;
         const estimatedBytes =
-            entityCount * MemoryEstimationConfig.POINTER_SIZE + // Entity array
-            entityCount * componentTypeCount * MemoryEstimationConfig.COMPONENT_SIZE_ESTIMATE + // Component arrays
-            entityCount * MemoryEstimationConfig.MAP_ENTRY_OVERHEAD; // Index map overhead
+            entityCount * this.memoryConfig.POINTER_SIZE + // Entity array
+            entityCount * componentTypeCount * this.memoryConfig.COMPONENT_SIZE_ESTIMATE + // Component arrays
+            entityCount * this.memoryConfig.MAP_ENTRY_OVERHEAD; // Index map overhead
 
         return {
             entityCount,
@@ -570,8 +638,8 @@ export class Archetype {
 /**
  * Manages all archetypes and entity movement between them.
  *
- * Each ArchetypeManager owns its own ComponentTypeRegistry, ensuring that
- * multiple Engine instances can operate independently without sharing state.
+ * Each ArchetypeManager owns its own ComponentTypeRegistry and MemoryEstimationConfig,
+ * ensuring that multiple Engine instances can operate independently without sharing state.
  */
 export class ArchetypeManager {
     // Map from archetype ID to archetype
@@ -590,12 +658,26 @@ export class ArchetypeManager {
     // Engine-scoped registry for component type IDs
     private registry: ComponentTypeRegistry;
 
-    constructor() {
+    // Instance-level memory estimation config (ensures isolation between engines)
+    private memoryConfig: MemoryEstimationConfig;
+
+    /**
+     * Create a new ArchetypeManager.
+     *
+     * @param memoryConfig - Optional memory estimation configuration.
+     *                       Defaults to DEFAULT_MEMORY_ESTIMATION_CONFIG.
+     *                       Use `detectMemoryEnvironment()` for auto-detection or
+     *                       `createMemoryEstimationConfig()` for custom values.
+     */
+    constructor(memoryConfig?: MemoryEstimationConfig) {
         // Create engine-scoped registry for component type IDs
         this.registry = new ComponentTypeRegistry();
 
+        // Use provided config or default (immutable, no global state mutation)
+        this.memoryConfig = memoryConfig ?? DEFAULT_MEMORY_ESTIMATION_CONFIG;
+
         // Create empty archetype for entities with no components
-        this.emptyArchetype = new Archetype([], this.registry);
+        this.emptyArchetype = new Archetype([], this.registry, this.memoryConfig);
         this.archetypes.set(this.emptyArchetype.id, this.emptyArchetype);
     }
 
@@ -634,7 +716,7 @@ export class ArchetypeManager {
         let archetype = this.archetypes.get(id);
 
         if (!archetype) {
-            archetype = new Archetype(componentTypes, this.registry);
+            archetype = new Archetype(componentTypes, this.registry, this.memoryConfig);
             this.archetypes.set(id, archetype);
             this._archetypeCreationCount++;
         }
@@ -841,8 +923,8 @@ export class ArchetypeManager {
     clear(): void {
         this.archetypes.clear();
         this.entityToArchetype.clear();
-        // Recreate empty archetype with the same registry
-        this.emptyArchetype = new Archetype([], this.registry);
+        // Recreate empty archetype with the same registry and memory config
+        this.emptyArchetype = new Archetype([], this.registry, this.memoryConfig);
         this.archetypes.set(this.emptyArchetype.id, this.emptyArchetype);
         this._archetypeCreationCount = 0;
         this._entityMovementCount = 0;

@@ -198,12 +198,108 @@ const debugInfo = engine.getDebugInfo();
 console.log('Engine state:', debugInfo);
 ```
 
+## 📊 Comparative Benchmark Suite
+
+OrionECS includes a comprehensive comparative benchmark suite for tracking performance over time and comparing against other ECS libraries.
+
+### Running Benchmarks
+
+```bash
+# Run full comparative benchmark suite
+npm run benchmark:comparative
+
+# Run quick benchmarks (for CI/development)
+npm run benchmark:comparative:quick
+
+# Generate reports from last run
+npm run benchmark:report
+
+# Generate interactive dashboard
+npm run benchmark:dashboard
+```
+
+### Benchmark Scenarios
+
+The comparative suite tests these key scenarios:
+
+| Scenario | Description | Entity Count |
+|----------|-------------|--------------|
+| **entity-creation** | Create entities with Position and Velocity | 1,000 |
+| **bulk-entity-creation** | Bulk entity creation performance | 5,000 |
+| **component-addition** | Add/remove Health component | 1,000 |
+| **simple-iteration** | Query and update Position/Velocity | 1,000 |
+| **large-iteration** | Large-scale iteration performance | 10,000 |
+| **multi-system** | Run 3 systems per frame | 1,000 |
+| **serialization** | Serialize world state to JSON | 500 |
+| **entity-lifecycle** | Create/destroy cycles | 100 |
+| **memory-usage** | Memory consumption measurement | 10,000 |
+| **archetype-transition** | Component add/remove (archetype changes) | 1,000 |
+
+### Performance Targets
+
+The benchmark suite monitors these performance targets:
+
+| Metric | Target | Status |
+|--------|--------|--------|
+| Entity Creation | >300 ops/sec | ✅ Pass |
+| Simple Iteration | >250 ops/sec | ✅ Pass |
+| Multi-System Execution | >150 ops/sec | ✅ Pass |
+| Memory Overhead | <100 bytes/entity | ✅ Pass |
+
+### Regression Detection
+
+The CI pipeline automatically detects performance regressions:
+
+- **Threshold**: 10% performance decrease triggers a warning
+- **Significant Regression**: 15% decrease fails the CI build
+- **Historical Tracking**: All results stored in JSON format
+- **Trend Analysis**: Compares against rolling average
+
+### Output Formats
+
+Benchmark results are available in multiple formats:
+
+- **JSON**: Machine-readable data for analysis
+- **Markdown**: Human-readable reports for PRs
+- **HTML**: Interactive dashboard with charts
+- **CSV**: Spreadsheet-compatible export
+
+### Comparing Against Other Libraries
+
+The suite is designed to compare OrionECS against:
+
+- **BitECS**: High-performance TypedArray-based ECS
+- **ECSY**: Mozilla's framework-agnostic ECS
+- **Miniplex**: Minimal ECS implementation
+- **Becsy**: TypeScript ECS with multi-threading
+
+To enable competitor comparisons, install the libraries and implement the adapter interfaces in `benchmarks/comparative/adapters/`.
+
+### Benchmark Methodology
+
+**Environment Consistency:**
+- Fixed random seed (42) for reproducible results
+- Warmup iterations before measurement
+- Multiple measurement iterations with statistical analysis
+- Isolated execution (no parallel tests)
+
+**Statistical Rigor:**
+- Reports mean, standard deviation, and margin of error
+- 95% confidence intervals
+- Outlier detection and handling
+
+**CI Integration:**
+- Runs on every push to main branch
+- Quick benchmarks on pull requests
+- Results posted as PR comments
+- Historical data preserved in `gh-pages` branch
+
 ## 🏁 Conclusion
 
 The Orion ECS demonstrates excellent performance characteristics across all major operations. The enhanced features add minimal overhead while providing significant development benefits. The engine is well-suited for:
 
 - ✅ High-performance games requiring 60+ FPS
-- ✅ Complex simulations with thousands of entities  
+- ✅ Complex simulations with thousands of entities
 - ✅ Development workflows requiring extensive debugging
 - ✅ Applications needing flexible entity relationships
 - ✅ Systems requiring robust validation and error handling

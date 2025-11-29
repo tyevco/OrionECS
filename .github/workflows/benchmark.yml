@@ -1,0 +1,238 @@
+name: Performance Benchmarks
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+    branches: [main, master]
+  # Allow manual triggers
+  workflow_dispatch:
+    inputs:
+      full_suite:
+        description: 'Run full benchmark suite'
+        required: false
+        default: 'false'
+        type: boolean
+
+# Ensure only one benchmark runs at a time per branch
+concurrency:
+  group: benchmark-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  benchmark:
+    name: Run Benchmarks
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # Full history for comparisons
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 20.x
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
+      - name: Build packages
+        run: npm run build
+
+      - name: Setup benchmark cache
+        uses: actions/cache@v4
+        with:
+          path: benchmarks/history
+          key: benchmark-history-${{ github.ref_name }}
+          restore-keys: |
+            benchmark-history-main
+            benchmark-history-
+
+      - name: Run quick benchmarks (PR)
+        if: github.event_name == 'pull_request' && github.event.inputs.full_suite != 'true'
+        run: npx ts-node benchmarks/comparative/cli.ts --quick --save-history --threshold 15
+        env:
+          CI: true
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF_NAME: ${{ github.head_ref || github.ref_name }}
+
+      - name: Run full benchmarks (main branch or manual)
+        if: github.event_name != 'pull_request' || github.event.inputs.full_suite == 'true'
+        run: npx ts-node benchmarks/comparative/cli.ts --full --save-history
+        env:
+          CI: true
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_REF_NAME: ${{ github.ref_name }}
+
+      - name: Upload benchmark results
+        uses: actions/upload-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: |
+            benchmarks/reports/
+            benchmarks/history/
+          retention-days: 30
+
+      - name: Comment PR with benchmark results
+        if: github.event_name == 'pull_request'
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require('fs');
+            const path = require('path');
+
+            // Find the latest markdown report
+            const reportsDir = 'benchmarks/reports';
+            if (!fs.existsSync(reportsDir)) {
+              console.log('No reports directory found');
+              return;
+            }
+
+            const files = fs.readdirSync(reportsDir)
+              .filter(f => f.endsWith('.md'))
+              .sort()
+              .reverse();
+
+            if (files.length === 0) {
+              console.log('No markdown reports found');
+              return;
+            }
+
+            const reportPath = path.join(reportsDir, files[0]);
+            let reportContent = fs.readFileSync(reportPath, 'utf-8');
+
+            // Truncate if too long for a comment
+            const maxLength = 60000;
+            if (reportContent.length > maxLength) {
+              reportContent = reportContent.substring(0, maxLength) + '\n\n*Report truncated...*';
+            }
+
+            // Check for existing comment
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(c =>
+              c.user.type === 'Bot' && c.body.includes('OrionECS Performance Benchmark Report')
+            );
+
+            const body = `## 📊 Benchmark Results\n\n${reportContent}`;
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body,
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body,
+              });
+            }
+
+      - name: Check for regressions
+        id: regression-check
+        run: |
+          # This is handled by the CLI, but we can add additional checks here
+          if [ -f "benchmarks/reports/regression-detected.flag" ]; then
+            echo "regression_detected=true" >> $GITHUB_OUTPUT
+          else
+            echo "regression_detected=false" >> $GITHUB_OUTPUT
+          fi
+
+  # Store benchmark history in a separate branch (optional)
+  store-history:
+    name: Store Benchmark History
+    needs: benchmark
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: gh-pages
+          fetch-depth: 0
+
+      - name: Download benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: benchmark-data
+
+      - name: Update benchmark data
+        run: |
+          mkdir -p benchmarks
+          if [ -d "benchmark-data/history" ]; then
+            cp -r benchmark-data/history/* benchmarks/ 2>/dev/null || true
+          fi
+          if [ -d "benchmark-data/reports" ]; then
+            mkdir -p reports
+            cp -r benchmark-data/reports/* reports/ 2>/dev/null || true
+          fi
+
+      - name: Commit and push
+        run: |
+          git config --local user.email "github-actions[bot]@users.noreply.github.com"
+          git config --local user.name "github-actions[bot]"
+          git add benchmarks/ reports/ 2>/dev/null || true
+          git diff --staged --quiet || git commit -m "Update benchmark data for ${{ github.sha }}"
+          git push origin gh-pages || echo "No changes to push"
+        continue-on-error: true
+
+  # Generate and deploy the visualization dashboard
+  deploy-dashboard:
+    name: Deploy Dashboard
+    needs: benchmark
+    runs-on: ubuntu-latest
+    if: github.event_name == 'push' && (github.ref == 'refs/heads/main' || github.ref == 'refs/heads/master')
+    permissions:
+      contents: write
+      pages: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Download benchmark results
+        uses: actions/download-artifact@v4
+        with:
+          name: benchmark-results-${{ github.sha }}
+          path: benchmark-data
+
+      - name: Copy HTML report to dashboard
+        run: |
+          mkdir -p dashboard
+          if [ -d "benchmark-data/reports" ]; then
+            # Find latest HTML report
+            latest_html=$(ls -t benchmark-data/reports/*.html 2>/dev/null | head -1)
+            if [ -n "$latest_html" ]; then
+              cp "$latest_html" dashboard/index.html
+            fi
+          fi
+          # Copy history data for the dashboard
+          if [ -d "benchmark-data/history" ]; then
+            cp -r benchmark-data/history dashboard/
+          fi
+
+      - name: Deploy to GitHub Pages
+        if: hashFiles('dashboard/index.html') != ''
+        uses: peaceiris/actions-gh-pages@v4
+        with:
+          github_token: ${{ secrets.GITHUB_TOKEN }}
+          publish_dir: ./dashboard
+          destination_dir: benchmarks

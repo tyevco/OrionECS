@@ -1118,35 +1118,31 @@ export class Entity implements EntityDef {
         return this._componentIndices.has(type);
     }
 
-    getComponent<T>(type: ComponentIdentifier<T>): T {
+    tryGetComponent<T>(type: ComponentIdentifier<T>): T | null {
         const index = this._componentIndices.get(type);
         if (index === undefined) {
-            throw new Error(
-                `[ECS] Component ${type.name} not found on entity ${this._name || this._numericId}`
-            );
+            return null;
         }
 
         const archetypeManager = this.componentManager.getArchetypeManager();
         if (archetypeManager) {
             // Archetype mode: get component from archetype
-            const component = archetypeManager.getComponent(this, type);
-            if (component === null) {
-                throw new Error(
-                    `[ECS] Component ${type.name} is null on entity ${this._name || this._numericId}`
-                );
-            }
-            return component as T;
+            return archetypeManager.getComponent(this, type);
         } else {
             // Legacy mode: get component from sparse array
             const componentArray = this.componentManager.getComponentArray(type);
-            const component = componentArray.get(index);
-            if (component === null) {
-                throw new Error(
-                    `[ECS] Component ${type.name} is null on entity ${this._name || this._numericId}`
-                );
-            }
-            return component as T;
+            return componentArray.get(index);
         }
+    }
+
+    getComponent<T>(type: ComponentIdentifier<T>): T {
+        const component = this.tryGetComponent(type);
+        if (component === null) {
+            throw new Error(
+                `[ECS] Component ${type.name} not found on entity ${this._name || this._numericId}`
+            );
+        }
+        return component;
     }
 
     addTag(tag: string): this {

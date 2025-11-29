@@ -1,0 +1,165 @@
+{
+  "version": "1.0.0",
+  "lastUpdated": "2025-11-29T00:32:28.462Z",
+  "entries": [
+    {
+      "runId": "bench-mijk4ffw-e1zjiw",
+      "commitSha": "509731e022c7838dbf4ba4c622b1953b8af63a54",
+      "branch": "main",
+      "timestamp": "2025-11-29T00:32:28.461Z",
+      "nodeVersion": "v20.19.5",
+      "platform": {
+        "os": "linux 6.11.0-1018-azure",
+        "arch": "x64",
+        "cpus": 4,
+        "memory": 16772575232
+      },
+      "libraries": [
+        {
+          "library": "OrionECS",
+          "version": "0.2.0",
+          "results": [
+            {
+              "scenario": "entity-creation",
+              "measurement": {
+                "opsPerSecond": 138.20538647201474,
+                "meanTime": 7.2356079999999885,
+                "stdDev": 0.7282959950206742,
+                "samples": 50,
+                "marginOfError": 2.7899984413435397,
+                "memoryUsage": -1134736
+              },
+              "success": true
+            },
+            {
+              "scenario": "bulk-entity-creation",
+              "measurement": {
+                "opsPerSecond": 24.062916379591663,
+                "meanTime": 41.55772244,
+                "stdDev": 0.866484677674318,
+                "samples": 25,
+                "marginOfError": 0.8173258150485224,
+                "memoryUsage": 203371400
+              },
+              "success": true
+            },
+            {
+              "scenario": "component-addition",
+              "measurement": {
+                "opsPerSecond": 231.29852862864112,
+                "meanTime": 4.323417040000022,
+                "stdDev": 0.3725904176438447,
+                "samples": 50,
+                "marginOfError": 2.3887770651213174,
+                "memoryUsage": 11259056
+              },
+              "success": true
+            },
+            {
+              "scenario": "simple-iteration",
+              "measurement": {
+                "opsPerSecond": 3206.0106801193388,
+                "meanTime": 0.3119141199999922,
+                "stdDev": 0.20276989842395715,
+                "samples": 50,
+                "marginOfError": 18.019366457942883,
+                "memoryUsage": -1642616
+              },
+              "success": true
+            },
+            {
+              "scenario": "large-iteration",
+              "measurement": {
+                "opsPerSecond": 499.15074492259237,
+                "meanTime": 2.0034027999999853,
+                "stdDev": 0.4493215627824557,
+                "samples": 25,
+                "marginOfError": 8.791744356687728,
+                "memoryUsage": -1189848
+              },
+              "success": true
+            },
+            {
+              "scenario": "multi-system",
+              "measurement": {
+                "opsPerSecond": 2576.484620680034,
+                "meanTime": 0.3881257399999777,
+                "stdDev": 0.27655114280601384,
+                "samples": 50,
+                "marginOfError": 19.75031747748266,
+                "memoryUsage": 6874912
+              },
+              "success": true
+            },
+            {
+              "scenario": "serialization",
+              "measurement": {
+                "opsPerSecond": 1345.6905766456557,
+                "meanTime": 0.7431128799999897,
+                "stdDev": 0.26379458659263944,
+                "samples": 50,
+                "marginOfError": 9.8397068396694,
+                "memoryUsage": -7615992
+              },
+              "success": true
+            },
+            {
+              "scenario": "entity-lifecycle",
+              "measurement": {
+                "opsPerSecond": 1248.4856805059385,
+                "meanTime": 0.8009703400000217,
+                "stdDev": 0.22046036995088236,
+                "samples": 50,
+                "marginOfError": 7.629308327379836,
+                "memoryUsage": -13553656
+              },
+              "success": true
+            },
+            {
+              "scenario": "memory-usage",
+              "measurement": {
+                "opsPerSecond": 19.806959447983505,
+                "meanTime": 50.48730485999997,
+                "stdDev": 6.763330976374104,
+                "samples": 50,
+                "marginOfError": 3.713210095776225,
+                "memoryUsage": 212822832
+              },
+              "success": true
+            },
+            {
+              "scenario": "archetype-transition",
+              "measurement": {
+                "opsPerSecond": 225.75968178070272,
+                "meanTime": 4.4294888800001715,
+                "stdDev": 0.5521131404369283,
+                "samples": 50,
+                "marginOfError": 3.4549799946528794,
+                "memoryUsage": -3058936
+              },
+              "success": true
+            }
+          ],
+          "totalTime": 7014,
+          "timestamp": "2025-11-29T00:32:28.460Z"
+        }
+      ],
+      "config": {
+        "warmupIterations": 5,
+        "measurementIterations": 50,
+        "entityCounts": [
+          1000,
+          5000,
+          10000
+        ],
+        "systemCounts": [
+          1,
+          3,
+          5
+        ],
+        "runMemoryBenchmarks": true,
+        "timeout": 30000
+      }
+    }
+  ]
+}

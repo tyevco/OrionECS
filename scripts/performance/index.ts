@@ -21,24 +21,24 @@
  */
 
 export {
-    runRegressionAnalysis,
-    generateComparisonReport,
-    processRawResults,
     createBaseline,
-    printReport,
+    generateComparisonReport,
     generateMarkdownSummary,
+    printReport,
+    processRawResults,
+    runRegressionAnalysis,
 } from './regression-detector';
 
 export type {
-    BenchmarkStats,
-    BenchmarkResult,
-    RawBenchmarkResults,
-    ProcessedBenchmark,
     BaselineData,
     BenchmarkBudget,
+    BenchmarkResult,
+    BenchmarkStats,
     BudgetsConfig,
-    ComparisonResult,
     ComparisonReport,
-    RegressionConfig,
+    ComparisonResult,
     ExitCode,
+    ProcessedBenchmark,
+    RawBenchmarkResults,
+    RegressionConfig,
 } from './types';

@@ -16,7 +16,6 @@ import type {
     ProcessedBenchmark,
     RawBenchmarkResults,
     RegressionConfig,
-    ExitCode,
 } from './types';
 
 /**
@@ -519,23 +518,55 @@ export async function runRegressionAnalysis(config: RegressionConfig): Promise<{
         const gitRef = process.env.GITHUB_REF || process.env.GIT_REF || 'unknown';
         const gitCommit = process.env.GITHUB_SHA || process.env.GIT_SHA || 'unknown';
 
-        // Check if baseline exists
-        if (!fs.existsSync(config.baselinePath)) {
-            console.log('No baseline found. Creating initial baseline...');
+        let baseline: BaselineData;
 
-            if (config.updateBaseline) {
-                const baseline = createBaseline(currentResults, gitRef, gitCommit);
-                saveJsonFile(config.baselinePath, baseline);
-                console.log(`Baseline saved to ${config.baselinePath}`);
-            } else {
-                console.log('Skipping baseline creation (--update-baseline not set)');
+        // Check if we're doing a direct comparison (same-runner mode)
+        if (config.baselineResultsPath) {
+            if (!fs.existsSync(config.baselineResultsPath)) {
+                console.log(`Baseline results file not found: ${config.baselineResultsPath}`);
+                return { report: null, exitCode: 4 }; // NO_BASELINE
             }
 
-            return { report: null, exitCode: 4 }; // NO_BASELINE
+            console.log('Using same-runner comparison mode (baseline results file provided)');
+            console.log(`Baseline results: ${config.baselineResultsPath}`);
+            console.log(`Current results: ${config.resultsPath}`);
+
+            // Load and process baseline results directly from file
+            const rawBaselineResults = loadJsonFile<RawBenchmarkResults>(
+                config.baselineResultsPath
+            );
+            const baselineResults = processRawResults(rawBaselineResults);
+
+            // Create a temporary baseline object for comparison
+            baseline = {
+                version: '1.0.0',
+                generatedAt: new Date().toISOString(),
+                gitRef: 'base-branch',
+                gitCommit: 'same-runner-comparison',
+                nodeVersion: process.version,
+                platform: process.platform,
+                benchmarks: baselineResults,
+            };
+        } else {
+            // Traditional mode: use stored baseline file
+            if (!fs.existsSync(config.baselinePath)) {
+                console.log('No baseline found. Creating initial baseline...');
+
+                if (config.updateBaseline) {
+                    const newBaseline = createBaseline(currentResults, gitRef, gitCommit);
+                    saveJsonFile(config.baselinePath, newBaseline);
+                    console.log(`Baseline saved to ${config.baselinePath}`);
+                } else {
+                    console.log('Skipping baseline creation (--update-baseline not set)');
+                }
+
+                return { report: null, exitCode: 4 }; // NO_BASELINE
+            }
+
+            baseline = loadJsonFile<BaselineData>(config.baselinePath);
         }
 
-        // Load baseline and compare
-        const baseline = loadJsonFile<BaselineData>(config.baselinePath);
+        // Generate comparison report
         const report = generateComparisonReport(currentResults, baseline, budgets, gitRef);
 
         // Print report
@@ -544,13 +575,19 @@ export async function runRegressionAnalysis(config: RegressionConfig): Promise<{
         // Save markdown summary if output path specified
         if (config.outputPath) {
             const markdown = generateMarkdownSummary(report);
-            saveJsonFile(config.outputPath.replace('.json', '.md'), markdown);
+            const mdPath = config.outputPath.replace('.json', '.md');
+            // Save markdown as text, not JSON
+            const dir = path.dirname(mdPath);
+            if (!fs.existsSync(dir)) {
+                fs.mkdirSync(dir, { recursive: true });
+            }
+            fs.writeFileSync(mdPath, markdown);
             saveJsonFile(config.outputPath, report);
             console.log(`Report saved to ${config.outputPath}`);
         }
 
-        // Update baseline if requested
-        if (config.updateBaseline) {
+        // Update baseline if requested (only in traditional mode)
+        if (config.updateBaseline && !config.baselineResultsPath) {
             const newBaseline = createBaseline(currentResults, gitRef, gitCommit);
             saveJsonFile(config.baselinePath, newBaseline);
             console.log(`Baseline updated at ${config.baselinePath}`);

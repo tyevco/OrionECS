@@ -34,6 +34,7 @@ import type {
     PluginContext,
     PoolStats,
     QueryOptions,
+    SerializedEntity,
     SerializedWorld,
     SystemError,
     SystemHealth,
@@ -1563,104 +1564,10 @@ export class Engine {
             return false;
         }
 
-        // Clear all existing entities
-        for (const entity of this.getAllEntities()) {
-            entity.queueFree();
-        }
-        this.entityManager.cleanup();
-
-        // Recreate entities from snapshot
-        const entityMap = new Map<string, Entity>();
-
-        // Helper function to recursively process entities
-        const processEntity = (serializedEntity: any): Entity => {
-            const entity = this.createEntity(serializedEntity.name);
-
-            // Add components - convert component data back to component instances
-            for (const [componentName, componentData] of Object.entries(
-                serializedEntity.components
-            )) {
-                const componentType = this.componentManager.getComponentByName(componentName);
-                if (componentType) {
-                    // For each component, we need to create it with the right data
-                    // Extract constructor args from component data if they exist
-                    // Otherwise create empty and assign properties
-                    const dataObj = componentData as Record<string, any>;
-                    const keys = Object.keys(dataObj);
-                    const values = keys.map((key) => dataObj[key]);
-
-                    try {
-                        // Try to call addComponent with the values as constructor args
-                        entity.addComponent(componentType, ...values);
-                    } catch (error) {
-                        // If that fails, add empty component and assign properties
-                        if (this.debugMode) {
-                            console.warn(
-                                `[ECS Debug] Failed to create ${componentType.name} with constructor args, falling back to property assignment:`,
-                                error instanceof Error ? error.message : error
-                            );
-                        }
-                        entity.addComponent(componentType);
-                        const component = entity.getComponent(componentType as any) as any;
-                        Object.assign(component, componentData);
-                    }
-                }
-            }
-
-            // Add tags
-            for (const tag of serializedEntity.tags) {
-                entity.addTag(tag);
-            }
-
-            entityMap.set(serializedEntity.id, entity);
-
-            // Process children recursively
-            if (serializedEntity.children && serializedEntity.children.length > 0) {
-                for (const childSerialized of serializedEntity.children) {
-                    const child = processEntity(childSerialized);
-                    entity.addChild(child);
-                }
-            }
-
-            return entity;
-        };
-
-        // Process all root entities (and their children recursively)
-        for (const serializedEntity of snapshot.entities) {
-            processEntity(serializedEntity);
-        }
-
-        // Restore singleton components
-        if (snapshot.singletons) {
-            // Clear existing singletons
-            this.componentManager.clearAllSingletons();
-
-            // Restore each singleton
-            for (const [componentName, componentData] of Object.entries(snapshot.singletons)) {
-                const componentType = this.componentManager.getComponentByName(componentName);
-                if (componentType) {
-                    const dataObj = componentData as Record<string, any>;
-                    const keys = Object.keys(dataObj);
-                    const values = keys.map((key) => dataObj[key]);
-
-                    try {
-                        // Try to call constructor with values as args
-                        const component = new componentType(...values);
-                        this.componentManager.setSingleton(componentType, component);
-                    } catch {
-                        // If that fails, create empty and assign properties
-                        const component = new componentType();
-                        Object.assign(component as object, componentData);
-                        this.componentManager.setSingleton(componentType, component);
-                    }
-                }
-            }
-        }
-
-        // Update all queries with restored entities
-        for (const entity of entityMap.values()) {
-            this.queryManager.updateQueries(entity);
-        }
+        this.clearAllEntitiesForRestore();
+        const entityMap = this.recreateEntitiesFromSnapshot(snapshot.entities);
+        this.restoreSnapshotSingletons(snapshot.singletons);
+        this.updateQueriesForRestoredEntities(entityMap);
 
         if (this.debugMode) {
             const singletonCount = snapshot.singletons
@@ -1672,6 +1579,143 @@ export class Engine {
         }
 
         return true;
+    }
+
+    /**
+     * Clears all existing entities in preparation for snapshot restoration.
+     * @internal
+     */
+    private clearAllEntitiesForRestore(): void {
+        for (const entity of this.getAllEntities()) {
+            entity.queueFree();
+        }
+        this.entityManager.cleanup();
+    }
+
+    /**
+     * Recreates all entities from serialized snapshot data.
+     * @param serializedEntities - The serialized entity data from the snapshot
+     * @returns A map of original entity IDs to their recreated Entity instances
+     * @internal
+     */
+    private recreateEntitiesFromSnapshot(
+        serializedEntities: SerializedEntity[]
+    ): Map<string, Entity> {
+        const entityMap = new Map<string, Entity>();
+
+        for (const serializedEntity of serializedEntities) {
+            this.recreateEntityFromSnapshot(serializedEntity, entityMap);
+        }
+
+        return entityMap;
+    }
+
+    /**
+     * Recursively recreates a single entity and its children from serialized data.
+     * @param serializedEntity - The serialized entity data
+     * @param entityMap - Map to track recreated entities by their original IDs
+     * @returns The recreated Entity instance
+     * @internal
+     */
+    private recreateEntityFromSnapshot(
+        serializedEntity: SerializedEntity,
+        entityMap: Map<string, Entity>
+    ): Entity {
+        const entity = this.createEntity(serializedEntity.name);
+
+        this.restoreEntityComponents(entity, serializedEntity.components);
+
+        for (const tag of serializedEntity.tags) {
+            entity.addTag(tag);
+        }
+
+        entityMap.set(serializedEntity.id, entity);
+
+        if (serializedEntity.children && serializedEntity.children.length > 0) {
+            for (const childSerialized of serializedEntity.children) {
+                const child = this.recreateEntityFromSnapshot(childSerialized, entityMap);
+                entity.addChild(child);
+            }
+        }
+
+        return entity;
+    }
+
+    /**
+     * Restores components to an entity from serialized component data.
+     * @param entity - The entity to restore components to
+     * @param components - The serialized component data keyed by component name
+     * @internal
+     */
+    private restoreEntityComponents(entity: Entity, components: Record<string, unknown>): void {
+        for (const [componentName, componentData] of Object.entries(components)) {
+            const componentType = this.componentManager.getComponentByName(componentName);
+            if (!componentType) {
+                continue;
+            }
+
+            const dataObj = componentData as Record<string, unknown>;
+            const values = Object.keys(dataObj).map((key) => dataObj[key]);
+
+            try {
+                entity.addComponent(componentType, ...values);
+            } catch (error) {
+                if (this.debugMode) {
+                    console.warn(
+                        `[ECS Debug] Failed to create ${componentType.name} with constructor args, falling back to property assignment:`,
+                        error instanceof Error ? error.message : error
+                    );
+                }
+                entity.addComponent(componentType);
+                const component = entity.getComponent(
+                    componentType as ComponentIdentifier
+                ) as object;
+                Object.assign(component, componentData);
+            }
+        }
+    }
+
+    /**
+     * Restores singleton components from serialized snapshot data.
+     * @param singletons - The serialized singleton data keyed by component name
+     * @internal
+     */
+    private restoreSnapshotSingletons(singletons: Record<string, unknown> | undefined): void {
+        if (!singletons) {
+            return;
+        }
+
+        this.componentManager.clearAllSingletons();
+
+        for (const [componentName, componentData] of Object.entries(singletons)) {
+            const componentType = this.componentManager.getComponentByName(componentName);
+            if (!componentType) {
+                continue;
+            }
+
+            const dataObj = componentData as Record<string, unknown>;
+            const values = Object.keys(dataObj).map((key) => dataObj[key]);
+
+            try {
+                const component = new componentType(...values);
+                this.componentManager.setSingleton(componentType, component);
+            } catch {
+                const component = new componentType();
+                Object.assign(component as object, componentData);
+                this.componentManager.setSingleton(componentType, component);
+            }
+        }
+    }
+
+    /**
+     * Updates all queries with the restored entities.
+     * @param entityMap - Map of recreated entities
+     * @internal
+     */
+    private updateQueriesForRestoredEntities(entityMap: Map<string, Entity>): void {
+        for (const entity of entityMap.values()) {
+            this.queryManager.updateQueries(entity);
+        }
     }
 
     getSnapshotCount(): number {

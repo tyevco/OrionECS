@@ -32,25 +32,36 @@ type Logger = PluginApiLogger;
 /**
  * Type representing a component class constructor.
  *
- * This type uses `any[]` for constructor parameters due to TypeScript's variance rules.
+ * This type uses `any[]` as the default for constructor parameters due to TypeScript's variance rules.
  * Using `unknown[]` would prevent assigning specific component classes (like `class Position { constructor(x: number, y: number) {} }`)
  * to this type, because TypeScript uses contravariance for function parameters.
  *
  * **Type Safety Model:**
  * - `ComponentIdentifier` is used as a **runtime reference** to component classes (storage, queries, maps)
- * - Full compile-time type safety is provided at **call sites** via `ConstructorParameters`:
+ * - Full compile-time type safety is provided at **call sites** by using the actual class type:
  *   ```typescript
- *   addComponent<T>(type: ComponentIdentifier<T>, ...args: ConstructorParameters<typeof type>): this
+ *   // Pattern 1: Infer constructor args from the actual class type
+ *   addComponent<C extends ComponentIdentifier>(type: C, ...args: ConstructorParameters<C>): this
+ *
+ *   // Pattern 2: Use ComponentArgs utility type
+ *   addComponent<C extends ComponentIdentifier>(type: C, ...args: ComponentArgs<C>): this
  *   ```
- * - For stricter typing at definition time, use {@link StrictComponentClass}
+ * - For stricter typing at definition time, provide the Args type parameter:
+ *   ```typescript
+ *   const positionType: ComponentIdentifier<Position, [number, number]> = Position;
+ *   ```
+ * - For full strictness, use {@link StrictComponentClass}
  *
  * @typeParam T - The instance type of the component
- * @see StrictComponentClass - Stricter alternative that captures constructor args
+ * @typeParam Args - Optional tuple type of constructor arguments (defaults to any[] for flexibility)
+ * @see StrictComponentClass - Stricter alternative with unknown[] default
  * @see ComponentArgs - Utility to extract constructor parameters from a component type
  * @public
  */
 // eslint-disable-next-line @typescript-eslint/no-explicit-any
-export type ComponentIdentifier<T = unknown> = new (...args: any[]) => T;
+export type ComponentIdentifier<T = unknown, Args extends unknown[] = any[]> = new (
+    ...args: Args
+) => T;
 
 /**
  * A stricter component class type that captures both instance type and constructor arguments.
@@ -614,19 +625,11 @@ export interface EntityDef {
     children: EntityDef[];
     tags: Set<string>;
     queueFree(): void;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    addComponent<T>(
-        type: new (...args: any[]) => T,
-        ...args: ConstructorParameters<typeof type>
-    ): this;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    removeComponent<T>(type: new (...args: any[]) => T): this;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    hasComponent<T>(type: new (...args: any[]) => T): boolean;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    getComponent<T>(type: new (...args: any[]) => T): T;
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    tryGetComponent<T>(type: new (...args: any[]) => T): T | null;
+    addComponent<C extends ComponentIdentifier>(type: C, ...args: ConstructorParameters<C>): this;
+    removeComponent<T>(type: ComponentIdentifier<T>): this;
+    hasComponent<T>(type: ComponentIdentifier<T>): boolean;
+    getComponent<T>(type: ComponentIdentifier<T>): T;
+    tryGetComponent<T>(type: ComponentIdentifier<T>): T | null;
     addTag(tag: string): this;
     removeTag(tag: string): this;
     hasTag(tag: string): boolean;

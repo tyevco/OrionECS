@@ -3,21 +3,47 @@ name: Claude Code Review
 on:
   pull_request:
     types: [opened, synchronize]
-    # Optional: Only run on specific file changes
-    # paths:
-    #   - "src/**/*.ts"
-    #   - "src/**/*.tsx"
-    #   - "src/**/*.js"
-    #   - "src/**/*.jsx"
 
 jobs:
-  claude-review:
-    # Optional: Filter by PR author
-    # if: |
-    #   github.event.pull_request.user.login == 'external-contributor' ||
-    #   github.event.pull_request.user.login == 'new-developer' ||
-    #   github.event.pull_request.author_association == 'FIRST_TIME_CONTRIBUTOR'
+  # Determine if this PR has code changes worth reviewing
+  changes:
+    name: Detect Changes
+    runs-on: ubuntu-latest
+    outputs:
+      should_review: ${{ steps.filter.outputs.code }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
 
+      - name: Check for code changes
+        uses: dorny/paths-filter@v3
+        id: filter
+        with:
+          filters: |
+            code:
+              - 'packages/**/*.ts'
+              - 'plugins/**/*.ts'
+              - 'scripts/**/*.ts'
+              - 'benchmarks/**/*.ts'
+              - 'examples/**/*.ts'
+              - 'tutorials/**/*.ts'
+
+      - name: Skip notification
+        if: steps.filter.outputs.code != 'true'
+        run: |
+          echo "### ⏭️ Claude Code Review Skipped" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "No TypeScript code changes detected. Skipping AI review." >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+          echo "Code review runs when changes are made to:" >> $GITHUB_STEP_SUMMARY
+          echo "- \`packages/**/*.ts\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`plugins/**/*.ts\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`scripts/**/*.ts\`" >> $GITHUB_STEP_SUMMARY
+          echo "- \`examples/**/*.ts\`" >> $GITHUB_STEP_SUMMARY
+
+  claude-review:
+    needs: changes
+    if: needs.changes.outputs.should_review == 'true'
     runs-on: ubuntu-latest
     permissions:
       contents: read

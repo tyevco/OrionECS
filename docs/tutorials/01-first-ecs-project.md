@@ -218,9 +218,12 @@ engine.createSystem(
     all: [Position, Velocity]  // Only process entities with BOTH components
   },
   {
-    act: (_entity, position: Position, velocity: Velocity) => {
+    act: (_entity, pos, vel) => {
+      // Type assertions for components (passed in query order)
+      const position = pos as Position;
+      const velocity = vel as Velocity;
+
       // Update position based on velocity
-      // Components are passed in the same order as specified in the query
       position.x += velocity.x;
       position.y += velocity.y;
     }
@@ -233,7 +236,7 @@ log.info('MovementSystem created');
 **Explanation:**
 - **System name**: 'MovementSystem' for identification
 - **Query**: `{ all: [Position, Velocity] }` - only entities with both components
-- **act function**: Receives entity and its components (in query order), updates position
+- **Type assertions**: Components are passed in query order; use `as` to get proper types
 - **Variable update**: Runs every frame (the default; we'll see fixed updates in later tutorials)
 - The system automatically finds matching entities each frame
 
@@ -259,7 +262,11 @@ engine.createSystem(
     before: () => {
       renderLog.info('--- Frame ' + frameCount + ' ---');
     },
-    act: (entity, position: Position, renderable: Renderable) => {
+    act: (entity, pos, rend) => {
+      // Type assertions for components (passed in query order)
+      const position = pos as Position;
+      const renderable = rend as Renderable;
+
       // Simple console rendering
       const x = Math.round(position.x);
       const y = Math.round(position.y);
@@ -419,7 +426,9 @@ engine.createSystem(
     all: [Position, Velocity]
   },
   {
-    act: (_entity, position: Position, velocity: Velocity) => {
+    act: (_entity, pos, vel) => {
+      const position = pos as Position;
+      const velocity = vel as Velocity;
       position.x += velocity.x;
       position.y += velocity.y;
     }
@@ -439,7 +448,9 @@ engine.createSystem(
     before: () => {
       renderLog.info('--- Frame ' + frameCount + ' ---');
     },
-    act: (entity, position: Position, renderable: Renderable) => {
+    act: (entity, pos, rend) => {
+      const position = pos as Position;
+      const renderable = rend as Renderable;
       const x = Math.round(position.x);
       const y = Math.round(position.y);
       renderLog.info(`${renderable.symbol} ${entity.name} at (${x}, ${y})`);
@@ -585,7 +596,8 @@ engine.createSystem(
   { all: [Position] },
   {
     priority: 5,  // Run after MovementSystem (default priority 10)
-    act: (_entity, position: Position) => {
+    act: (_entity, pos) => {
+      const position = pos as Position;
       // Wrap x coordinate
       if (position.x < 0) position.x = 80;
       if (position.x > 80) position.x = 0;
@@ -628,7 +640,9 @@ engine.createSystem(
   { all: [Velocity, Acceleration] },
   {
     priority: 15,  // Run before MovementSystem
-    act: (_entity, velocity: Velocity, acceleration: Acceleration) => {
+    act: (_entity, vel, accel) => {
+      const velocity = vel as Velocity;
+      const acceleration = accel as Acceleration;
       velocity.x += acceleration.x;
       velocity.y += acceleration.y;
     }

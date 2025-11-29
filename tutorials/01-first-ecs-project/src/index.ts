@@ -69,9 +69,12 @@ engine.createSystem(
     all: [Position, Velocity]  // Query: entities with both components
   },
   {
-    act: (_entity, position: Position, velocity: Velocity) => {
+    act: (_entity, pos, vel) => {
+      // Type assertions for components (passed in query order)
+      const position = pos as Position;
+      const velocity = vel as Velocity;
+
       // Update position based on velocity
-      // Components are passed in the same order as specified in the query
       position.x += velocity.x;
       position.y += velocity.y;
     }
@@ -97,7 +100,11 @@ engine.createSystem(
     before: () => {
       renderLog.info('--- Frame ' + frameCount + ' ---');
     },
-    act: (entity, position: Position, renderable: Renderable) => {
+    act: (entity, pos, rend) => {
+      // Type assertions for components (passed in query order)
+      const position = pos as Position;
+      const renderable = rend as Renderable;
+
       // Simple console rendering
       const x = Math.round(position.x).toString().padStart(3);
       const y = Math.round(position.y).toString().padStart(3);

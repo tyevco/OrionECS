@@ -41,7 +41,7 @@ import type {
     SystemProfile,
     SystemType,
 } from './definitions';
-import { EngineLogger } from './logger';
+import { EngineLogger, type LogProvider } from './logger';
 import {
     ChangeTrackingManager,
     ComponentManager,
@@ -119,6 +119,7 @@ export class EngineBuilder<TExtensions extends object = object> {
         batchMode: false,
         debounceMs: 0,
     };
+    private logProviders: LogProvider[] = [];
 
     /**
      * Enable or disable debug mode for enhanced logging and error messages.
@@ -348,6 +349,71 @@ export class EngineBuilder<TExtensions extends object = object> {
     }
 
     /**
+     * Add a log provider for custom log output destinations.
+     *
+     * Log providers receive all log messages and can output them to various destinations
+     * such as files, remote services, in-game UI, or test capture. Multiple providers
+     * can be registered and will all receive log messages.
+     *
+     * If no providers are registered, the engine uses ConsoleLogProvider by default.
+     * Once any provider is registered via this method, you must explicitly add
+     * ConsoleLogProvider if you still want console output.
+     *
+     * @param provider - The log provider to add
+     * @returns This builder instance for method chaining
+     *
+     * @example Console + memory logging for debugging
+     * ```typescript
+     * import { ConsoleLogProvider, MemoryLogProvider } from '@orion-ecs/core';
+     *
+     * const memoryLog = new MemoryLogProvider({ maxEntries: 100 });
+     *
+     * const engine = new EngineBuilder()
+     *   .withLogProvider(new ConsoleLogProvider())
+     *   .withLogProvider(memoryLog)
+     *   .build();
+     *
+     * // Later, access captured logs
+     * console.log(memoryLog.entries);
+     * ```
+     *
+     * @example Memory-only logging for tests
+     * ```typescript
+     * const memoryLog = new MemoryLogProvider();
+     *
+     * const engine = new EngineBuilder()
+     *   .withLogProvider(memoryLog)  // No console output
+     *   .build();
+     *
+     * // Assert on log output
+     * expect(memoryLog.getByLevel('error')).toHaveLength(0);
+     * ```
+     *
+     * @example Custom remote logging provider
+     * ```typescript
+     * const remoteProvider: LogProvider = {
+     *   write(entry) {
+     *     if (entry.level === 'error') {
+     *       sendToErrorService(entry);
+     *     }
+     *   },
+     *   flush() {
+     *     return flushToRemote();
+     *   }
+     * };
+     *
+     * const engine = new EngineBuilder()
+     *   .withLogProvider(new ConsoleLogProvider())
+     *   .withLogProvider(remoteProvider)
+     *   .build();
+     * ```
+     */
+    withLogProvider(provider: LogProvider): this {
+        this.logProviders.push(provider);
+        return this;
+    }
+
+    /**
      * Register a plugin to extend the engine with additional functionality.
      *
      * Plugins are installed during the build() phase and can register components,
@@ -430,7 +496,11 @@ export class EngineBuilder<TExtensions extends object = object> {
      */
     build(): Engine & TExtensions {
         // Create logger first so it can be passed to managers
-        const logger = new EngineLogger({ debugEnabled: this.debugMode });
+        // Pass custom providers if any were registered, otherwise use default (ConsoleLogProvider)
+        const logger = new EngineLogger({
+            debugEnabled: this.debugMode,
+            providers: this.logProviders.length > 0 ? this.logProviders : undefined,
+        });
 
         // Create event emitter and message manager with logger
         this.eventEmitter = new EventEmitter(undefined, logger);

@@ -80,8 +80,10 @@ export type {
     // Strict component typing utilities
     InferStrictComponentClass,
     InstalledPlugin,
+    LogEntry,
     Logger,
     LogLevel,
+    LogProvider,
     MemoryStats,
     ParentChangedEvent,
     ParentChangedListener,
@@ -104,8 +106,10 @@ export type {
 } from './definitions';
 // Export the new Engine and Builder
 export { Engine, EngineBuilder } from './engine';
-// Export logger utilities
-export { EngineLogger, sanitizeLogString } from './logger';
+// Export logger utilities and providers
+// Note: LogEntry and LogProvider types are exported from definitions.ts (via plugin-api)
+export type { EngineLoggerOptions } from './logger';
+export { ConsoleLogProvider, EngineLogger, MemoryLogProvider, sanitizeLogString } from './logger';
 // Export managers
 export {
     ChangeTrackingManager,

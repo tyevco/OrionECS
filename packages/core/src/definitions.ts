@@ -20,8 +20,10 @@ export type {
     EnginePlugin,
     ExtractPluginExtensions,
     InstalledPlugin,
+    LogEntry,
     Logger,
     LogLevel,
+    LogProvider,
     SystemMessage,
 } from '@orion-ecs/plugin-api';
 

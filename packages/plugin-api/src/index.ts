@@ -114,6 +114,114 @@ export interface Logger {
     isEnabled(level: LogLevel): boolean;
 }
 
+/**
+ * A log entry containing all information about a single log message.
+ *
+ * Used by log providers to receive structured log data from the engine.
+ *
+ * @public
+ */
+export interface LogEntry {
+    /** The log level (debug, info, warn, error) */
+    level: LogLevel;
+    /** The log message arguments (already sanitized) */
+    args: unknown[];
+    /** Optional tag/namespace for the log message */
+    tag?: string;
+    /** Timestamp when the log entry was created */
+    timestamp: number;
+}
+
+/**
+ * Interface for log providers that handle log output.
+ *
+ * Log providers are responsible for writing log entries to their destination,
+ * whether that's the console, a file, a remote service, or memory for testing.
+ * Implement this interface to create custom logging destinations.
+ *
+ * @example Console provider
+ * ```typescript
+ * class ConsoleLogProvider implements LogProvider {
+ *   write(entry: LogEntry): void {
+ *     const prefix = entry.tag ? `[${entry.tag}]` : '[ECS]';
+ *     switch (entry.level) {
+ *       case 'debug':
+ *       case 'info':
+ *         console.log(prefix, ...entry.args);
+ *         break;
+ *       case 'warn':
+ *         console.warn(prefix, ...entry.args);
+ *         break;
+ *       case 'error':
+ *         console.error(prefix, ...entry.args);
+ *         break;
+ *     }
+ *   }
+ * }
+ * ```
+ *
+ * @example Memory provider for testing
+ * ```typescript
+ * class MemoryLogProvider implements LogProvider {
+ *   readonly entries: LogEntry[] = [];
+ *
+ *   write(entry: LogEntry): void {
+ *     this.entries.push(entry);
+ *   }
+ *
+ *   clear(): void {
+ *     this.entries.length = 0;
+ *   }
+ * }
+ * ```
+ *
+ * @example Remote error tracking provider
+ * ```typescript
+ * class SentryLogProvider implements LogProvider {
+ *   write(entry: LogEntry): void {
+ *     if (entry.level === 'error') {
+ *       Sentry.captureMessage(entry.args.join(' '), {
+ *         level: 'error',
+ *         tags: { source: entry.tag }
+ *       });
+ *     }
+ *   }
+ *
+ *   flush(): Promise<void> {
+ *     return Sentry.flush(2000);
+ *   }
+ * }
+ * ```
+ *
+ * @public
+ */
+export interface LogProvider {
+    /**
+     * Write a log entry to the provider's destination.
+     *
+     * This method should handle errors gracefully - a failing provider
+     * should not crash the engine or prevent other providers from receiving logs.
+     *
+     * @param entry - The log entry to write
+     */
+    write(entry: LogEntry): void;
+
+    /**
+     * Optional method to flush any buffered log entries.
+     *
+     * Called when the engine wants to ensure all logs are written,
+     * such as before shutdown or error reporting.
+     */
+    flush?(): void | Promise<void>;
+
+    /**
+     * Optional method to clean up resources when the provider is removed.
+     *
+     * Called when the provider is unregistered or when the engine is destroyed.
+     */
+    dispose?(): void | Promise<void>;
+}
+
 // =============================================================================
 // Entity Types
 // =============================================================================

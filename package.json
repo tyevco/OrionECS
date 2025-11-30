@@ -48,6 +48,7 @@
     "plugins/canvas2d-renderer",
     "plugins/debug-visualizer",
     "plugins/decision-tree",
+    "plugins/entity-inspector",
     "plugins/input-manager",
     "plugins/interaction-system",
     "plugins/physics",

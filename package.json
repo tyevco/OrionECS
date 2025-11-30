@@ -95,7 +95,7 @@
       "biome check --write --no-errors-on-unmatched"
     ],
     "*.ts": [
-      "oxlint"
+      "oxlint -c oxlintrc.json"
     ]
   }
 }

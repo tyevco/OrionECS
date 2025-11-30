@@ -63,6 +63,19 @@ const config = [
             ...(ecsPlugin ? { ecs: ecsPlugin.default || ecsPlugin } : {}),
         },
         rules: {
+            // TypeScript Type Safety Rules - Prevent Anti-Patterns
+            // These rules help catch common TypeScript issues at lint time
+            '@typescript-eslint/no-explicit-any': 'error',
+            '@typescript-eslint/prefer-nullish-coalescing': 'warn',
+            '@typescript-eslint/strict-boolean-expressions': [
+                'warn',
+                {
+                    allowString: true,
+                    allowNumber: true,
+                    allowNullableObject: true,
+                },
+            ],
+
             // ECS Best Practice Rules (only if plugin is loaded)
             ...(ecsPlugin
                 ? {
@@ -119,6 +132,14 @@ const config = [
                       'ecs/query-validator': 'error',
                   }
                 : {}),
+        },
+    },
+    {
+        // Relaxed rules for test files
+        files: ['**/*.spec.ts', '**/*.test.ts', '**/tests/**/*.ts'],
+        rules: {
+            '@typescript-eslint/no-explicit-any': 'off',
+            '@typescript-eslint/strict-boolean-expressions': 'off',
         },
     },
 ];

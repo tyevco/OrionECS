@@ -209,13 +209,15 @@ export function generateMarkdownReport(results: ComparativeBenchmarkResults): st
     }
 
     // Comparative analysis
-    if (comparisons.length > 0 && comparisons[0].comparisons.length > 0) {
+    if (comparisons.length > 0 && comparisons[0]!.comparisons.length > 0) {
         lines.push('## Comparative Analysis');
         lines.push('');
         lines.push(
-            '| Scenario | ' + comparisons[0].comparisons.map((c) => c.library).join(' | ') + ' |'
+            '| Scenario | ' + comparisons[0]!.comparisons.map((c) => c.library).join(' | ') + ' |'
         );
-        lines.push('|----------|' + comparisons[0].comparisons.map(() => '------').join('|') + '|');
+        lines.push(
+            '|----------|' + comparisons[0]!.comparisons.map(() => '------').join('|') + '|'
+        );
 
         for (const comp of comparisons) {
             let row = `| ${comp.scenario} |`;

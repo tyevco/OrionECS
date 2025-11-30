@@ -535,8 +535,8 @@ describe('CommandBuffer', () => {
             const pending = engine.commands.getPendingCommands();
 
             expect(pending).toHaveLength(2);
-            expect(pending[0].type).toBe('spawn');
-            expect(pending[1].type).toBe('spawn');
+            expect(pending[0]!.type).toBe('spawn');
+            expect(pending[1]!.type).toBe('spawn');
 
             // Should be a copy, not the internal array
             engine.commands.clear();

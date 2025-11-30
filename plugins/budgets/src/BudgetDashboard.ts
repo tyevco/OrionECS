@@ -666,7 +666,8 @@ export class BudgetReportGenerator {
         lines.push('By Budget:');
 
         for (const [_budgetId, budgetViolations] of byBudget) {
-            const name = budgetViolations[0].budgetName;
+            if (budgetViolations.length === 0) continue;
+            const name = budgetViolations[0]!.budgetName;
             const avgOverage =
                 budgetViolations.reduce((sum, v) => sum + v.overageRatio, 0) /
                 budgetViolations.length;

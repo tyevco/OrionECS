@@ -195,7 +195,7 @@ describe('ProfilingPlugin', () => {
             const session = api.stopRecording();
 
             expect(session).not.toBeNull();
-            expect(session?.frames[0].systems.length).toBeGreaterThan(0);
+            expect(session?.frames[0]!.systems.length).toBeGreaterThan(0);
         });
 
         test('should track frame duration', () => {
@@ -213,7 +213,7 @@ describe('ProfilingPlugin', () => {
             const session = api.stopRecording();
 
             expect(session).not.toBeNull();
-            expect(session?.frames[0].duration).toBeGreaterThanOrEqual(0);
+            expect(session?.frames[0]!.duration).toBeGreaterThanOrEqual(0);
         });
     });
 
@@ -294,8 +294,8 @@ describe('ProfilingPlugin', () => {
             const budgets = api.getBudgets();
 
             expect(budgets).toHaveLength(1);
-            expect(budgets[0].system).toBe('TestSystem');
-            expect(budgets[0].maxTimeMs).toBe(5.0);
+            expect(budgets[0]!.system).toBe('TestSystem');
+            expect(budgets[0]!.maxTimeMs).toBe(5.0);
         });
 
         test('should remove performance budget', () => {

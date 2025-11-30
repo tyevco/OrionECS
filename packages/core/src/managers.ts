@@ -812,7 +812,7 @@ export class SystemManager {
                 let noDepsIndex = 0;
                 return result.map((s) => {
                     if (s.runAfter.length === 0 && s.runBefore.length === 0) {
-                        return noDeps[noDepsIndex++];
+                        return noDeps[noDepsIndex++]!;
                     }
                     return s;
                 });
@@ -1162,7 +1162,7 @@ export class SystemManager {
         // Find and remove from variable update systems
         const variableIndex = this.systems.findIndex((s) => s.name === name);
         if (variableIndex !== -1) {
-            const system = this.systems[variableIndex];
+            const system = this.systems[variableIndex]!;
 
             // Remove from group if assigned
             if (system.group) {
@@ -1195,7 +1195,7 @@ export class SystemManager {
         // Find and remove from fixed update systems
         const fixedIndex = this.fixedUpdateSystems.findIndex((s) => s.name === name);
         if (fixedIndex !== -1) {
-            const system = this.fixedUpdateSystems[fixedIndex];
+            const system = this.fixedUpdateSystems[fixedIndex]!;
 
             // Remove from group if assigned
             if (system.group) {

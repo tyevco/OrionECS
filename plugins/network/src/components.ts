@@ -235,7 +235,7 @@ export class InputBuffer {
      * Get the most recent input
      */
     getLatestInput(): SequencedInput | null {
-        return this.inputs.length > 0 ? this.inputs[this.inputs.length - 1] : null;
+        return this.inputs.length > 0 ? this.inputs[this.inputs.length - 1]! : null;
     }
 
     /**
@@ -341,27 +341,27 @@ export class InterpolationBuffer {
         }
 
         if (this.snapshots.length === 1) {
-            return this.snapshots[0].position.clone();
+            return this.snapshots[0]!.position.clone();
         }
 
         // Find the two snapshots to interpolate between
-        let from = this.snapshots[0];
-        let to = this.snapshots[1];
+        let from = this.snapshots[0]!;
+        let to = this.snapshots[1]!;
 
         for (let i = 0; i < this.snapshots.length - 1; i++) {
             if (
-                this.snapshots[i].timestamp <= renderTime &&
-                this.snapshots[i + 1].timestamp >= renderTime
+                this.snapshots[i]!.timestamp <= renderTime &&
+                this.snapshots[i + 1]!.timestamp >= renderTime
             ) {
-                from = this.snapshots[i];
-                to = this.snapshots[i + 1];
+                from = this.snapshots[i]!;
+                to = this.snapshots[i + 1]!;
                 break;
             }
         }
 
         // If render time is past all snapshots, extrapolate from the last one
-        if (renderTime > this.snapshots[this.snapshots.length - 1].timestamp) {
-            const last = this.snapshots[this.snapshots.length - 1];
+        if (renderTime > this.snapshots[this.snapshots.length - 1]!.timestamp) {
+            const last = this.snapshots[this.snapshots.length - 1]!;
             if (last.velocity) {
                 const elapsed = (renderTime - last.timestamp) / 1000;
                 return new NetworkPosition(

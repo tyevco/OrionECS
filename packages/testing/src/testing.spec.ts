@@ -310,9 +310,9 @@ describe('Testing Utilities', () => {
                     name: 'Enemy',
                 });
 
-                expect(entities[0].name).toBe('Enemy_0');
-                expect(entities[1].name).toBe('Enemy_1');
-                expect(entities[2].name).toBe('Enemy_2');
+                expect(entities[0]!.name).toBe('Enemy_0');
+                expect(entities[1]!.name).toBe('Enemy_1');
+                expect(entities[2]!.name).toBe('Enemy_2');
             });
 
             it('should create entities with same configuration', () => {

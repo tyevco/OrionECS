@@ -328,8 +328,8 @@ describe('ErrorRecoveryManager', () => {
 
             const errors = errorRecoveryManager.getErrorHistory();
             expect(errors.length).toBe(1);
-            expect(errors[0].error.message).toBe('Test error');
-            expect(errors[0].systemName).toBe('ErrorSystem');
+            expect(errors[0]!.error.message).toBe('Test error');
+            expect(errors[0]!.systemName).toBe('ErrorSystem');
         });
 
         it('should limit error history size', () => {
@@ -472,7 +472,7 @@ describe('ErrorRecoveryManager', () => {
             );
 
             const errors = errorRecoveryManager.getErrorHistory();
-            expect(errors[0].severity).toBe('critical');
+            expect(errors[0]!.severity).toBe('critical');
         });
 
         it('should make engine unhealthy when critical system fails', () => {

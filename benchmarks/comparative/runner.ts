@@ -163,7 +163,7 @@ export async function runLibraryBenchmarks(
     const results: BenchmarkResult[] = [];
 
     for (let i = 0; i < scenarios.length; i++) {
-        const scenario = scenarios[i];
+        const scenario = scenarios[i]!;
         if (onProgress) {
             onProgress(scenario.name, i + 1, scenarios.length);
         }

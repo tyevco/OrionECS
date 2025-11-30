@@ -121,6 +121,30 @@ game.start();
 
 ## Advanced Usage
 
+### Defining Components with Type-Safe Defaults
+
+Use `defineComponent` to create component classes with typed defaults that work directly with `addComponent`:
+
+```typescript
+import { defineComponent } from '@orion-ecs/core';
+
+// Define a component with typed properties and defaults
+const Health = defineComponent('Health', {
+  current: 100,
+  max: 100,
+  regenRate: 0
+});
+
+// Use with addComponent - single allocation, pool-compatible
+entity.addComponent(Health, { current: 50 });  // Override specific values
+entity.addComponent(Health);  // Use all defaults
+
+// Full type inference when accessing
+const health = entity.getComponent(Health);
+health.current;    // number
+health.regenRate;  // number
+```
+
 ### Component Validation
 
 ```typescript

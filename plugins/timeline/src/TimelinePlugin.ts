@@ -442,8 +442,8 @@ export class TimelinePlugin<
         previousElapsed: number
     ): void {
         for (let i = 0; i < definition.actions.length; i++) {
-            const action = definition.actions[i];
-            const state = timeline.actionStates[i];
+            const action = definition.actions[i]!;
+            const state = timeline.actionStates[i]!;
 
             if (state.completed) continue;
 
@@ -659,8 +659,8 @@ export class TimelinePlugin<
 
         // Process actions in nested timeline
         for (let i = 0; i < definition.actions.length; i++) {
-            const action = definition.actions[i];
-            const state = nested.actionStates[i];
+            const action = definition.actions[i]!;
+            const state = nested.actionStates[i]!;
 
             if (state.completed) continue;
 

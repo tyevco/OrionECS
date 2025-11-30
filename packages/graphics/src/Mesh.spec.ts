@@ -169,10 +169,10 @@ describe('Mesh', () => {
 
             const result = mesh.translate(new Vector2(5, 5));
 
-            expect(mesh.vertices[0].position.x).toBe(5);
-            expect(mesh.vertices[0].position.y).toBe(5);
-            expect(mesh.vertices[1].position.x).toBe(15);
-            expect(mesh.vertices[1].position.y).toBe(5);
+            expect(mesh.vertices[0]!.position.x).toBe(5);
+            expect(mesh.vertices[0]!.position.y).toBe(5);
+            expect(mesh.vertices[1]!.position.x).toBe(15);
+            expect(mesh.vertices[1]!.position.y).toBe(5);
             expect(result).toBe(mesh); // Should return this for chaining
         });
     });
@@ -193,9 +193,9 @@ describe('Mesh', () => {
             // (0,0) -> (-10, -10)
             // (20, 0) -> (30, -10)
             // etc.
-            expect(mesh.vertices[0].position.x).toBeCloseTo(-10, 5);
-            expect(mesh.vertices[0].position.y).toBeCloseTo(-10, 5);
-            expect(mesh.vertices[1].position.x).toBeCloseTo(30, 5);
+            expect(mesh.vertices[0]!.position.x).toBeCloseTo(-10, 5);
+            expect(mesh.vertices[0]!.position.y).toBeCloseTo(-10, 5);
+            expect(mesh.vertices[1]!.position.x).toBeCloseTo(30, 5);
             expect(result).toBe(mesh);
         });
 
@@ -205,10 +205,10 @@ describe('Mesh', () => {
 
             mesh.scale(2, new Vector2(0, 0));
 
-            expect(mesh.vertices[0].position.x).toBe(20);
-            expect(mesh.vertices[0].position.y).toBe(20);
-            expect(mesh.vertices[1].position.x).toBe(40);
-            expect(mesh.vertices[1].position.y).toBe(20);
+            expect(mesh.vertices[0]!.position.x).toBe(20);
+            expect(mesh.vertices[0]!.position.y).toBe(20);
+            expect(mesh.vertices[1]!.position.x).toBe(40);
+            expect(mesh.vertices[1]!.position.y).toBe(20);
         });
 
         it('should handle empty mesh scale', () => {
@@ -226,9 +226,9 @@ describe('Mesh', () => {
 
             const result = mesh.rotate(Math.PI); // 180 degrees
 
-            expect(mesh.vertices[0].position.x).toBeCloseTo(20, 5);
-            expect(mesh.vertices[0].position.y).toBeCloseTo(0, 5);
-            expect(mesh.vertices[1].position.x).toBeCloseTo(10, 5);
+            expect(mesh.vertices[0]!.position.x).toBeCloseTo(20, 5);
+            expect(mesh.vertices[0]!.position.y).toBeCloseTo(0, 5);
+            expect(mesh.vertices[1]!.position.x).toBeCloseTo(10, 5);
             expect(result).toBe(mesh);
         });
 
@@ -238,8 +238,8 @@ describe('Mesh', () => {
 
             mesh.rotate(Math.PI / 2, new Vector2(0, 0)); // 90 degrees around origin
 
-            expect(mesh.vertices[0].position.x).toBeCloseTo(0, 5);
-            expect(mesh.vertices[0].position.y).toBeCloseTo(10, 5);
+            expect(mesh.vertices[0]!.position.x).toBeCloseTo(0, 5);
+            expect(mesh.vertices[0]!.position.y).toBeCloseTo(10, 5);
         });
 
         it('should handle empty mesh rotation', () => {
@@ -259,10 +259,10 @@ describe('Mesh', () => {
             expect(cloned.vertices).toHaveLength(2);
 
             // Modify original
-            mesh.vertices[0].position.x = 100;
+            mesh.vertices[0]!.position.x = 100;
 
             // Clone vertices should be unaffected
-            expect(cloned.vertices[0].position.x).toBe(0);
+            expect(cloned.vertices[0]!.position.x).toBe(0);
         });
 
         it('should clone using variadic constructor form', () => {
@@ -296,10 +296,10 @@ describe('Mesh', () => {
                 const mesh = Mesh.rectangle(10, 20, 100, 50);
 
                 expect(mesh.vertices).toHaveLength(4);
-                expect(mesh.vertices[0].position.x).toBe(10);
-                expect(mesh.vertices[0].position.y).toBe(20);
-                expect(mesh.vertices[2].position.x).toBe(110);
-                expect(mesh.vertices[2].position.y).toBe(70);
+                expect(mesh.vertices[0]!.position.x).toBe(10);
+                expect(mesh.vertices[0]!.position.y).toBe(20);
+                expect(mesh.vertices[2]!.position.x).toBe(110);
+                expect(mesh.vertices[2]!.position.y).toBe(70);
             });
 
             it('should create rectangle with color', () => {
@@ -338,8 +338,8 @@ describe('Mesh', () => {
                 const mesh = Mesh.circle(100, 100, 50, 4);
 
                 // First vertex should be at (150, 100) - radius units to the right
-                expect(mesh.vertices[0].position.x).toBeCloseTo(150, 5);
-                expect(mesh.vertices[0].position.y).toBeCloseTo(100, 5);
+                expect(mesh.vertices[0]!.position.x).toBeCloseTo(150, 5);
+                expect(mesh.vertices[0]!.position.y).toBeCloseTo(100, 5);
             });
         });
 
@@ -366,8 +366,8 @@ describe('Mesh', () => {
                 const mesh = Mesh.polygon(50, 50, 25, 4);
 
                 // First vertex should be at the top: (50, 25) - 25 units up from center
-                expect(mesh.vertices[0].position.x).toBeCloseTo(50, 5);
-                expect(mesh.vertices[0].position.y).toBeCloseTo(25, 5);
+                expect(mesh.vertices[0]!.position.x).toBeCloseTo(50, 5);
+                expect(mesh.vertices[0]!.position.y).toBeCloseTo(25, 5);
             });
         });
 
@@ -376,10 +376,10 @@ describe('Mesh', () => {
                 const mesh = Mesh.line(10, 20, 100, 200);
 
                 expect(mesh.vertices).toHaveLength(2);
-                expect(mesh.vertices[0].position.x).toBe(10);
-                expect(mesh.vertices[0].position.y).toBe(20);
-                expect(mesh.vertices[1].position.x).toBe(100);
-                expect(mesh.vertices[1].position.y).toBe(200);
+                expect(mesh.vertices[0]!.position.x).toBe(10);
+                expect(mesh.vertices[0]!.position.y).toBe(20);
+                expect(mesh.vertices[1]!.position.x).toBe(100);
+                expect(mesh.vertices[1]!.position.y).toBe(200);
             });
 
             it('should create line with color', () => {
@@ -397,8 +397,8 @@ describe('Mesh', () => {
             mesh.translate(new Vector2(10, 10)).rotate(0).scale(1);
 
             // Should not throw and mesh should be modified
-            expect(mesh.vertices[0].position.x).toBe(10);
-            expect(mesh.vertices[0].position.y).toBe(10);
+            expect(mesh.vertices[0]!.position.x).toBe(10);
+            expect(mesh.vertices[0]!.position.y).toBe(10);
         });
     });
 });

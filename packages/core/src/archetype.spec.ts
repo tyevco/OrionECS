@@ -199,8 +199,8 @@ describe('Archetype', () => {
             });
 
             expect(results).toHaveLength(2);
-            expect(results[0].position.x).toBe(10);
-            expect(results[1].position.x).toBe(30);
+            expect(results[0]!.position.x).toBe(10);
+            expect(results[1]!.position.x).toBe(30);
         });
     });
 

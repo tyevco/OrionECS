@@ -425,6 +425,72 @@ class Position {
 
 ---
 
+### Type-Safe Component Initialization
+
+**Problem:** Components with many properties are tedious to initialize and prone to errors with constructor argument ordering.
+
+**Solution:** Use `defineComponent` to create component classes with typed defaults that work directly with `addComponent`:
+
+```typescript
+import { defineComponent } from '@orion-ecs/core';
+
+// Define a component with typed properties and defaults
+const CharacterStats = defineComponent('CharacterStats', {
+  health: 100,
+  maxHealth: 100,
+  mana: 50,
+  maxMana: 50,
+  strength: 10,
+  dexterity: 10,
+  intelligence: 10,
+  armor: 0,
+  magicResist: 0
+});
+
+// Create entities with different stat configurations
+const warrior = engine.createEntity('Warrior');
+warrior.addComponent(CharacterStats, {
+  health: 150,
+  maxHealth: 150,
+  strength: 18,
+  armor: 25
+});
+
+const mage = engine.createEntity('Mage');
+mage.addComponent(CharacterStats, {
+  mana: 120,
+  maxMana: 120,
+  intelligence: 18,
+  magicResist: 15
+});
+
+// Type errors caught at compile time:
+// entity.addComponent(CharacterStats, { invalid: 10 }); // ❌ Error
+// entity.addComponent(CharacterStats, { health: 'string' }); // ❌ Error
+
+// Full type inference when accessing
+const stats = warrior.getComponent(CharacterStats);
+stats.strength;  // number
+stats.armor;     // number
+```
+
+**Benefits of `defineComponent`:**
+- Single allocation (no intermediate objects)
+- Works with component pools when registered
+- Full TypeScript type inference
+- Default values for all properties
+- Override only what you need
+
+**When to Use:**
+
+| Pattern | Use Case |
+|---------|----------|
+| `defineComponent` | Components with many optional properties |
+| Class with constructor | Components with required parameters or methods |
+| Simple class | Components with 1-3 properties using defaults |
+
+---
+
 ### Component Dependencies
 
 **Problem:** Some components require other components to function.

@@ -560,7 +560,7 @@ describe('InputManagerPlugin', () => {
             expect(listeners).toBeDefined();
 
             if (listeners) {
-                const listener = Array.from(listeners)[0];
+                const listener = Array.from(listeners)[0]!;
                 listener(new KeyboardEvent('keydown', { code: 'KeyA' }));
             }
 
@@ -573,7 +573,7 @@ describe('InputManagerPlugin', () => {
 
             const listeners = mockWindowListeners.get('keydown');
             if (listeners) {
-                const listener = Array.from(listeners)[0];
+                const listener = Array.from(listeners)[0]!;
                 listener(
                     new KeyboardEvent('keydown', {
                         code: 'KeyA',
@@ -593,13 +593,13 @@ describe('InputManagerPlugin', () => {
         test('should track keyup state', () => {
             const listeners = mockWindowListeners.get('keydown');
             if (listeners) {
-                const listener = Array.from(listeners)[0];
+                const listener = Array.from(listeners)[0]!;
                 listener(new KeyboardEvent('keydown', { code: 'KeyA' }));
             }
 
             const upListeners = mockWindowListeners.get('keyup');
             if (upListeners) {
-                const listener = Array.from(upListeners)[0];
+                const listener = Array.from(upListeners)[0]!;
                 listener(new KeyboardEvent('keyup', { code: 'KeyA' }));
             }
 
@@ -612,7 +612,7 @@ describe('InputManagerPlugin', () => {
 
             const listeners = mockWindowListeners.get('keyup');
             if (listeners) {
-                const listener = Array.from(listeners)[0];
+                const listener = Array.from(listeners)[0]!;
                 listener(
                     new KeyboardEvent('keyup', {
                         code: 'KeyA',
@@ -627,7 +627,7 @@ describe('InputManagerPlugin', () => {
         test('should track pressed keys this frame', () => {
             const listeners = mockWindowListeners.get('keydown');
             if (listeners) {
-                const listener = Array.from(listeners)[0];
+                const listener = Array.from(listeners)[0]!;
                 listener(new KeyboardEvent('keydown', { code: 'KeyA' }));
             }
 
@@ -638,14 +638,14 @@ describe('InputManagerPlugin', () => {
             // Press key
             const downListeners = mockWindowListeners.get('keydown');
             if (downListeners) {
-                const listener = Array.from(downListeners)[0];
+                const listener = Array.from(downListeners)[0]!;
                 listener(new KeyboardEvent('keydown', { code: 'KeyA' }));
             }
 
             // Release key
             const upListeners = mockWindowListeners.get('keyup');
             if (upListeners) {
-                const listener = Array.from(upListeners)[0];
+                const listener = Array.from(upListeners)[0]!;
                 listener(new KeyboardEvent('keyup', { code: 'KeyA' }));
             }
 
@@ -655,7 +655,7 @@ describe('InputManagerPlugin', () => {
         test('should get all pressed keys', () => {
             const listeners = mockWindowListeners.get('keydown');
             if (listeners) {
-                const listener = Array.from(listeners)[0];
+                const listener = Array.from(listeners)[0]!;
                 listener(new KeyboardEvent('keydown', { code: 'KeyA' }));
                 listener(new KeyboardEvent('keydown', { code: 'KeyB' }));
             }
@@ -668,7 +668,7 @@ describe('InputManagerPlugin', () => {
         test('should not duplicate key presses', () => {
             const listeners = mockWindowListeners.get('keydown');
             if (listeners) {
-                const listener = Array.from(listeners)[0];
+                const listener = Array.from(listeners)[0]!;
                 listener(new KeyboardEvent('keydown', { code: 'KeyA' }));
                 listener(new KeyboardEvent('keydown', { code: 'KeyA' }));
             }
@@ -689,7 +689,7 @@ describe('InputManagerPlugin', () => {
         test('should clear pressed keys after frame', () => {
             const listeners = mockWindowListeners.get('keydown');
             if (listeners) {
-                const listener = Array.from(listeners)[0];
+                const listener = Array.from(listeners)[0]!;
                 listener(new KeyboardEvent('keydown', { code: 'KeyA' }));
             }
 
@@ -705,13 +705,13 @@ describe('InputManagerPlugin', () => {
             // Press and release
             const downListeners = mockWindowListeners.get('keydown');
             if (downListeners) {
-                const listener = Array.from(downListeners)[0];
+                const listener = Array.from(downListeners)[0]!;
                 listener(new KeyboardEvent('keydown', { code: 'KeyA' }));
             }
 
             const upListeners = mockWindowListeners.get('keyup');
             if (upListeners) {
-                const listener = Array.from(upListeners)[0];
+                const listener = Array.from(upListeners)[0]!;
                 listener(new KeyboardEvent('keyup', { code: 'KeyA' }));
             }
 
@@ -725,7 +725,7 @@ describe('InputManagerPlugin', () => {
         test('should automatically clear frame state via system', () => {
             const listeners = mockWindowListeners.get('keydown');
             if (listeners) {
-                const listener = Array.from(listeners)[0];
+                const listener = Array.from(listeners)[0]!;
                 listener(new KeyboardEvent('keydown', { code: 'KeyA' }));
             }
 

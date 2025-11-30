@@ -249,8 +249,8 @@ describe('Engine v2 - Composition Architecture', () => {
             entities.forEach((e) => {
                 e.addTag('test');
             });
-            entities[2].addTag('special');
-            entities[4].addTag('special');
+            entities[2]!.addTag('special');
+            entities[4]!.addTag('special');
 
             const found = engine.findEntities((e) => e.hasTag('special'));
             expect(found.length).toBe(2);
@@ -650,8 +650,8 @@ describe('Engine v2 - Composition Architecture', () => {
 
             const profiles = engine.getSystemProfiles();
             expect(profiles).toHaveLength(1);
-            expect(profiles[0].name).toBe('TestSystem');
-            expect(profiles[0].callCount).toBe(1);
+            expect(profiles[0]!.name).toBe('TestSystem');
+            expect(profiles[0]!.callCount).toBe(1);
         });
     });
 
@@ -906,7 +906,7 @@ describe('Engine v2 - Composition Architecture', () => {
             expect(engine.getAllEntities()).toHaveLength(1);
             const restoredEntity = engine.getEntitiesByTag('test')[0];
             expect(restoredEntity).toBeDefined();
-            expect(restoredEntity.getComponent(Position).x).toBe(10);
+            expect(restoredEntity!.getComponent(Position).x).toBe(10);
         });
 
         test('should maintain entity hierarchies in snapshot', () => {
@@ -1085,8 +1085,8 @@ describe('Engine v2 - Composition Architecture', () => {
             const serialized = engine.serialize();
             expect(serialized).toBeDefined();
             expect(serialized.entities).toHaveLength(1);
-            expect(serialized.entities[0].name).toBe('TestEntity');
-            expect(serialized.entities[0].tags).toContain('test');
+            expect(serialized.entities[0]!.name).toBe('TestEntity');
+            expect(serialized.entities[0]!.tags).toContain('test');
             expect(serialized.timestamp).toBeGreaterThan(0);
         });
     });

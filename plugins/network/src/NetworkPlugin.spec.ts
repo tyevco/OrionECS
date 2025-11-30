@@ -512,7 +512,7 @@ describe('Network Components', () => {
             buffer.addInput({ moveX: 0, moveY: -1, actions: {} });
 
             expect(buffer.inputs.length).toBe(3);
-            expect(buffer.inputs[0].sequence).toBe(1); // First input was trimmed
+            expect(buffer.inputs[0]!.sequence).toBe(1); // First input was trimmed
         });
 
         test('should acknowledge input', () => {
@@ -525,7 +525,7 @@ describe('Network Components', () => {
 
             expect(buffer.lastAcknowledgedSequence).toBe(1);
             expect(buffer.inputs.length).toBe(1);
-            expect(buffer.inputs[0].sequence).toBe(2);
+            expect(buffer.inputs[0]!.sequence).toBe(2);
         });
 
         test('should get unacknowledged inputs', () => {
@@ -538,8 +538,8 @@ describe('Network Components', () => {
 
             const unacked = buffer.getUnacknowledgedInputs();
             expect(unacked.length).toBe(2);
-            expect(unacked[0].sequence).toBe(1);
-            expect(unacked[1].sequence).toBe(2);
+            expect(unacked[0]!.sequence).toBe(1);
+            expect(unacked[1]!.sequence).toBe(2);
         });
 
         test('should get latest input', () => {
@@ -617,8 +617,8 @@ describe('Network Components', () => {
             buffer.addSnapshot(pos, 1, Date.now(), vel);
 
             expect(buffer.snapshots.length).toBe(1);
-            expect(buffer.snapshots[0].position.x).toBe(100);
-            expect(buffer.snapshots[0].velocity?.x).toBe(5);
+            expect(buffer.snapshots[0]!.position.x).toBe(100);
+            expect(buffer.snapshots[0]!.velocity?.x).toBe(5);
         });
 
         test('should trim old snapshots', () => {
@@ -630,7 +630,7 @@ describe('Network Components', () => {
             }
 
             expect(buffer.snapshots.length).toBe(3);
-            expect(buffer.snapshots[0].position.x).toBe(20);
+            expect(buffer.snapshots[0]!.position.x).toBe(20);
         });
 
         test('should return null for empty buffer', () => {
@@ -1018,7 +1018,7 @@ describe('NetworkPlugin', () => {
             });
 
             expect(transport.broadcastMessages.length).toBe(1);
-            expect(transport.broadcastMessages[0].type).toBe('entity_spawn');
+            expect(transport.broadcastMessages[0]!.type).toBe('entity_spawn');
         });
 
         test('should destroy network entity', () => {
@@ -1034,7 +1034,7 @@ describe('NetworkPlugin', () => {
             api.destroyNetworkEntity(networkId!.networkEntityId);
 
             expect(transport.broadcastMessages.length).toBe(1);
-            expect(transport.broadcastMessages[0].type).toBe('entity_destroy');
+            expect(transport.broadcastMessages[0]!.type).toBe('entity_destroy');
         });
 
         test('should get network entity by ID', () => {
@@ -1098,7 +1098,7 @@ describe('NetworkPlugin', () => {
             // Should track connected client
             const clients = plugin.getConnectedClients();
             expect(clients.length).toBe(1);
-            expect(clients[0].playerName).toBe('Player1');
+            expect(clients[0]!.playerName).toBe('Player1');
         });
 
         test('should handle client input', () => {
@@ -1204,8 +1204,8 @@ describe('NetworkPlugin', () => {
 
             expect(transport.state).toBe('connected');
             expect(transport.sentMessages.length).toBe(1);
-            expect(transport.sentMessages[0].type).toBe('join');
-            expect((transport.sentMessages[0].data as { playerName: string }).playerName).toBe(
+            expect(transport.sentMessages[0]!.type).toBe('join');
+            expect((transport.sentMessages[0]!.data as { playerName: string }).playerName).toBe(
                 'TestPlayer'
             );
         });

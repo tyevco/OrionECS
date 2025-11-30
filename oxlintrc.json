@@ -1,0 +1,23 @@
+{
+  "$schema": "https://cdn.oxlint.rs/oxlintrc.latest.json",
+  "rules": {
+    "no-explicit-any": "warn",
+    "prefer-nullish-coalescing": "warn",
+    "strict-boolean-expressions": "warn",
+    "no-non-null-assertion": "off",
+    "no-unused-vars": "warn",
+    "no-extraneous-class": "off"
+  },
+  "plugins": ["typescript"],
+  "categories": {
+    "correctness": "warn",
+    "suspicious": "warn",
+    "pedantic": "off"
+  },
+  "env": {
+    "browser": true,
+    "node": true,
+    "es2023": true
+  },
+  "ignorePatterns": ["**/dist/**", "**/node_modules/**"]
+}

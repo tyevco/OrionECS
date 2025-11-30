@@ -2,7 +2,65 @@
  * Utility functions for OrionECS
  */
 
-import type { ComponentIdentifier } from './definitions';
+import type { ComponentIdentifier, StrictComponentClass } from './definitions';
+
+/**
+ * Define a component class with typed constructor parameters.
+ *
+ * This utility helps create component classes that have proper TypeScript
+ * inference for constructor parameters while still working with the ECS
+ * `addComponent` method.
+ *
+ * @typeParam Props - Object type defining the component's properties
+ * @param name - The component class name
+ * @param defaultProps - Default values for all properties
+ * @returns A component class with typed constructor
+ *
+ * @example
+ * ```typescript
+ * // Define a component with typed properties
+ * const Health = defineComponent('Health', {
+ *   current: 100,
+ *   max: 100,
+ *   regenRate: 1,
+ *   isInvulnerable: false
+ * });
+ *
+ * // Full type inference when adding
+ * entity.addComponent(Health, {
+ *   current: 50,
+ *   max: 100
+ * });
+ *
+ * // Access with full typing
+ * const health = entity.getComponent(Health);
+ * health.current; // number
+ * health.isInvulnerable; // boolean
+ * ```
+ *
+ * @public
+ */
+export function defineComponent<Props extends Record<string, unknown>>(
+    name: string,
+    defaultProps: Props
+): StrictComponentClass<Props, [Partial<Props>?]> {
+    const ComponentClass = class {
+        constructor(props?: Partial<Props>) {
+            Object.assign(this, defaultProps);
+            if (props) {
+                Object.assign(this, props);
+            }
+        }
+    } as unknown as StrictComponentClass<Props, [Partial<Props>?]>;
+
+    Object.defineProperty(ComponentClass, 'name', {
+        value: name,
+        writable: false,
+        configurable: true,
+    });
+
+    return ComponentClass;
+}
 
 /**
  * Deep clone a component object, properly handling edge cases that JSON.parse(JSON.stringify())

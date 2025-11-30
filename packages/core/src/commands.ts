@@ -244,9 +244,9 @@ export class SpawnEntityBuilder {
     /**
      * Add a component to the entity.
      *
-     * @typeParam C - The component class type (inferred from the type parameter)
+     * @typeParam T - The component type
      * @param type - Component class/constructor
-     * @param args - Arguments to pass to the component constructor (type-safe)
+     * @param args - Arguments to pass to the component constructor
      * @returns This builder for method chaining
      *
      * @example
@@ -257,7 +257,10 @@ export class SpawnEntityBuilder {
      *   .with(Health, 100, 100);
      * ```
      */
-    with<C extends ComponentIdentifier>(type: C, ...args: ConstructorParameters<C>): this {
+    with<T>(
+        type: ComponentIdentifier<T>,
+        ...args: ConstructorParameters<ComponentIdentifier<T>>
+    ): this {
         this.spawnCommand.components.push({ type, args });
         return this;
     }
@@ -346,12 +349,15 @@ export class EntityCommandBuilder {
     /**
      * Queue adding a component to this entity.
      *
-     * @typeParam C - The component class type (inferred from the type parameter)
+     * @typeParam T - The component type
      * @param type - Component class/constructor
-     * @param args - Arguments to pass to the component constructor (type-safe)
+     * @param args - Arguments to pass to the component constructor
      * @returns This builder for method chaining
      */
-    addComponent<C extends ComponentIdentifier>(type: C, ...args: ConstructorParameters<C>): this {
+    addComponent<T>(
+        type: ComponentIdentifier<T>,
+        ...args: ConstructorParameters<ComponentIdentifier<T>>
+    ): this {
         this.commandBuffer['addCommand']({
             type: 'add_component',
             entityId: this.entityId,

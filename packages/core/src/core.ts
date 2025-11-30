@@ -642,7 +642,7 @@ export class Query<C extends readonly unknown[] = unknown[]> {
 
                     // Iterate through entities
                     for (let i = 0; i < entities.length; i++) {
-                        const entity = entities[i];
+                        const entity = entities[i]!;
 
                         if (needsTagFiltering) {
                             // Filter by tags
@@ -959,7 +959,10 @@ export class Entity implements EntityDef {
         throw new Error('[ECS] Invalid entity type - expected Entity instance');
     }
 
-    addComponent<C extends ComponentIdentifier>(type: C, ...args: ConstructorParameters<C>): this {
+    addComponent<T>(
+        type: ComponentIdentifier<T>,
+        ...args: ConstructorParameters<typeof type>
+    ): this {
         if (!this._componentIndices.has(type)) {
             const validator = this.componentManager.getValidator(type);
 

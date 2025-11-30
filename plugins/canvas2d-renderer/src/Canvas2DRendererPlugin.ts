@@ -471,11 +471,11 @@ export class Canvas2DRendererPlugin implements EnginePlugin<{ canvas2d: ICanvas2
 
         // Draw mesh
         this.context.beginPath();
-        const firstVertex = mesh.vertices[0];
+        const firstVertex = mesh.vertices[0]!;
         this.context.moveTo(firstVertex.position.x, firstVertex.position.y);
 
         for (let i = 1; i < mesh.vertices.length; i++) {
-            const vertex = mesh.vertices[i];
+            const vertex = mesh.vertices[i]!;
             this.context.lineTo(vertex.position.x, vertex.position.y);
         }
 

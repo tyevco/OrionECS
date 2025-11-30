@@ -1,0 +1,21 @@
+name: Cancel Workflows on Merge
+
+on:
+  pull_request:
+    types: [closed]
+
+jobs:
+  cancel-workflows:
+    name: Cancel Running Workflows
+    runs-on: ubuntu-latest
+    if: github.event.pull_request.merged == true
+    permissions:
+      actions: write
+
+    steps:
+      - name: Cancel in-progress workflow runs
+        uses: styfle/cancel-workflow-action@0.12.1
+        with:
+          workflow_id: ci.yml,pr-checks.yml,pr-validation.yml,benchmark.yml,performance.yml,codeql.yml
+          ignore_sha: true
+          all_but_latest: false

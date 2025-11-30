@@ -265,7 +265,7 @@ export function calculateHistoricalStats(history: PerformanceHistory): {
     const mean = values.reduce((a, b) => a + b, 0) / values.length;
     const variance = values.reduce((sum, v) => sum + Math.pow(v - mean, 2), 0) / values.length;
     const stdDev = Math.sqrt(variance);
-    const latest = values[values.length - 1];
+    const latest = values[values.length - 1]!;
 
     return { min, max, mean, stdDev, latest };
 }

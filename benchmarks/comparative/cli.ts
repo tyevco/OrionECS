@@ -89,8 +89,8 @@ function parseArgs(): CliOptions {
                 break;
             case '--format':
                 i++;
-                if (args[i] && ['json', 'markdown', 'html', 'csv', 'all'].includes(args[i])) {
-                    options.format = args[i] as ReportFormat | 'all';
+                if (args[i] && ['json', 'markdown', 'html', 'csv', 'all'].includes(args[i]!)) {
+                    options.format = args[i]! as ReportFormat | 'all';
                 }
                 break;
             case '--save-history':
@@ -102,19 +102,19 @@ function parseArgs(): CliOptions {
             case '--threshold':
                 i++;
                 if (args[i]) {
-                    options.threshold = parseFloat(args[i]);
+                    options.threshold = parseFloat(args[i]!);
                 }
                 break;
             case '--compare-baseline':
                 i++;
                 if (args[i]) {
-                    options.compareBaselinePath = path.resolve(process.cwd(), args[i]);
+                    options.compareBaselinePath = path.resolve(process.cwd(), args[i]!);
                 }
                 break;
             case '--current-results':
                 i++;
                 if (args[i]) {
-                    options.currentResultsPath = path.resolve(process.cwd(), args[i]);
+                    options.currentResultsPath = path.resolve(process.cwd(), args[i]!);
                 }
                 break;
             case '--help':

@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/create",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "Create OrionECS projects with a single command",
   "main": "dist/index.js",
   "module": "dist/index.mjs",

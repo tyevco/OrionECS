@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/graphics",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Graphics primitives for OrionECS (Color, Mesh, Vertex)",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

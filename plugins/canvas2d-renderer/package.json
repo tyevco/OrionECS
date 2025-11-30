@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/canvas2d-renderer",
-  "version": "0.4.0",
+  "version": "0.4.1",
   "description": "Canvas2D rendering plugin for OrionECS with camera and sprite support",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

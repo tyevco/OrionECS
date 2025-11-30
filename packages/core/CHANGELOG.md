@@ -1,5 +1,224 @@
 # @orion-ecs/core
 
+## 0.5.0
+
+### Minor Changes
+
+- [#334](https://github.com/tyevco/OrionECS/pull/334) [`72ef221`](https://github.com/tyevco/OrionECS/commit/72ef221be5ee61b7a502952a6a3195ac3a03cfc6) Thanks [@tyevco](https://github.com/tyevco)! - Add tryGetComponent method for null-safe component access
+
+  - Added `tryGetComponent` method to Entity that returns `T | null` instead of throwing
+  - Refactored `getComponent` to use `tryGetComponent` internally for cleaner code
+  - Enables safer component access patterns without needing hasComponent checks
+
+- [#335](https://github.com/tyevco/OrionECS/pull/335) [`ef5f33a`](https://github.com/tyevco/OrionECS/commit/ef5f33adf6fd6a0fffa82cd5c4bbb7803b2c6b59) Thanks [@tyevco](https://github.com/tyevco)! - Add stricter component type utilities for improved type safety
+
+  - Add `StrictComponentClass<T, Args>` type that captures both instance type and constructor arguments
+  - Add `InferStrictComponentClass<C>` utility type to infer strict component types from constructors
+  - Improve documentation for `ComponentIdentifier` explaining the type safety model and why `any[]` is used
+  - Enhance `ComponentArgs<T>` documentation with usage examples
+
+  These new types provide an opt-in stricter alternative for cases where compile-time validation of constructor arguments is needed at the definition site rather than just at call sites.
+
+- [#332](https://github.com/tyevco/OrionECS/pull/332) [`50ea9fa`](https://github.com/tyevco/OrionECS/commit/50ea9fa9b831066f1dc2a47c63f5064b6942d60c) Thanks [@tyevco](https://github.com/tyevco)! - Add entityCount getter for efficient entity counting
+
+  New `engine.entityCount` getter provides O(1) access to the number of active entities without creating an intermediate array. More efficient than `engine.getAllEntities().length` for performance-sensitive code.
+
+- [#321](https://github.com/tyevco/OrionECS/pull/321) [`9c8c4f3`](https://github.com/tyevco/OrionECS/commit/9c8c4f3e8f09c453e64b974b793aa73804e35e13) Thanks [@tyevco](https://github.com/tyevco)! - Add error recovery and resilience system for fault-tolerant ECS execution
+
+  **New Features:**
+
+  - `ErrorRecoveryManager` for system error isolation and recovery
+  - Multiple recovery strategies: `skip`, `retry`, `disable`, `fallback`, `ignore`
+  - Circuit breaker pattern to prevent cascading failures
+  - Health monitoring with `healthy`, `degraded`, `unhealthy`, `disabled` states
+  - Error collection and reporting for production services (Sentry, Rollbar, etc.)
+  - Per-system error configuration via `SystemOptions.errorConfig`
+
+  **New EngineBuilder Method:**
+
+  - `withErrorRecovery(config?)` - Enable error recovery with optional configuration
+
+  **New Engine Methods:**
+
+  - `isErrorRecoveryEnabled()` - Check if error recovery is enabled
+  - `getSystemHealth(name)` - Get health status of a specific system
+  - `getAllSystemHealth()` - Get health of all systems
+  - `getEngineHealth()` - Get overall engine health status
+  - `getErrorHistory()` - Get collected errors
+  - `clearErrorHistory()` - Clear error history
+  - `generateErrorReport()` - Generate comprehensive error report
+  - `resetSystem(name)` - Reset system to healthy state
+  - `resetAllSystems()` - Reset all systems
+
+  **New Types:**
+
+  - `RecoveryStrategy`, `ErrorSeverity`, `CircuitBreakerState`
+  - `SystemError`, `SystemHealth`, `SystemErrorConfig`
+  - `ErrorRecoveryConfig`, `CircuitBreakerConfig`
+  - `EngineHealthEvent`, `ErrorReport`
+
+  **Usage Example:**
+
+  ```typescript
+  const engine = new EngineBuilder()
+    .withErrorRecovery({
+      defaultStrategy: "skip",
+      circuitBreaker: {
+        failureThreshold: 3,
+        resetTimeout: 10000,
+      },
+      onError: (error) => {
+        Sentry.captureException(error.error);
+      },
+    })
+    .build();
+  ```
+
+- [#354](https://github.com/tyevco/OrionECS/pull/354) [`10914c6`](https://github.com/tyevco/OrionECS/commit/10914c686591f945a718f220923bc204c414df20) Thanks [@tyevco](https://github.com/tyevco)! - Add multiple log providers support for flexible log destinations
+
+  This update introduces a provider-based logging architecture that allows developers to direct log output to multiple destinations simultaneously.
+
+  **New Types in @orion-ecs/plugin-api:**
+
+  - `LogProvider` interface for creating custom log destinations
+  - `LogEntry` type containing structured log information (level, args, tag, timestamp)
+
+  Plugin authors can now implement custom log providers with only the lightweight plugin-api dependency.
+
+  **New Features in @orion-ecs/core:**
+
+  - `ConsoleLogProvider` - built-in provider for console output (default)
+  - `MemoryLogProvider` - built-in provider for capturing logs in memory (great for testing)
+  - `EngineBuilder.withLogProvider()` - method for registering log providers during engine configuration
+
+  **Usage Examples:**
+
+  ```typescript
+  // Memory-only logging for tests (no console output)
+  const memoryLog = new MemoryLogProvider();
+  const engine = new EngineBuilder().withLogProvider(memoryLog).build();
+
+  // Assert on captured logs
+  expect(memoryLog.getByLevel("error")).toHaveLength(0);
+  expect(memoryLog.search("entity created")).toHaveLength(1);
+
+  // Multiple providers (console + memory)
+  const engine = new EngineBuilder()
+    .withLogProvider(new ConsoleLogProvider())
+    .withLogProvider(memoryLog)
+    .build();
+
+  // Custom provider for remote logging
+  const remoteProvider: LogProvider = {
+    write(entry) {
+      if (entry.level === "error") {
+        sendToErrorTracking(entry);
+      }
+    },
+  };
+  ```
+
+  **Backward Compatibility:**
+
+  - Existing code continues to work without changes
+  - If no providers are configured, `ConsoleLogProvider` is used by default
+  - The `Logger` interface remains unchanged
+
+- [#320](https://github.com/tyevco/OrionECS/pull/320) [`af89973`](https://github.com/tyevco/OrionECS/commit/af89973cd0264abec0faf2c1b7dc4de2f66e9fb4) Thanks [@tyevco](https://github.com/tyevco)! - Add automated performance regression testing system
+
+  New Features:
+
+  - Regression detection algorithm comparing benchmark results against stored baselines
+  - Configurable performance budgets with thresholds for each benchmark
+  - GitHub Actions workflow for automated testing on every PR
+  - CLI tool for local regression checking (`npm run perf:check`)
+  - Markdown report generation for PR comments
+  - Benchmark categorization (critical/important/standard) with different failure behaviors
+
+  Configuration:
+
+  - `.performance/budgets.json`: Define minimum ops/sec, maximum mean time, and custom thresholds
+  - `.performance/baseline.json`: Stored baseline metrics for comparison
+
+  Commands:
+
+  - `npm run perf:check`: Check for regressions against baseline
+  - `npm run perf:check:verbose`: Detailed regression output
+  - `npm run perf:update-baseline`: Update baseline after releases
+  - `npm run perf:report`: Generate full JSON/Markdown report
+
+  This enables catching performance degradations before they reach production and enforces
+  performance budgets across CI/CD pipelines.
+
+- [#349](https://github.com/tyevco/OrionECS/pull/349) [`09dded1`](https://github.com/tyevco/OrionECS/commit/09dded18893412ed39bcebae37599bfda4f0a497) Thanks [@tyevco](https://github.com/tyevco)! - Add strict TypeScript configuration and defineComponent utility
+
+  **Core Package (minor):**
+
+  - Enable `noUncheckedIndexedAccess`, `noImplicitAny`, and `strictNullChecks` in TypeScript config
+  - Add `defineComponent` utility for defining components with typed properties and defaults
+  - Add ESLint/oxlint configuration for type safety rules
+  - Add comprehensive plugin system integration tests
+
+  **All Packages (patch):**
+
+  - Fix type errors caused by `noUncheckedIndexedAccess` with non-null assertions
+  - Ensure array access is type-safe in iteration loops
+
+  **Breaking Changes:**
+
+  - `noUncheckedIndexedAccess` may require code updates for array access patterns
+
+### Patch Changes
+
+- [#343](https://github.com/tyevco/OrionECS/pull/343) [`2111b0e`](https://github.com/tyevco/OrionECS/commit/2111b0ed0a62856a4f157bf828b28acc71d6fc7a) Thanks [@tyevco](https://github.com/tyevco)! - Add comprehensive JSDoc documentation to all manager classes in managers.ts for improved IDE autocomplete and developer experience
+
+- [#341](https://github.com/tyevco/OrionECS/pull/341) [`bd5500b`](https://github.com/tyevco/OrionECS/commit/bd5500b8456d75c5d9b1bf564f663e765e330cca) Thanks [@tyevco](https://github.com/tyevco)! - Improve type safety for Archetype.forEach callback by adding generic constraints to preserve component types
+
+- [#333](https://github.com/tyevco/OrionECS/pull/333) [`9230211`](https://github.com/tyevco/OrionECS/commit/923021146401400a08411c9f2b9c94dea1fc6462) Thanks [@tyevco](https://github.com/tyevco)! - Add stale index validation during deferred entity removal in archetype iteration to prevent potential memory safety issues when modifications occur during iteration.
+
+- [#336](https://github.com/tyevco/OrionECS/pull/336) [`c0deb63`](https://github.com/tyevco/OrionECS/commit/c0deb63c6aef0552d1d0186e026d3e5bc9773070) Thanks [@tyevco](https://github.com/tyevco)! - Fix EventCallback type to preserve type information using generic constraints
+
+  The EventCallback type now uses `TArgs extends unknown[]` instead of `any[]` for arguments,
+  allowing callers to specify exact argument types while maintaining backward compatibility.
+
+- [#337](https://github.com/tyevco/OrionECS/pull/337) [`eac4071`](https://github.com/tyevco/OrionECS/commit/eac4071e31b7779b5910df5d62845e7c850b5b73) Thanks [@tyevco](https://github.com/tyevco)! - Fix mutable module-level state in MemoryEstimationConfig that was shared across engine instances
+
+  - Convert `MemoryEstimationConfig` from mutable object to immutable interface
+  - Add `DEFAULT_MEMORY_ESTIMATION_CONFIG` as frozen default configuration
+  - Add `createMemoryEstimationConfig()` factory for custom configurations
+  - Add `detectMemoryEnvironment()` for platform-specific auto-detection
+  - Move memory config to ArchetypeManager instance level for proper isolation
+  - Pass memory config from ArchetypeManager to Archetype instances
+
+  This ensures multiple Engine instances can operate independently without sharing global state.
+
+- [#338](https://github.com/tyevco/OrionECS/pull/338) [`85f25f4`](https://github.com/tyevco/OrionECS/commit/85f25f4278689f02fa66faf8cc09dea84414c641) Thanks [@tyevco](https://github.com/tyevco)! - Fix type safety in plugin context methods by returning proper types instead of `any`
+
+  - `createSystem` now returns `System<ComponentTypes<All>>` instead of `any`
+  - `createQuery` now returns `Query<ComponentTypes<All>>` instead of `any`
+  - `getEngine` now returns `Engine` instead of `any`
+
+  This improves TypeScript type inference for plugins using the plugin context API.
+
+- [#344](https://github.com/tyevco/OrionECS/pull/344) [`808831b`](https://github.com/tyevco/OrionECS/commit/808831be9a19048317a2b882437783923cc30610) Thanks [@tyevco](https://github.com/tyevco)! - Internal refactoring of restoreSnapshot method for improved maintainability
+
+- [#342](https://github.com/tyevco/OrionECS/pull/342) [`33d3dc6`](https://github.com/tyevco/OrionECS/commit/33d3dc6852f6b73e5f41cba1f5b44cada0094c47) Thanks [@tyevco](https://github.com/tyevco)! - Improve type safety for ComponentManager heterogeneous storage by updating `getComponentArray<T>` to use `ComponentIdentifier<T>` parameter and adding a new `getPool<T>` method for type-safe pool access
+
+- [#346](https://github.com/tyevco/OrionECS/pull/346) [`136b912`](https://github.com/tyevco/OrionECS/commit/136b9122a3d616abd38c53ae2335f2384f62dbc2) Thanks [@tyevco](https://github.com/tyevco)! - Standardize error message format using EngineLogger consistently
+
+  - Replace direct console.log/warn/error calls with EngineLogger methods
+  - Pass logger to CommandBuffer, ArchetypeManager, MessageBus, and EventEmitter
+  - Add setLogger() method to ComponentManager for archetype operations
+  - Update EngineBuilder to create logger before managers for consistent logging
+  - Fix logger isEnabled() method bug where debug messages were incorrectly filtered by minLevel
+  - Messages now use consistent [ECS] prefix via the logger
+  - Sub-components use tagged loggers (e.g., [Commands], [Archetype]) for easier filtering
+
+- [#339](https://github.com/tyevco/OrionECS/pull/339) [`8b4ac6c`](https://github.com/tyevco/OrionECS/commit/8b4ac6c9a23269c239d28dd7ddf3ebddcdfd526e) Thanks [@tyevco](https://github.com/tyevco)! - Improve type safety in SystemManager by replacing `System<any>[]` with `System<AnySystemTuple>[]` for heterogeneous system storage. This provides better type inference while maintaining flexibility for systems with different component requirements.
+
+- Updated dependencies [[`10914c6`](https://github.com/tyevco/OrionECS/commit/10914c686591f945a718f220923bc204c414df20)]:
+  - @orion-ecs/plugin-api@0.5.0
+
 ## 0.4.0
 
 ### Minor Changes

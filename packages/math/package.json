@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/math",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Mathematical utilities for OrionECS (Vector2, Bounds)",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

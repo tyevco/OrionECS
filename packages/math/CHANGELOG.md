@@ -1,5 +1,27 @@
 # @orion-ecs/math
 
+## 0.3.1
+
+### Patch Changes
+
+- [#349](https://github.com/tyevco/OrionECS/pull/349) [`09dded1`](https://github.com/tyevco/OrionECS/commit/09dded18893412ed39bcebae37599bfda4f0a497) Thanks [@tyevco](https://github.com/tyevco)! - Add strict TypeScript configuration and defineComponent utility
+
+  **Core Package (minor):**
+
+  - Enable `noUncheckedIndexedAccess`, `noImplicitAny`, and `strictNullChecks` in TypeScript config
+  - Add `defineComponent` utility for defining components with typed properties and defaults
+  - Add ESLint/oxlint configuration for type safety rules
+  - Add comprehensive plugin system integration tests
+
+  **All Packages (patch):**
+
+  - Fix type errors caused by `noUncheckedIndexedAccess` with non-null assertions
+  - Ensure array access is type-safe in iteration loops
+
+  **Breaking Changes:**
+
+  - `noUncheckedIndexedAccess` may require code updates for array access patterns
+
 ## 0.3.0
 
 ### Major Changes

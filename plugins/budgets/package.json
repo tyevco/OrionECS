@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/budgets",
-  "version": "0.4.0",
+  "version": "0.5.0",
   "description": "Performance budgeting and monitoring plugin for OrionECS with time, memory, and entity count budgets",
   "main": "./dist/index.js",
   "module": "./dist/index.mjs",

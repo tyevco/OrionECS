@@ -2,7 +2,7 @@
   "name": "orion-ecs-vscode",
   "displayName": "OrionECS",
   "description": "VS Code extension for OrionECS - Entity Component System framework with snippets, IntelliSense, and developer tools",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "publisher": "orion-ecs",
   "license": "MIT",
   "engines": {

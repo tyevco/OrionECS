@@ -1,6 +1,6 @@
 {
   "name": "@orion-ecs/eslint-plugin-ecs",
-  "version": "0.0.0",
+  "version": "0.1.0",
   "description": "ESLint rules for enforcing ECS best practices in OrionECS projects",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",

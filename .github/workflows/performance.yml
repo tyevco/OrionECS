@@ -388,5 +388,5 @@ jobs:
         run: |
           gh pr merge ${{ steps.create-pr.outputs.pull-request-number }} \
             --auto \
-            --squash \
+            --rebase \
             --delete-branch

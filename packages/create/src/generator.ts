@@ -79,7 +79,9 @@ export async function createProject(config: ProjectConfig): Promise<boolean> {
             } catch {
                 console.log(pc.yellow('  ⚠') + pc.dim(' Failed to install dependencies'));
                 console.log(
-                    pc.dim(`    Run "${config.packageManager} install" manually to install dependencies`)
+                    pc.dim(
+                        `    Run "${config.packageManager} install" manually to install dependencies`
+                    )
                 );
             }
         }

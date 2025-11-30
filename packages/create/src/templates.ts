@@ -113,7 +113,11 @@ export const templates: Record<TemplateType, TemplateInfo> = {
 /**
  * Get all template options for prompts
  */
-export function getTemplateChoices(): Array<{ title: string; value: TemplateType; description: string }> {
+export function getTemplateChoices(): Array<{
+    title: string;
+    value: TemplateType;
+    description: string;
+}> {
     return Object.values(templates).map((template) => ({
         title: template.name,
         value: template.id,

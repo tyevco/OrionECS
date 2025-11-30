@@ -1,3 +1,5 @@
+#!/bin/bash
+
 # Check for changeset requirement before pushing
 # This helps catch missing changesets before CI runs
 
@@ -5,10 +7,23 @@
 remote="$1"
 url="$2"
 
+# Skip check in CI environment (changeset action handles its own validation)
+if [ -n "$CI" ]; then
+    exit 0
+fi
+
 # Only check when pushing to origin (not forks or other remotes)
 if [[ "$url" != *"tyevco/OrionECS"* ]] && [[ "$remote" != "origin" ]]; then
     exit 0
 fi
+
+# Skip check for changeset-release branches (these are created by the release workflow
+# after changesets have already been consumed and versions bumped)
+while read local_ref local_sha remote_ref remote_sha; do
+    if [[ "$remote_ref" == *"changeset-release/"* ]]; then
+        exit 0
+    fi
+done
 
 # Determine the base branch to compare against
 # Default to origin/main, but could be customized
